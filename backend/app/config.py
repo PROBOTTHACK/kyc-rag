@@ -48,7 +48,8 @@ class Settings(BaseSettings):
     CORPUS_MANIFEST: Path = Path("data/raw_pdfs/manifest.yaml")
     # Tesseract for PyMuPDF OCR (resolution order in app/ingestion/ocr.py).
     # TESSERACT_CMD: the tesseract executable; None = PATH, then the standard install location.
-    # TESSDATA_DIR: language data; None = the `tessdata` folder next to TESSERACT_CMD.
+    # TESSDATA_DIR: language data; None = `tessdata` next to the executable, else the
+    # directory the executable reports (Linux packages keep it under /usr/share).
     TESSERACT_CMD: Path | None = None
     TESSDATA_DIR: Path | None = None
     # --- Tracing ---

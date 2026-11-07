@@ -5,11 +5,14 @@ directory; the `tesseract` executable is used to locate that directory and to re
 the installed version. Resolution order:
 
     executable: TESSERACT_CMD -> `tesseract` on PATH -> standard install location
-    tessdata:   TESSDATA_DIR  -> `tessdata/` next to the executable
+    tessdata:   TESSDATA_DIR  -> `tessdata/` next to the executable (Windows installer)
+                -> the directory the executable reports (`--list-langs`; Linux packages
+                   keep it elsewhere, e.g. /usr/share/tesseract-ocr/5/tessdata)
 
 An explicitly configured path that does not exist is an error, never a silent fallback.
 """
 
+import re
 import shutil
 import subprocess  # noqa: S404 - runs only the configured tesseract binary, no shell
 import sys
@@ -19,7 +22,7 @@ from pathlib import Path
 from app.config import Settings
 
 REQUIRED_LANGUAGES: tuple[str, ...] = ("eng",)
-VERSION_TIMEOUT_S = 10.0
+TESSERACT_TIMEOUT_S = 10.0
 
 
 def _standard_locations() -> tuple[Path, ...]:
@@ -60,11 +63,39 @@ def find_tesseract_cmd(settings: Settings) -> Path:
     )
 
 
+def _run_tesseract(cmd: Path, arg: str) -> str:
+    try:
+        out = subprocess.run(  # noqa: S603 - fixed argv, configured binary, no shell
+            [str(cmd), arg],
+            capture_output=True,
+            text=True,
+            timeout=TESSERACT_TIMEOUT_S,
+            check=True,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise OcrSetupError(f"cannot run {cmd} {arg}: {type(exc).__name__}") from exc
+    return out.stdout or out.stderr
+
+
+def reported_tessdata(cmd: Path) -> Path | None:
+    """Directory the executable itself uses, from `List of ... languages in "<dir>"`."""
+    match = re.search(r'languages in "([^"]+)"', _run_tesseract(cmd, "--list-langs"))
+    return Path(match.group(1)) if match else None
+
+
 def resolve_tessdata(settings: Settings, cmd: Path) -> Path:
-    tessdata = (
-        settings.TESSDATA_DIR if settings.TESSDATA_DIR is not None else cmd.parent / "tessdata"
-    )
-    source = "TESSDATA_DIR" if settings.TESSDATA_DIR is not None else f"tessdata next to {cmd}"
+    if settings.TESSDATA_DIR is not None:
+        tessdata, source = settings.TESSDATA_DIR, "TESSDATA_DIR"
+    elif (cmd.parent / "tessdata").is_dir():
+        tessdata, source = cmd.parent / "tessdata", f"tessdata next to {cmd}"
+    else:
+        reported = reported_tessdata(cmd)
+        if reported is None:
+            raise OcrSetupError(
+                f"Tesseract language data not found next to {cmd} and {cmd} did not report "
+                "a tessdata directory; set TESSDATA_DIR"
+            )
+        tessdata, source = reported, f"reported by {cmd} --list-langs"
     if not tessdata.is_dir():
         raise OcrSetupError(f"Tesseract language data not found ({source}): {tessdata}")
     missing = [
@@ -80,17 +111,7 @@ def installed_languages(tessdata: Path) -> tuple[str, ...]:
 
 
 def tesseract_version(cmd: Path) -> str:
-    try:
-        out = subprocess.run(  # noqa: S603 - fixed argv, configured binary, no shell
-            [str(cmd), "--version"],
-            capture_output=True,
-            text=True,
-            timeout=VERSION_TIMEOUT_S,
-            check=True,
-        )
-    except (OSError, subprocess.SubprocessError) as exc:
-        raise OcrSetupError(f"cannot run {cmd} --version: {type(exc).__name__}") from exc
-    first = (out.stdout or out.stderr).strip().splitlines()
+    first = _run_tesseract(cmd, "--version").strip().splitlines()
     return first[0] if first else "unknown"
 
 

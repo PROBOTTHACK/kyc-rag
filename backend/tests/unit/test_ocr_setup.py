@@ -84,6 +84,47 @@ def test_explicit_tessdata_dir_wins(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     assert resolve_tessdata(s, cmd) == other
 
 
+def linux_layout(root: Path) -> tuple[Path, Path]:
+    """Debian-style install: binary in usr/bin, data in usr/share/tesseract-ocr/5/tessdata."""
+    cmd = root / "usr" / "bin" / "tesseract"
+    cmd.parent.mkdir(parents=True)
+    cmd.write_bytes(b"synthetic")
+    data = root / "usr" / "share" / "tesseract-ocr" / "5" / "tessdata"
+    data.mkdir(parents=True)
+    (data / "eng.traineddata").write_bytes(b"synthetic")
+    return cmd, data
+
+
+def test_tessdata_reported_by_executable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    cmd, data = linux_layout(tmp_path)
+    listing = f'List of available languages in "{data.as_posix()}/" (1):\neng\n'
+    monkeypatch.setattr(ocr, "_run_tesseract", lambda _cmd, arg: listing)
+    s = settings(monkeypatch, TESSERACT_CMD=str(cmd))
+    assert resolve_tessdata(s, cmd) == data
+
+
+def test_executable_reporting_nothing_asks_for_tessdata_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cmd, _ = linux_layout(tmp_path)
+    monkeypatch.setattr(ocr, "_run_tesseract", lambda _cmd, arg: "unexpected output")
+    with pytest.raises(OcrSetupError, match="set TESSDATA_DIR"):
+        resolve_tessdata(settings(monkeypatch, TESSERACT_CMD=str(cmd)), cmd)
+
+
+def test_explicit_tessdata_dir_skips_probing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cmd, data = linux_layout(tmp_path)
+
+    def boom(_cmd: Path, arg: str) -> str:
+        raise AssertionError("must not run tesseract when TESSDATA_DIR is set")
+
+    monkeypatch.setattr(ocr, "_run_tesseract", boom)
+    s = settings(monkeypatch, TESSERACT_CMD=str(cmd), TESSDATA_DIR=str(data))
+    assert resolve_tessdata(s, cmd) == data
+
+
 def test_missing_english_data_is_an_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     cmd = fake_install(tmp_path, langs=("osd",))
     with pytest.raises(OcrSetupError, match=r"missing Tesseract language data \['eng'\]"):
