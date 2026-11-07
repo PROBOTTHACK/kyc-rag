@@ -1,0 +1,203 @@
+<div align="center">
+
+# Agentic KYC Compliance Engine
+
+**An evidence-grounded, multimodal RAG system that turns KYC policies and account-opening forms into verified, citation-backed compliance checklists.**
+
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![LangGraph](https://img.shields.io/badge/LangGraph-orchestration-1C3C3C)
+![React](https://img.shields.io/badge/React-Vite-61DAFB?logo=react&logoColor=black)
+![Qdrant](https://img.shields.io/badge/Qdrant-vector%20search-DC244C)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)
+![Status](https://img.shields.io/badge/status-in%20development-orange)
+
+</div>
+
+> **Disclaimer:** This is an independent portfolio prototype built on authorized or illustrative documents. It is **not** an official HDFC Bank product, does not approve or reject real applications, and does not replace a bank's compliance team.
+
+---
+
+## Why this exists
+
+KYC requirements change with the customer category. An individual, an LLP and a private limited company each need different documents, declarations and authorizations. A typical document chatbot retrieves a paragraph about KYC and gives a generic answer, with no way to tell which parts are supported, conditional or simply invented.
+
+This project connects five things that a chatbot treats separately:
+
+1. The customer / entity type
+2. The applicable regulatory provisions
+3. The bank's documented requirements
+4. The account-opening form
+5. The evidence behind every checklist item
+
+Its guiding rule: **a polished but wrong checklist is worse than an incomplete one that is honest about its uncertainty.** The system knows when it cannot answer.
+
+## Key features
+
+| | Capability | What it does |
+|---|---|---|
+| 🧭 | **Intelligent intake** | Extracts entity type, account type and facts into a validated schema. Never guesses missing values. Pauses and resumes the workflow to ask targeted questions. |
+| 📚 | **Policy intelligence** | Structure-aware PDF ingestion (sections, tables, page references, OCR fallback) into a metadata-filtered vector store. |
+| 🖼️ | **Multimodal form analysis** | A vision-capable model extracts fields, checkboxes, signature blocks, declarations and annexures into validated, versioned JSON. |
+| 🔎 | **Hybrid retrieval** | Entity-aware metadata filtering, dense embeddings and BM25, fused with Reciprocal Rank Fusion. |
+| ✅ | **Compliance synthesis** | Requirements labelled **Mandatory / Conditional / Optional / Undetermined**, each with an explanation, source document and page. |
+| 🛡️ | **Claim-level verification** | Atomic claim extraction, evidence matching, NLI entailment and rule checks. Unsupported claims are regenerated or removed. |
+| 🔒 | **Security guardrails** | Prompt-injection detection, untrusted-evidence handling, output validation and least-privilege agent tools. |
+| 👩‍⚖️ | **Human-in-the-loop review** | Conflicts and low-confidence items become review cases that a person approves, rejects or leaves unresolved, with a recorded reason. |
+| 📈 | **Observability** | Node-level traces, latency, retries and verification outcomes, in LangSmith and in an in-app view. |
+
+## How it works
+
+```mermaid
+flowchart TD
+  U[User] --> FE[React UI]
+  FE --> API[FastAPI]
+  API --> SEC[Input Security]
+  SEC -- unsafe --> REF[Refusal]
+  SEC -- safe --> INT[Entity Intake]
+  INT -- missing info --> CLR[Ask clarification] --> INT
+  INT -- complete --> RET[Hybrid Policy Retrieval]
+  RET --> FORM{Form analysis needed?}
+  FORM -- yes --> GEM[Multimodal Form Analysis]
+  FORM -- no --> SYN
+  GEM --> SYN[Compliance Synthesis]
+  SYN --> VER[Claim Extraction + NLI Verification]
+  VER -- supported --> OUT[Output Validation]
+  VER -- unsupported --> RL{Retries left?}
+  RL -- yes --> SYN
+  RL -- no --> OUT
+  VER -- contradicted --> HR[Human Review]
+  OUT --> REP[Cited Compliance Report]
+  HR --> REP
+```
+
+The workflow is a single **LangGraph state machine**, not a swarm of free-running agents. Execution is predictable, checkpointed, debuggable and testable. Every loop has a hard limit.
+
+### Verification: what makes it different
+
+```
+Evidence : "Designated partners must be verified."
+Claim    : "Every employee of the LLP must submit identity documents."
+Verdict  : NEUTRAL (not supported by evidence)  ->  removed or regenerated
+```
+
+NLI alone is not treated as truth. Final confidence combines entailment, retrieval relevance, evidence coverage, source applicability and deterministic rule checks. Anything still unresolved goes to a human.
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React, Vite, Tailwind CSS |
+| Backend | Python, FastAPI, Pydantic v2, SQLAlchemy, Alembic |
+| Orchestration | LangGraph with Postgres checkpointing |
+| LLMs | Groq-hosted open models (reasoning), Gemini (multimodal forms), behind a provider-agnostic interface |
+| Retrieval | Qdrant, BGE-small embeddings, BM25, RRF |
+| Verification | DeBERTa-v3 NLI (runs locally) |
+| Security | Prompt Guard 2 plus deterministic validation |
+| Data | PostgreSQL (state, reports, claims, rules), Redis (cache, rate limits, pub/sub, queue) |
+| Observability | LangSmith |
+| PDF processing | PyMuPDF, Tesseract OCR fallback |
+
+Everything runs locally through Docker and fits on free tiers for a public demo. Details in [`docs/02-tech-stack-free-tier.md`](docs/02-tech-stack-free-tier.md).
+
+## Getting started
+
+**Prerequisites:** Docker, Python 3.11+, GNU Make, Node 18+, and free API keys for Groq, Google AI Studio and (optionally) LangSmith. On Windows, install Make with `winget install ezwinports.make`.
+
+```bash
+# 1. Clone and configure
+git clone <your-repo-url> && cd agentic-kyc-compliance-engine
+cp infra/.env.example .env          # add your API keys (.env overrides infra/.env.example)
+make venv install                   # .venv + backend with dev tools
+
+# 2. Start Postgres (host port 5433), Redis and Qdrant
+make up
+
+# 3. Prepare the database and ingest your documents
+make migrate
+# place authorized / public PDFs under data/raw_pdfs/{regulatory,policy,forms,reference}/ (see docs/14-source-corpus.md)
+make ingest                         # available from Milestone 1
+
+# 4. Run the backend and frontend
+make api                            # http://localhost:8000/docs, health at /api/v1/health
+make web                            # http://localhost:5173 (from Milestone 5)
+```
+
+Other targets: `make test` (unit), `make test-integration` (needs `make up`), `make lint`, `make fmt`, `make down`.
+
+> Postgres is mapped to host port **5433** so it doesn't clash with a native Postgres install on 5432.
+
+> Use only public, authorized or synthetic documents. Check each external API's data-use terms before uploading anything confidential.
+
+## Project structure
+
+```
+backend/app/
+  api/v1/          REST + SSE endpoints
+  graph/           LangGraph state, routing, nodes
+  ingestion/       policy and form pipelines
+  retrieval/       embeddings, Qdrant, BM25, fusion
+  verification/    claim extraction, NLI, scoring
+  security/        guardrails and validators
+  rules/           deterministic applicability rules
+  llm/             provider interface + Groq / Gemini adapters
+frontend/          React dashboard (5 screens + review queue)
+data/eval/         benchmark datasets
+eval/              metrics and ablation runners
+infra/             docker-compose and env template
+docs/              full specification
+```
+
+## Evaluation
+
+Quality is measured, not assumed. The plan includes a 50-case benchmark (expanding to 100+) covering entity-specific questions, missing information, classification, prompt injection, contradictory claims and form interpretation.
+
+**Metrics:** Recall@5 · citation precision · unsupported-claim rate · claim-verification precision/recall · entity-classification accuracy · form-extraction accuracy · security attack success rate · latency and token usage.
+
+**Ablations:** plain RAG -> + metadata filtering -> + hybrid retrieval -> + claim-level NLI -> full pipeline. The full pipeline is not assumed to win; the benchmark decides.
+
+Results will be published in this repository when available.
+
+## Security and privacy
+
+- Retrieved document text is **untrusted evidence**, never instructions
+- Agent tools are read-only; no code execution, file access or arbitrary network calls
+- Upload type and size limits, private file storage, per-session rate limits
+- Synthetic customer data only; no secrets or PII in logs or traces
+
+## Limitations
+
+This system does **not** approve or reject applications, verify identity against government databases, validate real PAN/Aadhaar records, make legal or regulatory decisions, guarantee compliance, or access any bank's internal systems. Output is decision support that requires human review.
+
+## Roadmap
+
+- [ ] Document ingestion and retrieval foundation
+- [ ] Hybrid retrieval and multimodal form extraction
+- [ ] End-to-end LangGraph workflow
+- [ ] Claim verification, security and human review
+- [ ] Dashboard frontend
+- [ ] Evaluation benchmark and observability
+- [ ] Deployment and demo
+
+## Documentation
+
+| Topic | File |
+|---|---|
+| Overview and scope | [`docs/00-project-overview.md`](docs/00-project-overview.md) |
+| Architecture | [`docs/01-architecture.md`](docs/01-architecture.md) |
+| Tech stack and free-tier plan | [`docs/02-tech-stack-free-tier.md`](docs/02-tech-stack-free-tier.md) |
+| LangGraph design | [`docs/03-langgraph-design.md`](docs/03-langgraph-design.md) |
+| Ingestion pipelines | [`docs/04-ingestion-pipelines.md`](docs/04-ingestion-pipelines.md) |
+| Source corpus and data layout | [`docs/14-source-corpus.md`](docs/14-source-corpus.md) |
+| Rules and verification | [`docs/05-rules-and-verification.md`](docs/05-rules-and-verification.md) |
+| Security | [`docs/06-security-guardrails.md`](docs/06-security-guardrails.md) |
+| API design | [`docs/07-api-design.md`](docs/07-api-design.md) |
+| Data model | [`docs/08-data-model.md`](docs/08-data-model.md) |
+| Frontend | [`docs/09-frontend-spec.md`](docs/09-frontend-spec.md) |
+| Evaluation | [`docs/10-evaluation-plan.md`](docs/10-evaluation-plan.md) |
+| Observability and reliability | [`docs/11-observability-and-reliability.md`](docs/11-observability-and-reliability.md) |
+
+## License
+
+Add a license of your choice (MIT is common for portfolio projects).

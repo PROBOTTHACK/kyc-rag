@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: kyc
+      POSTGRES_PASSWORD: kyc_dev_password
+      POSTGRES_DB: kyc
+    ports: ["5433:5432"]   # host 5433: avoids clashing with a native Postgres on 5432
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kyc"]
+      interval: 5s
+      retries: 10
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+  qdrant:
+    image: qdrant/qdrant:v1.20.0   # pinned; keep in step with qdrant-client in backend/pyproject.toml
+    ports: ["6333:6333", "6334:6334"]
+    volumes: [qdrantdata:/qdrant/storage]
+volumes:
+  pgdata:
+  qdrantdata:

@@ -1,0 +1,28 @@
+# Secrets
+.env
+.env.*
+!infra/.env.example
+
+# Source PDFs are not redistributed; commit manifest.yaml only (docs/14)
+data/raw_pdfs/**/*.pdf
+data/processed/*
+!data/processed/.gitkeep
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Frontend
+node_modules/
+frontend/dist/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
