@@ -3,18 +3,22 @@
 Ingestion must be independently executable: `python -m app.ingestion.cli run --path data/raw_pdfs` (also via queue + `POST /ingestion/run`). Idempotent by file SHA-256.
 
 ## Step 0 — Classify documents
-For each source PDF record: filename, hash, category (`policy` | `regulatory` | `form` | `annexure` | `reference`), source authority (null until verified), entity types covered, quality (text/scanned/mixed). **Inspect real PDFs first.**
+For each source PDF record (in `data/raw_pdfs/manifest.yaml`; schema and vocabularies in docs/15): document_key, file, sha256, `document_type` (`policy` | `regulatory` | `form` | `annexure` | `reference`), `source_authority` (null until verified) and `attribution_basis`, `source_status`, entity types covered, residency. Quality (text/scanned/mixed) is measured at ingestion. **Inspect real PDFs first.**
 
 ## Pipeline A — Policy & regulatory documents
 PDF validation -> PyMuPDF extraction (text, page numbers, metadata, layout) -> text-quality check -> (poor/scanned -> OCR fallback) -> section & table extraction -> semantic chunking -> metadata assignment -> BGE embeddings -> Qdrant upsert + Postgres chunk rows (source of truth; BM25 index is rebuilt from them).
 
 **Chunking rules:** don't cut blindly at N chars. A chunk should hold heading + complete statement + conditions + exceptions + source metadata. Use parent–child chunking when a requirement spans paragraphs (retrieve child, supply parent to synthesis). Keep page number on every chunk.
 
-**Chunk metadata:**
+**Chunk metadata** (= Qdrant payload; authoritative schema `ChunkMetadata` in `app/schemas/corpus.py`, illustrative values):
 ```json
-{"document_id":"doc_001","document_name":"...","bank":"HDFC","document_type":"policy",
- "source_authority":null,"entity_types":["LLP"],"section":"...","page_number":12,
- "effective_from":null,"effective_until":null,"version":"1.0","content":"..."}
+{"chunk_id":"<uuid>","document_id":"<uuid>","document_key":"rbi_kyc_directions_2025",
+ "document_name":"...","file":"regulatory/169MD.pdf","bank":"RBI","document_type":"regulatory",
+ "source_status":"active","evidence_eligibility":"primary","source_authority":"RBI",
+ "version":"Updated as on October 1, 2026","effective_from":null,"effective_until":null,
+ "entity_types":["COMPANY"],"residency_statuses":["RESIDENT","NRI","PIO"],
+ "section":"Chapter VI > C. CDD Measures for Legal Entities","page_number":37,"page_end":null,
+ "chunk_index":0,"parent_chunk_id":null,"extraction_method":"text","content":"..."}
 ```
 Never invent dates or authority; unknown = `null`.
 

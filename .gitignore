@@ -7,6 +7,8 @@
 data/raw_pdfs/**/*.pdf
 data/processed/*
 !data/processed/.gitkeep
+# Reviewed corpus inspection report only (M1); all other processing output stays ignored.
+!data/processed/corpus_report.md
 
 # Python
 .venv/

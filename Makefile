@@ -9,7 +9,7 @@ endif
 COMPOSE := docker compose -f infra/docker-compose.yml
 BACKEND := backend
 
-.PHONY: venv install up down migrate ingest api test test-integration lint fmt eval web
+.PHONY: venv install install-locked lock up down migrate ingest api test test-integration lint fmt eval web
 
 venv:
 	python -m venv .venv
@@ -17,6 +17,17 @@ venv:
 install:
 	$(PY) -m pip install --upgrade pip
 	$(PY) -m pip install -e "$(BACKEND)[dev]"
+
+# Reproduce the tested environment exactly (backend/requirements.lock), then the project.
+install-locked:
+	$(PY) -m pip install -r $(BACKEND)/requirements.lock
+	$(PY) -m pip install --no-deps -e "$(BACKEND)[dev]"
+
+# Refresh the lockfile after a dependency change has passed `make test lint`.
+# Keeps the header comment block; replaces the pinned list.
+lock:
+	$(PY) -c "import pathlib; p=pathlib.Path('$(BACKEND)/requirements.lock'); p.write_text(''.join(l for l in p.read_text().splitlines(True) if l.startswith('#')), newline='')"
+	$(PY) -m pip freeze --exclude-editable >> $(BACKEND)/requirements.lock
 
 up:
 	$(COMPOSE) up -d --wait

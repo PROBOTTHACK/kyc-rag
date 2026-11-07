@@ -16,7 +16,7 @@ A stateful LangGraph workflow that: validates and guards input -> identifies ent
 2. Policy intelligence & document understanding (two ingestion pipelines)
 3. Multimodal form intelligence (fields, checkboxes, signatures, declarations, annexures -> validated JSON)
 4. Agentic policy retrieval (metadata filter + dense + keyword + RRF [+ rerank])
-5. Compliance synthesis (MANDATORY / CONDITIONAL / OPTIONAL / UNDETERMINED)
+5. Compliance synthesis (MANDATORY / CONDITIONAL / OPTIONAL / UNCLEAR)
 6. Hallucination & evidence verification (claim extraction -> evidence match -> NLI -> confidence -> routing)
 7. Security & guardrails (input, document, output)
 8. Observability & tracing (LangSmith + in-app observability screen)

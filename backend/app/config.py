@@ -43,6 +43,14 @@ class Settings(BaseSettings):
     # --- Local models ---
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     NLI_MODEL: str | None = None
+    # --- Corpus / ingestion (relative paths resolve against the repo root) ---
+    CORPUS_DIR: Path = Path("data/raw_pdfs")
+    CORPUS_MANIFEST: Path = Path("data/raw_pdfs/manifest.yaml")
+    # Tesseract for PyMuPDF OCR (resolution order in app/ingestion/ocr.py).
+    # TESSERACT_CMD: the tesseract executable; None = PATH, then the standard install location.
+    # TESSDATA_DIR: language data; None = the `tessdata` folder next to TESSERACT_CMD.
+    TESSERACT_CMD: Path | None = None
+    TESSDATA_DIR: Path | None = None
     # --- Tracing ---
     LANGSMITH_TRACING: bool = False
     LANGSMITH_API_KEY: SecretStr | None = None
@@ -65,6 +73,8 @@ class Settings(BaseSettings):
         "PROMPT_GUARD_MODEL",
         "MULTIMODAL_MODEL",
         "NLI_MODEL",
+        "TESSERACT_CMD",
+        "TESSDATA_DIR",
         mode="before",
     )
     @classmethod
@@ -73,6 +83,14 @@ class Settings(BaseSettings):
         if isinstance(v, str) and not v.strip():
             return None
         return v
+
+    @field_validator("CORPUS_DIR", "CORPUS_MANIFEST", "TESSERACT_CMD", "TESSDATA_DIR")
+    @classmethod
+    def _repo_relative(cls, v: Path | None) -> Path | None:
+        # Same rule as M0's env files: paths work from any working directory.
+        if v is None or v.is_absolute():
+            return v
+        return REPO_ROOT / v
 
 
 @lru_cache

@@ -1,0 +1,208 @@
+# Source corpus manifest (docs/14). Schema: app/schemas/corpus.py::DocumentMetadata.
+# Validate: python -m app.ingestion.cli validate-manifest   (run in backend/)
+#
+# Rules
+# - Every value was checked against the PDF (data/processed/corpus_report.md). Unknown = null.
+# - document_key is the logical identity; sha256 pins the exact file content. If a file's
+#   bytes change, ingestion flags it for review. It never marks the old file superseded.
+# - `version` holds edition text or a form print code exactly as printed. It is never a date.
+# - entity_types = customer legal forms the document NAMES explicitly (docs/15). Generic text
+#   ('legal entity', 'customer') adds nothing here. Residency is a separate axis.
+# - evidence_eligibility is derived from document_type + source_status (not set here).
+# - Forms are `unknown`: they show what a form requests, never a current regulatory obligation.
+# - bank = target-bank/project context (RBI corpus vs HDFC corpus), not necessarily the publisher;
+#   the publisher is source_authority (null unless verified) and attribution_basis says how.
+
+- document_key: rbi_kyc_directions_2025
+  file: regulatory/169MD.pdf
+  sha256: a2f5e724f1a21282fddd03e2bae1306eeef34663c953b9e111f8d12bf6bfdbdb
+  bank: RBI
+  document_type: regulatory
+  source_authority: RBI
+  attribution_basis: document_text
+  title: "Reserve Bank of India (Commercial Banks – Know Your Customer) Directions, 2025"
+  version: "Updated as on October 1, 2026"
+  issue_date: 2025-11-28            # p1: RBI/DOR/2025-26/169, DOR.AML.REC.No.88/14.01.002/2025-26
+  effective_from: null              # ¶2: effective on placement on the RBI website; date not stated
+  effective_until: null
+  source_status: active
+  status_reason: null
+  supersedes: []                    # ¶80 repeal list (DOR.RRC.REC.302/33-01-010/2025-26) not in corpus
+  entity_types: [INDIVIDUAL, SOLE_PROPRIETORSHIP, COMPANY, PARTNERSHIP, TRUST, SOCIETY, UNINCORPORATED_ASSOCIATION, OTHER_JURIDICAL_PERSON]
+  residency_statuses: [RESIDENT, NRI, PIO]
+  coverage_notes:
+    - "No LLP-specific CDD paragraph; 'Limited Liability Partnership' appears only in Annex I (p82) and Annex II (p96). LLP requirements: UNCLEAR/CONDITIONAL."
+    - "HUF appears only in the definitions (p9); no HUF-specific CDD paragraph."
+    - "Dormant/inoperative accounts are not mentioned."
+    - "Amendments are footnoted inline (w.e.f. 2025-12-29, 2026-09-18, 2026-10-01)."
+  notes: "Applies to commercial banks (¶3). Physical page = printed page (p1 unnumbered)."
+
+- document_key: rbi_kyc_faqs
+  file: regulatory/rbi_kyc_faqs_2025-06-09.pdf
+  sha256: a0532fbb8b096053ba1cec6b5ac83393f59fa3f034e6c5f68f623b51e4baa001
+  bank: RBI
+  document_type: regulatory
+  source_authority: RBI
+  attribution_basis: document_text
+  title: "FAQs on Master Direction on KYC dated February 25, 2016"
+  version: "June 9, 2025"
+  issue_date: 2025-06-09            # date printed under the title
+  effective_from: null
+  effective_until: null
+  source_status: dated
+  status_reason: "Interprets the 2016 Master Direction and predates the 2025 Directions; the 2025 Directions prevail on any difference. Not marked superseded: the ¶80 repeal list is not in the corpus."
+  supersedes: []
+  entity_types: [INDIVIDUAL, SOLE_PROPRIETORSHIP]
+  residency_statuses: [RESIDENT, NRI, PIO]
+  coverage_notes:
+    - "Legal entities are mentioned only generically ('Legal Entity customers', Q21 V-CIP scope), so no specific legal form is listed."
+    - "Cites 2016 MD paragraph numbers, which differ from the 2025 Directions' numbering."
+    - "Only RBI source on inoperative-account reactivation (Q36-37)."
+  notes: null
+
+- document_key: hdfc_kyc_aml_faq
+  file: policy/hdfc_kyc_norms_aml.pdf
+  sha256: 3ee6834f65604c4b22ea310545b96f4689e6c77544d6e73b891ab54c70b7e931
+  bank: HDFC
+  document_type: policy
+  source_authority: null            # the text never names HDFC
+  attribution_basis: filename_only
+  title: "Frequently Asked Questions on KYC Norms and Anti Money Laundering"
+  version: null
+  issue_date: null
+  effective_from: null
+  effective_until: null
+  source_status: dated
+  status_reason: "States it is based on an RBI circular dated 29/11/2004; several document lists conflict with the 2025 Directions."
+  supersedes: []
+  entity_types: [INDIVIDUAL, COMPANY, PARTNERSHIP, TRUST]
+  residency_statuses: []
+  coverage_notes:
+    - "Document table is indicative only ('not an exhaustive list')."
+  notes: "PDF metadata: created 2008-08-12 from 'Tutorial KYC.doc'."
+
+- document_key: hdfc_non_individual_account_opening
+  file: forms/hdfc_non_individual_account_opening.pdf
+  sha256: 647610f40ea7c0524de66d22f8bac0a9f0c745f0cd6d8d39ab048465a89b6a8f
+  bank: HDFC
+  document_type: form
+  source_authority: HDFC
+  attribution_basis: document_visual
+  title: "Account Opening Form for Sole Proprietor/HUF/Trust/Firm/Corporate"
+  version: "92713/07.01.2015"       # print code read visually from the scan; confirm after OCR
+  issue_date: null
+  effective_from: null
+  effective_until: null
+  source_status: unknown
+  status_reason: "Form copy with print code dated 2015 (read visually); whether HDFC still uses this version cannot be verified from the corpus."
+  supersedes: []
+  entity_types: [SOLE_PROPRIETORSHIP, PARTNERSHIP, LLP, COMPANY, HUF, TRUST, SOCIETY, UNINCORPORATED_ASSOCIATION, OTHER_JURIDICAL_PERSON]
+  residency_statuses: []
+  coverage_notes:
+    - "Lists entity types and captures fields; contains no list of required KYC documents."
+  notes: "Scanned (~100 dpi). Fold-out: physical p1 = printed pages 4 and 1; physical p2 = printed pages 2 and 3."
+
+- document_key: hdfc_nri_account_opening
+  file: forms/hdfc_nri_nre_nro_account_opening.pdf
+  sha256: 189e57a3a24fa34e75613d1300d70fafbd0e8529bc9ec896c40d1a228dae5636
+  bank: HDFC
+  document_type: form
+  source_authority: HDFC
+  attribution_basis: document_text
+  title: "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers"
+  version: null                     # PDF metadata title has 'J3520'; not printed on the pages
+  issue_date: null
+  effective_from: null
+  effective_until: null
+  source_status: unknown
+  status_reason: "Form copy (PDF created 2019); no printed edition date, and current validity cannot be verified from the corpus."
+  supersedes: []
+  entity_types: [INDIVIDUAL]
+  residency_statuses: [NRI, PIO]
+  coverage_notes: []
+  notes: "PDF metadata title: HDFC-Corp-Account-Cum-Term-Form-J3520."
+
+- document_key: hdfc_nri_rekyc
+  file: forms/hdfc_nri_rekyc.pdf
+  sha256: fbf2abdcede6d44a23f4ad543d55be6d0a6586961bb49ab608d3d08670730e61
+  bank: HDFC
+  document_type: form
+  source_authority: HDFC
+  attribution_basis: document_visual
+  title: "NRI Customer Updation Form for Re-KYC"
+  version: "93316/05.08.2020"       # print code read visually from the scan; confirm after OCR
+  issue_date: null
+  effective_from: null
+  effective_until: null
+  source_status: unknown
+  status_reason: "Form copy with print code dated 2020 (read visually); current validity cannot be verified from the corpus."
+  supersedes: []
+  entity_types: [INDIVIDUAL]
+  residency_statuses: [NRI, PIO]
+  coverage_notes:
+    - "p3: acceptable identity/address document list for non-resident individuals (image-only; needs OCR)."
+  notes: "Scanned (~150 dpi)."
+
+- document_key: hdfc_resident_rekyc_dormant
+  file: forms/hdfc_resident_rekyc_dormant.pdf
+  sha256: d3927dabf8545830202be72e1d0cb6672e0de6c3430d12ab8332c7afa42f7906
+  bank: HDFC
+  document_type: form
+  source_authority: HDFC
+  attribution_basis: document_text
+  title: "Re-KYC and Dormant Activation form for Resident Individuals"
+  version: "93317/03.02.2021"
+  issue_date: null
+  effective_from: null
+  effective_until: null
+  source_status: unknown
+  status_reason: "Form copy with print code 93317/03.02.2021; current validity cannot be verified from the corpus."
+  supersedes: []
+  entity_types: [INDIVIDUAL]
+  residency_statuses: [RESIDENT]
+  coverage_notes:
+    - "Dormant activation: form states branch visit is mandatory. This is form text, not RBI support: UNCLEAR/CONDITIONAL."
+  notes: null
+
+- document_key: hdfc_resident_to_nro_conversion
+  file: forms/hdfc_resident_to_nro_conversion.pdf
+  sha256: 682c52ddd25853701feb7d08878a6857b09612c5a4469acc8d7f424d2e3001a9
+  bank: HDFC
+  document_type: form
+  source_authority: HDFC
+  attribution_basis: document_text
+  title: "Resident Account to NRO Account Conversion Form for Non Resident - Individual Customers"
+  version: null                     # PDF metadata title has 'J2493-A1934'; not printed on the pages
+  issue_date: null
+  effective_from: null
+  effective_until: null
+  source_status: unknown
+  status_reason: "Form copy (PDF created 2018); no printed edition date, and current validity cannot be verified from the corpus."
+  supersedes: []
+  entity_types: [INDIVIDUAL]
+  residency_statuses: [NRI, PIO]
+  coverage_notes:
+    - "No explicit document checklist for conversion."
+    - "About 49% of its prose lines also appear in hdfc_nri_account_opening."
+  notes: "PDF metadata title: HDFC-NRO-Account-Resident-account-to-Form-J2493-A1934."
+
+- document_key: hdfc_netbanking_corporate_application
+  file: reference/hdfc_netbanking_company_application.pdf
+  sha256: fee23ba9ffc749bf349a52632bb05d7c26eea96854d1c2fe12aaa448f21a7fc8
+  bank: HDFC
+  document_type: reference
+  source_authority: HDFC
+  attribution_basis: document_text
+  title: "Application for NetBanking facility for Companies / Trusts / Co-Operative Societies / Association of Persons / Clubs"
+  version: null                     # footer print code 'company-clubDec06'
+  issue_date: null
+  effective_from: null
+  effective_until: null
+  source_status: unknown
+  status_reason: "Application form copy with footer print code 'company-clubDec06'; current validity cannot be verified from the corpus."
+  supersedes: []
+  entity_types: [COMPANY, TRUST, SOCIETY, UNINCORPORATED_ASSOCIATION]
+  residency_statuses: []
+  coverage_notes:
+    - "No KYC requirements; board-resolution template only. Context-only: excluded from compliance evidence."
+  notes: null

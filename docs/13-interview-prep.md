@@ -12,6 +12,6 @@ Answer each using YOUR implementation decisions and measured results.
 9. How do you prevent infinite agent loops? (max 2 regenerations, step limits, timeouts)
 10. How do you measure hallucination reduction? (ablation A vs D vs E, unsupported-claim rate)
 11. What happens on Groq/Gemini rate limits? (Redis buckets, cache, backoff, fallback, degrade)
-12. What happens when evidence is missing? (UNDETERMINED/Unverified, never fabricated)
+12. What happens when evidence is missing? (UNCLEAR/Unverified, never fabricated)
 13. Why Redis? (rate limits, cache, pub/sub SSE, queue, locks)
 14. How do you keep it free? (local Docker + free tiers, caching, small local models)

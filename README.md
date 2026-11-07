@@ -41,7 +41,7 @@ Its guiding rule: **a polished but wrong checklist is worse than an incomplete o
 | 📚 | **Policy intelligence** | Structure-aware PDF ingestion (sections, tables, page references, OCR fallback) into a metadata-filtered vector store. |
 | 🖼️ | **Multimodal form analysis** | A vision-capable model extracts fields, checkboxes, signature blocks, declarations and annexures into validated, versioned JSON. |
 | 🔎 | **Hybrid retrieval** | Entity-aware metadata filtering, dense embeddings and BM25, fused with Reciprocal Rank Fusion. |
-| ✅ | **Compliance synthesis** | Requirements labelled **Mandatory / Conditional / Optional / Undetermined**, each with an explanation, source document and page. |
+| ✅ | **Compliance synthesis** | Requirements labelled **Mandatory / Conditional / Optional / Unclear**, each with an explanation, source document and page. |
 | 🛡️ | **Claim-level verification** | Atomic claim extraction, evidence matching, NLI entailment and rule checks. Unsupported claims are regenerated or removed. |
 | 🔒 | **Security guardrails** | Prompt-injection detection, untrusted-evidence handling, output validation and least-privilege agent tools. |
 | 👩‍⚖️ | **Human-in-the-loop review** | Conflicts and low-confidence items become review cases that a person approves, rejects or leaves unresolved, with a recorded reason. |
@@ -103,13 +103,14 @@ Everything runs locally through Docker and fits on free tiers for a public demo.
 
 ## Getting started
 
-**Prerequisites:** Docker, Python 3.11+, GNU Make, Node 18+, and free API keys for Groq, Google AI Studio and (optionally) LangSmith. On Windows, install Make with `winget install ezwinports.make`.
+**Prerequisites:** Docker, Python 3.11+, GNU Make, Node 18+, [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) (OCR fallback for scanned pages), and free API keys for Groq, Google AI Studio and (optionally) LangSmith. On Windows, install Make with `winget install ezwinports.make` and Tesseract with `winget install UB-Mannheim.TesseractOCR`. Tesseract is found via `TESSERACT_CMD`, then `PATH`, then the standard install folder (`C:\Program Files\Tesseract-OCR\`), so a default winget install needs no configuration. For a non-standard location, set `TESSERACT_CMD=D:/path/to/tesseract.exe` (and optionally `TESSDATA_DIR`) in a **repo-root `.env`** (create it with `cp infra/.env.example .env`). `.env` is gitignored and machine-specific: never commit it, and never put machine paths in `infra/.env.example`. Verify with `cd backend && ../.venv/Scripts/python -m app.ingestion.cli check-ocr`.
 
 ```bash
 # 1. Clone and configure
 git clone <your-repo-url> && cd agentic-kyc-compliance-engine
 cp infra/.env.example .env          # add your API keys (.env overrides infra/.env.example)
 make venv install                   # .venv + backend with dev tools
+#   or: make venv install-locked     # exact tested versions (backend/requirements.lock)
 
 # 2. Start Postgres (host port 5433), Redis and Qdrant
 make up
@@ -117,6 +118,8 @@ make up
 # 3. Prepare the database and ingest your documents
 make migrate
 # place authorized / public PDFs under data/raw_pdfs/{regulatory,policy,forms,reference}/ (see docs/14-source-corpus.md)
+# check them against data/raw_pdfs/manifest.yaml (files, SHA-256, metadata rules):
+cd backend && ../.venv/Scripts/python -m app.ingestion.cli validate-manifest && cd ..
 make ingest                         # available from Milestone 1
 
 # 4. Run the backend and frontend
@@ -190,6 +193,7 @@ This system does **not** approve or reject applications, verify identity against
 | LangGraph design | [`docs/03-langgraph-design.md`](docs/03-langgraph-design.md) |
 | Ingestion pipelines | [`docs/04-ingestion-pipelines.md`](docs/04-ingestion-pipelines.md) |
 | Source corpus and data layout | [`docs/14-source-corpus.md`](docs/14-source-corpus.md) |
+| Canonical vocabularies (entity types, statuses, eligibility) | [`docs/15-taxonomy.md`](docs/15-taxonomy.md) |
 | Rules and verification | [`docs/05-rules-and-verification.md`](docs/05-rules-and-verification.md) |
 | Security | [`docs/06-security-guardrails.md`](docs/06-security-guardrails.md) |
 | API design | [`docs/07-api-design.md`](docs/07-api-design.md) |
@@ -200,4 +204,6 @@ This system does **not** approve or reject applications, verify identity against
 
 ## License
 
-Add a license of your choice (MIT is common for portfolio projects).
+No license has been chosen for this repository yet.
+
+**Third-party licence notice.** PDF extraction uses [PyMuPDF](https://pymupdf.readthedocs.io/) (with `pymupdf4llm`), which is licensed under the **GNU AGPL-3.0** or a commercial licence from Artifex. Whatever licence you pick for this project's own code, distributing it together with PyMuPDF, or running it as a network service, triggers AGPL-3.0 obligations (offering the corresponding source), unless you buy a commercial licence. Details and the other dependency licences are in [`docs/02-tech-stack-free-tier.md`](docs/02-tech-stack-free-tier.md#dependency-pins-and-licences).
