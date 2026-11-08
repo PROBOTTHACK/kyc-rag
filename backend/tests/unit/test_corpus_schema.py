@@ -11,6 +11,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.db.corpus import (
+    CHUNK_JSON_PAYLOAD_FIELDS,
     CHUNK_PAYLOAD_RENAMES,
     DOCUMENT_LEVEL_PAYLOAD_FIELDS,
     chunk_row,
@@ -21,15 +22,20 @@ from app.schemas.corpus import (
     QDRANT_KEYWORD_INDEXES,
     ChunkMetadata,
     DocumentMetadata,
+    FootnoteRef,
     chunk_id,
     derive_evidence_eligibility,
     document_row_id,
 )
 from app.schemas.taxonomy import (
+    ChunkingProfile,
+    ChunkRole,
+    ContentKind,
     DocumentType,
     EntityType,
     EvidenceEligibility,
     ExtractionMethod,
+    PageStatus,
     SourceStatus,
 )
 
@@ -201,21 +207,36 @@ def test_qdrant_payload_is_json_and_indexable() -> None:
     assert set(QDRANT_KEYWORD_INDEXES) <= payload.keys()
 
 
+# Every key of the Qdrant payload: declared fields plus computed ones.
+PAYLOAD_FIELDS = set(ChunkMetadata.model_fields) | set(ChunkMetadata.model_computed_fields)
+
+
 # --- manifest / Postgres / Qdrant consistency --------------------------------
 
 
 def test_every_payload_field_has_a_postgres_home() -> None:
     chunk_cols = set(Chunk.__table__.columns.keys())
     doc_cols = set(Document.__table__.columns.keys())
-    for key in ChunkMetadata.model_fields:
+    for key in PAYLOAD_FIELDS:
         if key in DOCUMENT_LEVEL_PAYLOAD_FIELDS:
             assert DOCUMENT_LEVEL_PAYLOAD_FIELDS[key] in doc_cols, key
+        elif key in CHUNK_JSON_PAYLOAD_FIELDS:
+            assert key not in chunk_cols, key  # exactly one home: chunks.metadata
         else:
             assert CHUNK_PAYLOAD_RENAMES.get(key, key) in chunk_cols, key
+    # Every JSON home is a real payload field (no stale names).
+    assert set(CHUNK_JSON_PAYLOAD_FIELDS) <= PAYLOAD_FIELDS
 
 
 # Manifest fields kept in documents.metadata (JSONB) instead of their own column.
-DOCUMENT_METADATA_JSON_FIELDS = {"supersedes", "coverage_notes", "notes"}
+DOCUMENT_METADATA_JSON_FIELDS = {
+    "supersedes",
+    "coverage_notes",
+    "notes",
+    "chunking_profile",
+    "ocr_reliable_min_confidence",
+    "embed_uncertain_ocr",
+}
 
 
 def test_every_manifest_field_has_a_postgres_home() -> None:
@@ -249,11 +270,56 @@ def test_rows_mirror_metadata() -> None:
     for key, col in DOCUMENT_LEVEL_PAYLOAD_FIELDS.items():
         value = getattr(drow, col)
         assert (value.isoformat() if isinstance(value, date) else value) == payload[key], key
-    for key in ChunkMetadata.model_fields:
+    for key in PAYLOAD_FIELDS:
         if key in DOCUMENT_LEVEL_PAYLOAD_FIELDS:
+            continue
+        if key in CHUNK_JSON_PAYLOAD_FIELDS:
+            assert crow.metadata_[key] == payload[key], key
             continue
         value = getattr(crow, CHUNK_PAYLOAD_RENAMES.get(key, key))
         assert (str(value) if key.endswith("_id") and value else value) == payload[key], key
+    assert drow.metadata_["chunking_profile"] == "rbi_directions"  # default for regulatory
     # Shared document-level columns agree across both tables.
     for col in ("bank", "document_type", "source_status", "evidence_eligibility", "document_key"):
         assert getattr(drow, col) == getattr(crow, col), col
+
+
+def test_chunk_provenance_fields_and_extras() -> None:
+    d = doc()
+    c = make_chunk(
+        d,
+        paragraph="33",
+        region="left",
+        content_kind=ContentKind.TABLE_ROW,
+        page_status=PageStatus.OCR_LOW_CONFIDENCE,
+        ocr_confidence=0.6,
+        chunk_role=ChunkRole.CHILD,
+        footnotes=[FootnoteRef(marker="1", text="Inserted w.e.f. 2026-09-18.", page_number=3)],
+    )
+    payload = c.to_qdrant_payload()
+    assert payload["footnotes"] == [
+        {"marker": "1", "text": "Inserted w.e.f. 2026-09-18.", "page_number": 3}
+    ]
+    assert payload["page_status"] == "ocr_low_confidence" and payload["chunk_role"] == "child"
+    raw = "Synthetic\npassage."
+    excluded = [{"text": "~~", "page_number": 3, "region": "left", "confidence": 21.0}]
+    row = chunk_row(c, extras={"raw_text": raw, "excluded_lines": excluded})
+    # Stage E: raw text is its own column; other Postgres-only extras stay in metadata.
+    assert row.raw_text == raw and "raw_text" not in row.metadata_
+    assert row.metadata_["excluded_lines"] == excluded
+    assert row.metadata_["region"] == "left"
+    assert (row.chunk_role, row.text_reliability) == ("child", "native")
+    assert row.embedding_eligible is True and row.can_support_mandatory is True
+    with pytest.raises(ValueError, match="may not overwrite"):
+        chunk_row(c, extras={"region": "right"})
+    with pytest.raises(ValueError, match="may not overwrite"):
+        chunk_row(c, extras={"chunk_role": "parent"})
+    with pytest.raises(ValidationError):
+        make_chunk(d, ocr_confidence=1.5)
+
+
+def test_chunking_profile_default_and_explicit() -> None:
+    assert doc().effective_chunking_profile is ChunkingProfile.RBI_DIRECTIONS
+    assert doc(chunking_profile="rbi_faq").effective_chunking_profile is ChunkingProfile.RBI_FAQ
+    with pytest.raises(ValidationError):
+        doc(chunking_profile="free_text")

@@ -62,5 +62,36 @@ Rule: when `source_authority` is known it must equal `bank`. The corpus is restr
 - Consequences: a new edition is **never** silently overwritten, merged or assumed to supersede the old one. Re-ingesting identical bytes is idempotent (same row and chunk ids). Changed bytes stop validation until a person records the relationship.
 - To add a new edition today: give it its own `document_key`, mark the old entry `superseded` with a `status_reason`, and list it in the new entry's `supersedes`. True multi-version history under one key needs a later migration that relaxes the unique constraint.
 
+## Chunking vocabularies (Stage C)
+| Field | Values |
+|---|---|
+| `chunking_profile` (manifest) | `rbi_directions`, `rbi_faq`, `question_headings`, `form` (default by `document_type` when unset) |
+| `chunk_role` | `single` and `child` (embedded, indexed), `parent` (full long paragraph; Postgres only) |
+| `content_kind` | `paragraph`, `preamble`, `qa`, `table_row`, `form_text`, `form_fields` |
+| `region` | `left` / `right` half of a fold-out page; null = whole page |
+
+| `text_reliability` | `native` (PDF text layer), `ocr_reliable`, `ocr_uncertain` |
+| `embedding_eligible` | `false` for parents and for OCR text a document's policy excludes; else `true` |
+| `can_support_mandatory` | derived: `evidence_eligibility = primary` **and** `text_reliability != ocr_uncertain` |
+
+## OCR evidence policy (Stage C)
+Three separate questions, never merged:
+1. **Preservation.** All OCR output is kept: the raw recognition result (OCR cache, processed page), each chunk's `raw_text`, and the lines left out of its content (`excluded_lines`, with confidence). Nothing is overwritten or discarded.
+2. **Embedding eligibility.** Parents are never embedded. Uncertain OCR chunks are embedded by default, so a question about, for example, an HUF declaration can still find them; set `OCR_EMBED_UNCERTAIN=false` or a manifest entry's `embed_uncertain_ocr: false` to keep them out of the vector index.
+3. **Evidence.** Uncertain OCR text can never back a MANDATORY requirement (`can_support_mandatory = false`), whatever the document's eligibility. Downstream retrieval and verification must check `text_reliability` and `can_support_mandatory`, not only `evidence_eligibility`.
+
+`ocr_reliable` requires **both**: every page the chunk spans has status `ok` (Stage B page mean word confidence ≥ 70), **and** the chunk's own mean line confidence ≥ `OCR_RELIABLE_MIN_CONFIDENCE` (default 0.80; a manifest entry may set `ocr_reliable_min_confidence`). The 0.80 default is a setting, not a universal truth. It was chosen from the measured corpus, and per-document overrides exist for when a source needs a different bar:
+
+| Document / page | Page status | Chunk confidence | Result |
+|---|---|---|---|
+| NRI re-KYC p3 (acceptable-document list) | ok (0.93) | 0.92–0.96 | `ocr_reliable` |
+| NRI re-KYC p2 (address change, notes) | ok (0.78) | 0.84–0.85 | `ocr_reliable` |
+| NRI re-KYC p1 (field labels) | ok (0.75) | 0.78 | `ocr_uncertain` |
+| Non-individual fold-out p1–p2 | `ocr_low_confidence` (0.60–0.64) | 0.55–0.83 | `ocr_uncertain` (page flagged) |
+
+In this corpus no OCR chunk can support MANDATORY in any case: both scanned documents are forms (`supporting`). The policy still matters, for any future scanned regulatory text and for ranking and display.
+
 ## Other vocabularies
-`bank`: RBI | HDFC · `document_type`: regulatory | policy | form | annexure | reference · `attribution_basis`: document_text | document_visual | filename_only (a `source_authority` cannot be set from a filename) · `version_review_status`: not_required | needs_review | confirmed · `ingestion_status`: pending | processing | completed | partial | failed · `quality`: text | scanned | mixed · `extraction_method`: text | ocr · page `status`: ok | low_quality | ocr_low_confidence | failed.
+`bank`: RBI | HDFC · `document_type`: regulatory | policy | form | annexure | reference · `attribution_basis`: document_text | document_visual | filename_only (a `source_authority` cannot be set from a filename) · `version_review_status`: not_required | needs_review | confirmed · `ingestion_status` (document and run): pending | processing | completed | partial | failed (`completed` only when every stage succeeded; `partial` = all stages ran but some pages failed and are recorded) · `quality` (derived at ingestion): text (all pages native) | scanned (all read pages OCR) | mixed · `extraction_method`: text | ocr · page `status`: ok | low_quality | ocr_low_confidence | failed · ingestion stage (`ingestion_runs.failed_stage`, Stage E): extraction | ocr | chunking | persistence | embedding | indexing · stage status (`ingestion_runs.stages`): ok | failed | skipped.
+
+Postgres enforces the chunk vocabularies above (`chunk_role`, `text_reliability`) with CHECKs since migration `0002_m1_persistence`. It also enforces the cross-field rules: exactly the children have a parent, parents are never embedding-eligible, `text` extraction ⇔ `native`, and the `can_support_mandatory` rule.

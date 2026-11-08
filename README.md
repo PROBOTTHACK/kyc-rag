@@ -120,7 +120,14 @@ make migrate
 # place authorized / public PDFs under data/raw_pdfs/{regulatory,policy,forms,reference}/ (see docs/14-source-corpus.md)
 # check them against data/raw_pdfs/manifest.yaml (files, SHA-256, metadata rules):
 cd backend && ../.venv/Scripts/python -m app.ingestion.cli validate-manifest && cd ..
-make ingest                         # available from Milestone 1
+# extract, chunk, store every chunk in Postgres, then embed (BGE-small, ~135 MB download
+# on first run) and index the eligible chunks into Qdrant from the stored rows:
+cd backend && ../.venv/Scripts/python -m app.ingestion.cli ingest && cd ..
+# compare Postgres and Qdrant (read-only; add --repair to re-index from Postgres):
+cd backend && ../.venv/Scripts/python -m app.ingestion.cli reconcile && cd ..
+# recorded ingestion attempts, with the failing stage and error:
+cd backend && ../.venv/Scripts/python -m app.ingestion.cli runs --failed && cd ..
+make ingest                         # wired to `ingest` in M1 Stage F
 
 # 4. Run the backend and frontend
 make api                            # http://localhost:8000/docs, health at /api/v1/health

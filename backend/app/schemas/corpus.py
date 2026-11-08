@@ -20,14 +20,20 @@ from pydantic import (
 )
 
 from app.schemas.taxonomy import (
+    DEFAULT_CHUNKING_PROFILE,
     AttributionBasis,
     Bank,
+    ChunkingProfile,
+    ChunkRole,
+    ContentKind,
     DocumentType,
     EntityType,
     EvidenceEligibility,
     ExtractionMethod,
+    PageStatus,
     ResidencyStatus,
     SourceStatus,
+    TextReliability,
     VersionReviewStatus,
 )
 
@@ -38,7 +44,8 @@ Sha256 = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
 DocumentKey = Annotated[str, StringConstraints(pattern=r"^[a-z0-9]+(_[a-z0-9]+)*$", max_length=80)]
 NonEmptyText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
-# Qdrant payload fields that get a keyword index (docs/08 list + status/eligibility/residency).
+# Qdrant payload fields that get a keyword index (docs/08 list + status, eligibility,
+# residency, OCR reliability and chunk shape).
 QDRANT_KEYWORD_INDEXES: tuple[str, ...] = (
     "document_id",
     "document_key",
@@ -48,7 +55,12 @@ QDRANT_KEYWORD_INDEXES: tuple[str, ...] = (
     "evidence_eligibility",
     "entity_types",
     "residency_statuses",
+    "text_reliability",
+    "content_kind",
+    "chunk_role",
 )
+# Boolean payload indexes: retrieval for compliance claims filters on this.
+QDRANT_BOOL_INDEXES: tuple[str, ...] = ("can_support_mandatory",)
 
 
 def derive_evidence_eligibility(
@@ -107,11 +119,20 @@ class DocumentMetadata(BaseModel):
     residency_statuses: list[ResidencyStatus] = Field(default_factory=list)  # [] = not specified
     coverage_notes: list[str] = Field(default_factory=list)
     notes: str | None = None
+    chunking_profile: ChunkingProfile | None = None  # None = default for document_type
+    # OCR evidence policy overrides (None = settings OCR_RELIABLE_MIN_CONFIDENCE /
+    # OCR_EMBED_UNCERTAIN). Only meaningful for documents with scanned pages.
+    ocr_reliable_min_confidence: float | None = Field(default=None, ge=0, le=1)
+    embed_uncertain_ocr: bool | None = None
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def evidence_eligibility(self) -> EvidenceEligibility:
         return derive_evidence_eligibility(self.document_type, self.source_status)
+
+    @property
+    def effective_chunking_profile(self) -> ChunkingProfile:
+        return self.chunking_profile or DEFAULT_CHUNKING_PROFILE[self.document_type]
 
     @field_validator("file")
     @classmethod
@@ -155,6 +176,16 @@ class DocumentMetadata(BaseModel):
         return document_row_id(self.sha256)
 
 
+class FootnoteRef(BaseModel):
+    """An amendment/footnote cited by a chunk, kept apart from the chunk's body text."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    marker: str
+    text: NonEmptyText
+    page_number: int = Field(ge=1)
+
+
 class ChunkMetadata(BaseModel):
     """Chunk metadata = Qdrant payload. Document-level fields mirror `DocumentMetadata`."""
 
@@ -182,6 +213,29 @@ class ChunkMetadata(BaseModel):
     parent_chunk_id: str | None = None
     extraction_method: ExtractionMethod
     content: NonEmptyText
+    # Provenance and quality (stored in chunks.metadata in Postgres).
+    paragraph: str | None = None  # e.g. "33", "Q22", "Annex – I 2", "Row 2.0"
+    region: str | None = None  # "left"/"right" half of a fold-out page; None = whole page
+    printed_page: int | None = None  # printed page label when reliably known
+    content_kind: ContentKind = ContentKind.PARAGRAPH
+    page_status: PageStatus = PageStatus.OK  # worst status of the pages the chunk spans
+    ocr_confidence: float | None = Field(default=None, ge=0, le=1)  # OCR chunks only
+    chunk_role: ChunkRole = ChunkRole.SINGLE
+    footnotes: list[FootnoteRef] = Field(default_factory=list)
+    # Child chunks: the parent paragraph's lead and any open lead ("... that:") the
+    # child continues. Not part of `content`; the full text is the parent chunk.
+    context: str | None = None
+    text_reliability: TextReliability = TextReliability.NATIVE
+    embedding_eligible: bool = True  # False for parents and policy-excluded OCR text
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def can_support_mandatory(self) -> bool:
+        """Only primary-source text that is not uncertain OCR may back a MANDATORY item."""
+        return (
+            self.evidence_eligibility is EvidenceEligibility.PRIMARY
+            and self.text_reliability is not TextReliability.OCR_UNCERTAIN
+        )
 
     @model_validator(mode="after")
     def _page_range(self) -> Self:
@@ -202,6 +256,17 @@ class ChunkMetadata(BaseModel):
         page_end: int | None = None,
         parent_chunk_id: str | None = None,
         entity_types: list[EntityType] | None = None,
+        paragraph: str | None = None,
+        region: str | None = None,
+        printed_page: int | None = None,
+        content_kind: ContentKind = ContentKind.PARAGRAPH,
+        page_status: PageStatus = PageStatus.OK,
+        ocr_confidence: float | None = None,
+        chunk_role: ChunkRole = ChunkRole.SINGLE,
+        footnotes: list[FootnoteRef] | None = None,
+        context: str | None = None,
+        text_reliability: TextReliability = TextReliability.NATIVE,
+        embedding_eligible: bool = True,
     ) -> "ChunkMetadata":
         """Build a chunk whose document-level fields are copied from `doc`.
 
@@ -234,6 +299,17 @@ class ChunkMetadata(BaseModel):
             parent_chunk_id=parent_chunk_id,
             extraction_method=extraction_method,
             content=content,
+            paragraph=paragraph,
+            region=region,
+            printed_page=printed_page,
+            content_kind=content_kind,
+            page_status=page_status,
+            ocr_confidence=ocr_confidence,
+            chunk_role=chunk_role,
+            footnotes=list(footnotes or []),
+            context=context,
+            text_reliability=text_reliability,
+            embedding_eligible=embedding_eligible,
         )
 
     def to_qdrant_payload(self) -> dict[str, object]:

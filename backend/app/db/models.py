@@ -10,6 +10,7 @@ from enum import StrEnum
 from typing import Any
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -29,15 +30,18 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from app.schemas.taxonomy import (
     AttributionBasis,
     Bank,
+    ChunkRole,
     DocumentQuality,
     DocumentType,
     EntityType,
     EvidenceEligibility,
     ExtractionMethod,
+    IngestionStage,
     IngestionStatus,
     PageStatus,
     ResidencyStatus,
     SourceStatus,
+    TextReliability,
     VersionReviewStatus,
 )
 
@@ -171,6 +175,11 @@ class DocumentPage(Base):
     image_coverage: Mapped[float | None] = mapped_column(Float)
     ocr_confidence: Mapped[float | None] = mapped_column(Float)
     error: Mapped[str | None] = mapped_column(Text)
+    # Stage A/B page record: removed-line counts, page label, OCR regions with printed
+    # page numbers and confidences (`ProcessedPage.metadata()`, cache flags excluded).
+    metadata_: Mapped[dict[str, Any]] = mapped_column(
+        "metadata", JSONB, nullable=False, server_default=text("'{}'::jsonb")
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -198,7 +207,13 @@ class DocumentPage(Base):
 
 
 class Chunk(Base):
-    """Retrievable passage. Mirrors the Qdrant payload (docs/08) for keyword search."""
+    """Every chunk of a document: single, parent and child (Postgres = source of truth).
+
+    Mirrors the Qdrant payload (docs/08) for keyword search. Parents are stored here only
+    (never embedded). A child must reference a parent of the same document; that FK is
+    checked at commit and has no ON DELETE action, so deleting a parent that still has
+    children fails instead of orphaning them.
+    """
 
     __tablename__ = "chunks"
 
@@ -220,26 +235,41 @@ class Chunk(Base):
         ARRAY(Text), nullable=False, server_default=text("'{}'::text[]")
     )
     extraction_method: Mapped[str] = mapped_column(Text, nullable=False)
-    content: Mapped[str] = mapped_column(Text, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)  # normalised text
     content_sha256: Mapped[str] = mapped_column(Text, nullable=False)
-    parent_chunk_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("chunks.id", ondelete="SET NULL")
-    )
+    raw_text: Mapped[str | None] = mapped_column(Text)  # source lines before normalisation
+    parent_chunk_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    chunk_role: Mapped[str] = mapped_column(Text, nullable=False)
+    text_reliability: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding_eligible: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    can_support_mandatory: Mapped[bool] = mapped_column(Boolean, nullable=False)
     metadata_: Mapped[dict[str, Any]] = mapped_column(
         "metadata", JSONB, nullable=False, server_default=text("'{}'::jsonb")
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
     __table_args__ = (
         UniqueConstraint("document_id", "chunk_index", name="uq_chunks_document_chunk_index"),
+        UniqueConstraint("document_id", "id", name="uq_chunks_document_id_id"),
         # Provenance: a chunk's start page must be a recorded page of its document.
         ForeignKeyConstraint(
             ["document_id", "page_number"],
             ["document_pages.document_id", "document_pages.page_number"],
             name="fk_chunks_document_page",
             ondelete="CASCADE",
+        ),
+        # A child's parent exists and belongs to the same document (checked at commit).
+        ForeignKeyConstraint(
+            ["document_id", "parent_chunk_id"],
+            ["chunks.document_id", "chunks.id"],
+            name="fk_chunks_parent_same_document",
+            deferrable=True,
+            initially="DEFERRED",
         ),
         CheckConstraint(_in("bank", Bank), name="ck_chunks_bank"),
         CheckConstraint(_in("document_type", DocumentType), name="ck_chunks_document_type"),
@@ -255,14 +285,120 @@ class Chunk(Base):
         CheckConstraint(
             _array_in("residency_statuses", ResidencyStatus), name="ck_chunks_residency"
         ),
+        CheckConstraint(_in("chunk_role", ChunkRole), name="ck_chunks_chunk_role"),
+        CheckConstraint(
+            _in("text_reliability", TextReliability), name="ck_chunks_text_reliability"
+        ),
         CheckConstraint("page_number >= 1", name="ck_chunks_page_number"),
         CheckConstraint("page_end IS NULL OR page_end >= page_number", name="ck_chunks_page_range"),
         CheckConstraint("length(content) > 0", name="ck_chunks_content_nonempty"),
+        # Exactly the children have a parent; parents are never embedded.
+        CheckConstraint(
+            "(chunk_role = 'child') = (parent_chunk_id IS NOT NULL)",
+            name="ck_chunks_child_has_parent",
+        ),
+        CheckConstraint(
+            "chunk_role <> 'parent' OR NOT embedding_eligible",
+            name="ck_chunks_parent_not_embedded",
+        ),
+        CheckConstraint(
+            "parent_chunk_id IS NULL OR parent_chunk_id <> id", name="ck_chunks_not_own_parent"
+        ),
+        CheckConstraint(
+            "(extraction_method = 'text') = (text_reliability = 'native')",
+            name="ck_chunks_reliability_matches_method",
+        ),
+        # Same rule as ChunkMetadata.can_support_mandatory (docs/15).
+        CheckConstraint(
+            "can_support_mandatory = (evidence_eligibility = 'primary' "
+            "AND text_reliability <> 'ocr_uncertain')",
+            name="ck_chunks_can_support_mandatory",
+        ),
         Index("ix_chunks_document_id", "document_id"),
+        Index("ix_chunks_parent_chunk_id", "parent_chunk_id"),
         Index("ix_chunks_bank", "bank"),
         Index("ix_chunks_document_type", "document_type"),
         Index("ix_chunks_source_status", "source_status"),
         Index("ix_chunks_evidence_eligibility", "evidence_eligibility"),
+        Index("ix_chunks_embedding_eligible", "embedding_eligible"),
         Index("ix_chunks_entity_types", "entity_types", postgresql_using="gin"),
         Index("ix_chunks_residency_statuses", "residency_statuses", postgresql_using="gin"),
+    )
+
+
+class DocumentExclusion(Base):
+    """A source line left out of every chunk's content, with the reason
+    (`section_heading`, `table_cell_line`, `duplicate_line`, `noise`, ...).
+
+    Low-confidence OCR lines excluded from a particular chunk are stored on that chunk
+    (`chunks.metadata.excluded_lines`, with confidence); this table holds the
+    document-level exclusions reported by the chunkers.
+    """
+
+    __tablename__ = "document_exclusions"
+
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), primary_key=True
+    )
+    seq: Mapped[int] = mapped_column(Integer, primary_key=True)  # order in the document
+    page_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    region: Mapped[str | None] = mapped_column(Text)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["document_id", "page_number"],
+            ["document_pages.document_id", "document_pages.page_number"],
+            name="fk_document_exclusions_page",
+            ondelete="CASCADE",
+        ),
+        CheckConstraint("seq >= 0", name="ck_document_exclusions_seq"),
+        Index("ix_document_exclusions_reason", "reason"),
+    )
+
+
+class IngestionRun(Base):
+    """One ingestion attempt for one document: per-stage outcome and the error, if any.
+
+    Written in its own short transactions, outside the document's persistence
+    transaction, and with no FK to `documents`: a failed first ingestion, whose
+    document row is rolled back, is still recorded here (by `document_key` + `sha256`).
+    """
+
+    __tablename__ = "ingestion_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    document_key: Mapped[str] = mapped_column(Text, nullable=False)
+    sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    document_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    command: Mapped[str] = mapped_column(Text, nullable=False)  # "ingest", "reconcile"
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    failed_stage: Mapped[str | None] = mapped_column(Text)
+    error: Mapped[str | None] = mapped_column(Text)
+    # {stage: {"status": ok|failed|skipped, "error"?: str, ...counts}}
+    stages: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb")
+    )
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.clock_timestamp()
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint(_in("status", IngestionStatus), name="ck_ingestion_runs_status"),
+        CheckConstraint(
+            _in("failed_stage", IngestionStage, nullable=True),
+            name="ck_ingestion_runs_failed_stage",
+        ),
+        CheckConstraint(
+            "status <> 'failed' OR (failed_stage IS NOT NULL AND error IS NOT NULL)",
+            name="ck_ingestion_runs_failed_has_reason",
+        ),
+        CheckConstraint(
+            "(status = 'processing') = (finished_at IS NULL)", name="ck_ingestion_runs_finished"
+        ),
+        CheckConstraint("sha256 ~ '^[0-9a-f]{64}$'", name="ck_ingestion_runs_sha256"),
+        Index("ix_ingestion_runs_document_key", "document_key", "started_at"),
+        Index("ix_ingestion_runs_status", "status"),
     )

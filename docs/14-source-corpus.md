@@ -59,7 +59,7 @@ The committed manifest is the source of truth (9 entries, verified against the P
   coverage_notes: ["Document table is indicative only ('not an exhaustive list')."]
   notes: "..."
 ```
-Rules: unknown values stay `null`. `evidence_eligibility` is derived, never written. Entity groups such as `LEGAL_ENTITY` and residency values such as `NRI` are not valid `entity_types`. `supersedes` is only ever set explicitly; a changed file hash never supersedes anything by itself.
+Each entry also sets `chunking_profile` (docs/04, docs/15). Rules: unknown values stay `null`. `evidence_eligibility` is derived, never written. Entity groups such as `LEGAL_ENTITY` and residency values such as `NRI` are not valid `entity_types`. `supersedes` is only ever set explicitly; a changed file hash never supersedes anything by itself.
 
 ## Retrieval scope
 - Sources are RBI and HDFC only. Every chunk carries a `bank` field (`RBI` or `HDFC`) so the source hierarchy (RBI > HDFC policy > HDFC forms) can be applied. `bank=HDFC` means the target bank / project context, not a verified publisher; the publisher is `source_authority` (null unless verified), and `attribution_basis` records how it was established (docs/15).

@@ -9,6 +9,8 @@
 # - entity_types = customer legal forms the document NAMES explicitly (docs/15). Generic text
 #   ('legal entity', 'customer') adds nothing here. Residency is a separate axis.
 # - evidence_eligibility is derived from document_type + source_status (not set here).
+# - chunking_profile picks the Stage C chunker (docs/04): rbi_directions | rbi_faq |
+#   question_headings | form.
 # - Forms are `unknown`: they show what a form requests, never a current regulatory obligation.
 # - bank = target-bank/project context (RBI corpus vs HDFC corpus), not necessarily the publisher;
 #   the publisher is source_authority (null unless verified) and attribution_basis says how.
@@ -18,6 +20,7 @@
   sha256: a2f5e724f1a21282fddd03e2bae1306eeef34663c953b9e111f8d12bf6bfdbdb
   bank: RBI
   document_type: regulatory
+  chunking_profile: rbi_directions
   source_authority: RBI
   attribution_basis: document_text
   title: "Reserve Bank of India (Commercial Banks – Know Your Customer) Directions, 2025"
@@ -42,6 +45,7 @@
   sha256: a0532fbb8b096053ba1cec6b5ac83393f59fa3f034e6c5f68f623b51e4baa001
   bank: RBI
   document_type: regulatory
+  chunking_profile: rbi_faq
   source_authority: RBI
   attribution_basis: document_text
   title: "FAQs on Master Direction on KYC dated February 25, 2016"
@@ -65,6 +69,7 @@
   sha256: 3ee6834f65604c4b22ea310545b96f4689e6c77544d6e73b891ab54c70b7e931
   bank: HDFC
   document_type: policy
+  chunking_profile: question_headings
   source_authority: null            # the text never names HDFC
   attribution_basis: filename_only
   title: "Frequently Asked Questions on KYC Norms and Anti Money Laundering"
@@ -86,6 +91,7 @@
   sha256: 647610f40ea7c0524de66d22f8bac0a9f0c745f0cd6d8d39ab048465a89b6a8f
   bank: HDFC
   document_type: form
+  chunking_profile: form
   source_authority: HDFC
   attribution_basis: document_visual
   title: "Account Opening Form for Sole Proprietor/HUF/Trust/Firm/Corporate"
@@ -107,6 +113,7 @@
   sha256: 189e57a3a24fa34e75613d1300d70fafbd0e8529bc9ec896c40d1a228dae5636
   bank: HDFC
   document_type: form
+  chunking_profile: form
   source_authority: HDFC
   attribution_basis: document_text
   title: "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers"
@@ -127,10 +134,11 @@
   sha256: fbf2abdcede6d44a23f4ad543d55be6d0a6586961bb49ab608d3d08670730e61
   bank: HDFC
   document_type: form
+  chunking_profile: form
   source_authority: HDFC
   attribution_basis: document_visual
   title: "NRI Customer Updation Form for Re-KYC"
-  version: "93316/05.08.2020"       # print code read visually from the scan; confirm after OCR
+  version: "93316/05.08.2020"       # print code; confirmed by OCR of p1 (M1 Phase 3, Stage B)
   issue_date: null
   effective_from: null
   effective_until: null
@@ -148,6 +156,7 @@
   sha256: d3927dabf8545830202be72e1d0cb6672e0de6c3430d12ab8332c7afa42f7906
   bank: HDFC
   document_type: form
+  chunking_profile: form
   source_authority: HDFC
   attribution_basis: document_text
   title: "Re-KYC and Dormant Activation form for Resident Individuals"
@@ -169,6 +178,7 @@
   sha256: 682c52ddd25853701feb7d08878a6857b09612c5a4469acc8d7f424d2e3001a9
   bank: HDFC
   document_type: form
+  chunking_profile: form
   source_authority: HDFC
   attribution_basis: document_text
   title: "Resident Account to NRO Account Conversion Form for Non Resident - Individual Customers"
@@ -191,6 +201,7 @@
   sha256: fee23ba9ffc749bf349a52632bb05d7c26eea96854d1c2fe12aaa448f21a7fc8
   bank: HDFC
   document_type: reference
+  chunking_profile: form
   source_authority: HDFC
   attribution_basis: document_text
   title: "Application for NetBanking facility for Companies / Trusts / Co-Operative Societies / Association of Persons / Clubs"

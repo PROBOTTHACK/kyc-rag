@@ -80,6 +80,23 @@ class IngestionStatus(StrEnum):
     FAILED = "failed"
 
 
+class IngestionStage(StrEnum):
+    """Pipeline stages tracked per ingestion run (`ingestion_runs.stages`, docs/04)."""
+
+    EXTRACTION = "extraction"  # Stage A: PDF open + PyMuPDF text/structure
+    OCR = "ocr"  # Stage B: page quality + OCR fallback
+    CHUNKING = "chunking"  # Stage C
+    PERSISTENCE = "persistence"  # Stage E: Postgres transaction
+    EMBEDDING = "embedding"  # Stage D: BGE vectors
+    INDEXING = "indexing"  # Stage D: Qdrant upsert / stale-point deletion
+
+
+class StageStatus(StrEnum):
+    OK = "ok"
+    FAILED = "failed"
+    SKIPPED = "skipped"  # not run because an earlier stage failed
+
+
 class DocumentQuality(StrEnum):
     TEXT = "text"
     SCANNED = "scanned"
@@ -96,6 +113,54 @@ class PageStatus(StrEnum):
     LOW_QUALITY = "low_quality"
     OCR_LOW_CONFIDENCE = "ocr_low_confidence"
     FAILED = "failed"
+
+
+class ChunkingProfile(StrEnum):
+    """How a document is split into chunks (manifest `chunking_profile`, docs/04)."""
+
+    RBI_DIRECTIONS = "rbi_directions"  # bookmarks + numbered paragraphs + footnotes + tables
+    RBI_FAQ = "rbi_faq"  # one question + answer per chunk
+    QUESTION_HEADINGS = "question_headings"  # question headings + two-column table rows
+    FORM = "form"  # headings/declarations/fields; native or OCR per page
+
+
+# Fallback when a manifest entry sets no `chunking_profile`.
+DEFAULT_CHUNKING_PROFILE: dict[DocumentType, ChunkingProfile] = {
+    DocumentType.REGULATORY: ChunkingProfile.RBI_DIRECTIONS,
+    DocumentType.ANNEXURE: ChunkingProfile.RBI_DIRECTIONS,
+    DocumentType.POLICY: ChunkingProfile.QUESTION_HEADINGS,
+    DocumentType.FORM: ChunkingProfile.FORM,
+    DocumentType.REFERENCE: ChunkingProfile.FORM,
+}
+
+
+class ChunkRole(StrEnum):
+    SINGLE = "single"  # embedded and indexed
+    PARENT = "parent"  # full long paragraph; Postgres only, never embedded
+    CHILD = "child"  # part of a parent; embedded and indexed
+
+
+class TextReliability(StrEnum):
+    """How far a chunk's text can be trusted as a reading of the source (Stage C policy).
+
+    OCR text is `ocr_reliable` only if its page status is `ok` AND the chunk's mean line
+    confidence meets the document's threshold (settings `OCR_RELIABLE_MIN_CONFIDENCE`,
+    overridable per manifest entry). Uncertain OCR text is preserved and retrievable but
+    can never support a MANDATORY requirement.
+    """
+
+    NATIVE = "native"  # PDF text layer
+    OCR_RELIABLE = "ocr_reliable"
+    OCR_UNCERTAIN = "ocr_uncertain"
+
+
+class ContentKind(StrEnum):
+    PARAGRAPH = "paragraph"  # numbered regulatory paragraph (or part of one)
+    PREAMBLE = "preamble"  # text before the first numbered paragraph of a section
+    QA = "qa"  # question and its answer
+    TABLE_ROW = "table_row"
+    FORM_TEXT = "form_text"  # headings, declarations, instructions on a form
+    FORM_FIELDS = "form_fields"  # field labels on a form
 
 
 class EntityType(StrEnum):
