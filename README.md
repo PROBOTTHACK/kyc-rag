@@ -11,7 +11,7 @@
 ![Qdrant](https://img.shields.io/badge/Qdrant-vector%20search-DC244C)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)
-![Status](https://img.shields.io/badge/status-in%20development-orange)
+![Status](https://img.shields.io/badge/status-M1%20complete%2C%20in%20development-orange)
 
 </div>
 
@@ -103,42 +103,60 @@ Everything runs locally through Docker and fits on free tiers for a public demo.
 
 ## Getting started
 
-**Prerequisites:** Docker, Python 3.11+, GNU Make, Node 18+, [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) (OCR fallback for scanned pages), and free API keys for Groq, Google AI Studio and (optionally) LangSmith. On Windows, install Make with `winget install ezwinports.make` and Tesseract with `winget install UB-Mannheim.TesseractOCR`. Tesseract is found via `TESSERACT_CMD`, then `PATH`, then the standard install folder (`C:\Program Files\Tesseract-OCR\`), so a default winget install needs no configuration. For a non-standard location, set `TESSERACT_CMD=D:/path/to/tesseract.exe` (and optionally `TESSDATA_DIR`) in a **repo-root `.env`** (create it with `cp infra/.env.example .env`). `.env` is gitignored and machine-specific: never commit it, and never put machine paths in `infra/.env.example`. Verify with `cd backend && ../.venv/Scripts/python -m app.ingestion.cli check-ocr`.
+**Prerequisites:** Docker, Python 3.11+, GNU Make, [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) 5.x (OCR fallback for scanned pages), Node 18+ (frontend, from M5), and free API keys for Groq, Google AI Studio and (optionally) LangSmith (from M2/M3; **M1 needs no API key**). On Windows: `winget install ezwinports.make` and `winget install UB-Mannheim.TesseractOCR`. Tesseract is found via `TESSERACT_CMD`, then `PATH`, then the standard install folder (`C:\Program Files\Tesseract-OCR\`), so a default winget install needs no configuration. For a non-standard location, set `TESSERACT_CMD=D:/path/to/tesseract.exe` (and optionally `TESSDATA_DIR`) in a **repo-root `.env`**. `.env` is gitignored and machine-specific: never commit it, and never put machine paths in `infra/.env.example`.
 
 ```bash
 # 1. Clone and configure
 git clone <your-repo-url> && cd agentic-kyc-compliance-engine
-cp infra/.env.example .env          # add your API keys (.env overrides infra/.env.example)
+cp infra/.env.example .env          # optional for M1; .env overrides infra/.env.example
 make venv install                   # .venv + backend with dev tools
 #   or: make venv install-locked     # exact tested versions (backend/requirements.lock)
 
-# 2. Start Postgres (host port 5433), Redis and Qdrant
+# 2. Start Postgres (host port 5433), Redis and Qdrant, then create the schema
 make up
+make migrate                        # Alembic 0001 + 0002
+make check-schema                   # ORM models == migrations (no drift)
 
-# 3. Prepare the database and ingest your documents
-make migrate
-# place authorized / public PDFs under data/raw_pdfs/{regulatory,policy,forms,reference}/ (see docs/14-source-corpus.md)
-# check them against data/raw_pdfs/manifest.yaml (files, SHA-256, metadata rules):
-cd backend && ../.venv/Scripts/python -m app.ingestion.cli validate-manifest && cd ..
-# extract, chunk, store every chunk in Postgres, then embed (BGE-small, ~135 MB download
-# on first run) and index the eligible chunks into Qdrant from the stored rows:
-cd backend && ../.venv/Scripts/python -m app.ingestion.cli ingest && cd ..
-# compare Postgres and Qdrant (read-only; add --repair to re-index from Postgres):
-cd backend && ../.venv/Scripts/python -m app.ingestion.cli reconcile && cd ..
-# recorded ingestion attempts, with the failing stage and error:
-cd backend && ../.venv/Scripts/python -m app.ingestion.cli runs --failed && cd ..
-make ingest                         # wired to `ingest` in M1 Stage F
+# 3. Add the source PDFs (not in Git; see docs/14-source-corpus.md) and check them
+#    data/raw_pdfs/{regulatory,policy,forms,reference}/*.pdf, listed in data/raw_pdfs/manifest.yaml
+make check-corpus                   # manifest + SHA-256 of every PDF + Tesseract smoke test
 
-# 4. Run the backend and frontend
+# 4. Ingest: validate -> extract -> OCR -> chunk -> Postgres -> embed (BGE-small,
+#    ~135 MB download on first run) -> Qdrant -> integrity + Postgres/Qdrant reconciliation
+make ingest-dry                     # optional: what would change; writes nothing
+make ingest                         # all documents; or: make ingest DOC="rbi_kyc_faqs"
+make search Q="documents for opening an account of a partnership firm"
+make eval                           # Recall@5 on data/eval/m1_retrieval.jsonl
+
+# 5. Backend (M0 health endpoint; the compliance API arrives with M3)
 make api                            # http://localhost:8000/docs, health at /api/v1/health
-make web                            # http://localhost:5173 (from Milestone 5)
 ```
 
-Other targets: `make test` (unit), `make test-integration` (needs `make up`), `make lint`, `make fmt`, `make down`.
+Ingestion is idempotent: running `make ingest` again writes nothing and embeds nothing unless a source changed. If a document fails, it is reported with the failing stage and is never marked `completed`. Fix the cause, then `make retry`. See [Ingestion operations](#ingestion-operations-m1) below.
+
+Other targets: `make test` (unit), `make test-integration` (needs `make up`), `make lint`, `make fmt`, `make down`. `make` alone prints the list of targets. The Makefile works from PowerShell/CMD on Windows (GNU Make then runs recipes with `cmd.exe`), Git Bash, Linux and macOS; repo paths with spaces are fine. Without Make, run the command behind each target from `backend/`; for example, `make ingest` is `python -m app.ingestion.cli run` using the venv interpreter (`..\.venv\Scripts\python.exe` on Windows, `../.venv/bin/python` elsewhere).
 
 > Postgres is mapped to host port **5433** so it doesn't clash with a native Postgres install on 5432.
 
 > Use only public, authorized or synthetic documents. Check each external API's data-use terms before uploading anything confidential.
+
+### Ingestion operations (M1)
+
+| Make target | CLI (`cd backend && python -m app.ingestion.cli …`) | What it does |
+|---|---|---|
+| `make ingest [DOC=…]` | `run [--document KEY]… [--path DIR] [--force]` (alias `ingest`) | Full workflow, per document, then verification |
+| `make ingest-dry` | `run --dry-run` | Stages A–C; the Postgres write is rolled back; Qdrant is compared read-only |
+| `make persist` | `persist` | Stages A–C + Postgres only; documents stay `pending` |
+| `make index` | `index --from-db` | Embed and index from committed Postgres rows (no PDF read) |
+| `make retry` | `retry` | One recovery attempt per document that is not `completed`/`partial` |
+| `make reconcile` | `reconcile` | Postgres ↔ Qdrant in both directions; read-only |
+| `make repair` | `reconcile --repair [--delete-unknown]` | Re-index inconsistent documents from Postgres |
+| `make runs` | `runs [--document KEY] [--failed]` | Ingestion history with the failing stage and error |
+| `make search Q=…` | `search QUERY [--top-k] [--entity] [--bank] [--mandatory-only] [--expand]` | Top-5 passages with document + page citations |
+| `make eval` | `evaluate [--dataset] [--report]` | Recall@5 / Hit@5 / MRR on the labelled queries |
+| `make check-corpus` | `validate-manifest`, `check-ocr` | Manifest + PDF hashes; Tesseract smoke test |
+
+`index` without `--from-db` is the Stage D in-memory indexer (Stages A–C → Qdrant, no Postgres), kept for experiments. Exit codes: `0` ok, `1` a document failed or the stores are inconsistent, `2` invalid input or a service not ready (nothing written). Full reference: [`docs/04-ingestion-pipelines.md`](docs/04-ingestion-pipelines.md); M1 handoff: [`docs/milestones/M1_HANDOFF.md`](docs/milestones/M1_HANDOFF.md).
 
 ## Project structure
 
@@ -167,7 +185,7 @@ Quality is measured, not assumed. The plan includes a 50-case benchmark (expandi
 
 **Ablations:** plain RAG -> + metadata filtering -> + hybrid retrieval -> + claim-level NLI -> full pipeline. The full pipeline is not assumed to win; the benchmark decides.
 
-Results will be published in this repository when available.
+**M1 retrieval baseline (measured 2026-11-08):** dense BGE-small search with the default eligibility filters, on 20 hand-labelled queries (28 target passages, `data/eval/m1_retrieval.jsonl`): mean **Recall@5 0.825**, **Hit@5 0.90**, **MRR@5 0.775**. It is a small, single-annotator set. M2 measures hybrid retrieval against this baseline. Full results from the 50-case benchmark will be published when available.
 
 ## Security and privacy
 
@@ -182,7 +200,7 @@ This system does **not** approve or reject applications, verify identity against
 
 ## Roadmap
 
-- [ ] Document ingestion and retrieval foundation
+- [x] Document ingestion and retrieval foundation (M1: see [`docs/milestones/M1_HANDOFF.md`](docs/milestones/M1_HANDOFF.md))
 - [ ] Hybrid retrieval and multimodal form extraction
 - [ ] End-to-end LangGraph workflow
 - [ ] Claim verification, security and human review

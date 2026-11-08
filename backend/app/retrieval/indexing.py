@@ -70,16 +70,28 @@ def point_payload(record: ChunkRecord, embedder: Embedder) -> dict[str, Any]:
     return payload
 
 
-def index_document(
-    result: ChunkingResult, embedder: Embedder, store: ChunkStore, *, force: bool = False
-) -> IndexReport:
-    """Bring Qdrant in line with `result` for one document. `force` re-embeds all."""
-    eligible = [c for c in result.chunks if c.embeddable]
-    report = IndexReport(result.document_key, chunks=len(result.chunks), eligible=len(eligible))
-    existing = store.point_states(result.document_key)
+@dataclass
+class IndexPlan:
+    """What `index_document` would do for one document (computed read-only)."""
 
-    to_embed: list[tuple[ChunkRecord, dict[str, Any]]] = []
-    to_overwrite: list[tuple[str, dict[str, Any]]] = []
+    report: IndexReport
+    to_embed: list[tuple[ChunkRecord, dict[str, Any]]] = field(default_factory=list)
+    to_overwrite: list[tuple[str, dict[str, Any]]] = field(default_factory=list)
+    stale: list[str] = field(default_factory=list)
+
+
+def plan_index(
+    result: ChunkingResult, embedder: Embedder, store: ChunkStore, *, force: bool = False
+) -> IndexPlan:
+    """Compare `result` with Qdrant without writing or loading the model (dry runs).
+
+    Only `embedder.model_name` / `revision` are read; nothing is embedded.
+    """
+    eligible = [c for c in result.chunks if c.embeddable]
+    plan = IndexPlan(
+        IndexReport(result.document_key, chunks=len(result.chunks), eligible=len(eligible))
+    )
+    existing = store.point_states(result.document_key)
     for rec in eligible:
         payload = point_payload(rec, embedder)
         idx = payload[INDEX_KEY]
@@ -91,29 +103,37 @@ def index_document(
             and have.revision == embedder.revision
         )
         if force or not same_vector:
-            to_embed.append((rec, payload))
+            plan.to_embed.append((rec, payload))
         elif have is not None and have.payload_sha256 != idx["payload_sha256"]:
-            to_overwrite.append((rec.metadata.chunk_id, payload))
+            plan.to_overwrite.append((rec.metadata.chunk_id, payload))
         else:
-            report.unchanged += 1
+            plan.report.unchanged += 1
+    current = {rec.metadata.chunk_id for rec in eligible}
+    plan.stale = sorted(set(existing) - current)
+    return plan
 
-    if to_embed:
-        vectors = embedder.embed_passages([embedding_input(r.metadata) for r, _ in to_embed])
+
+def index_document(
+    result: ChunkingResult, embedder: Embedder, store: ChunkStore, *, force: bool = False
+) -> IndexReport:
+    """Bring Qdrant in line with `result` for one document. `force` re-embeds all."""
+    plan = plan_index(result, embedder, store, force=force)
+    report = plan.report
+    if plan.to_embed:
+        vectors = embedder.embed_passages([embedding_input(r.metadata) for r, _ in plan.to_embed])
         store.upsert(
             [
                 qm.PointStruct(id=rec.metadata.chunk_id, vector=vec, payload=payload)
-                for (rec, payload), vec in zip(to_embed, vectors, strict=True)
+                for (rec, payload), vec in zip(plan.to_embed, vectors, strict=True)
             ]
         )
-        report.embedded = len(to_embed)
-    for point_id, payload in to_overwrite:
+        report.embedded = len(plan.to_embed)
+    for point_id, payload in plan.to_overwrite:
         store.overwrite_payload(point_id, payload)
-    report.payload_updated = len(to_overwrite)
-
-    current = {rec.metadata.chunk_id for rec in eligible}
-    stale = sorted(set(existing) - current)
-    report.stale_deleted = store.delete(stale)
-    report.stale_ids = stale
+    report.payload_updated = len(plan.to_overwrite)
+    # Stale points go only after the upserts succeeded.
+    report.stale_deleted = store.delete(plan.stale)
+    report.stale_ids = plan.stale
     return report
 
 

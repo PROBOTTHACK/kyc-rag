@@ -5,19 +5,23 @@
   bookkeeping (model, revision, input/payload hashes) used for idempotent re-indexing.
 - `ensure_collection` creates the collection when it is missing and refuses to touch
   one whose vector size or distance differs (never silently recreated).
-- Writes wait for completion (`wait=True`); the client has a request timeout.
+- Writes wait for completion (`wait=True`); the client has a request timeout, and every
+  idempotent call is retried on transient failures with bounded backoff
+  (`app.core.retry`). `create_collection` is not retried.
 """
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypeVar
 
 from qdrant_client import QdrantClient
 from qdrant_client import models as qm
 
 from app.config import Settings
+from app.core.retry import call_with_backoff
 from app.schemas.corpus import QDRANT_BOOL_INDEXES, QDRANT_KEYWORD_INDEXES
 
+T = TypeVar("T")
 INDEX_KEY = "index"  # payload object holding indexing bookkeeping
 UPSERT_BATCH = 64
 SCROLL_PAGE = 256
@@ -60,19 +64,29 @@ class ChunkStore:
     def __init__(self, client: QdrantClient, collection: str) -> None:
         self.client = client
         self.collection = collection
+        self.sleep: Callable[[float], None] | None = None  # injectable for tests
+
+    def _call(self, what: str, fn: Callable[[], T]) -> T:
+        """Idempotent client call with bounded retry on transient errors."""
+        if self.sleep is None:
+            return call_with_backoff(fn, what=f"qdrant {what}")
+        return call_with_backoff(fn, what=f"qdrant {what}", sleep=self.sleep)
 
     # --- collection --------------------------------------------------------------
 
     def ensure_collection(self, dimension: int) -> bool:
         """Create the collection if missing (True) or validate the existing one (False)."""
-        if not self.client.collection_exists(self.collection):
+        if not self._call(
+            "collection_exists", lambda: self.client.collection_exists(self.collection)
+        ):
             self.client.create_collection(
                 self.collection,
                 vectors_config=qm.VectorParams(size=dimension, distance=qm.Distance.COSINE),
             )
             created = True
         else:
-            params = self.client.get_collection(self.collection).config.params.vectors
+            info = self._call("get_collection", lambda: self.client.get_collection(self.collection))
+            params = info.config.params.vectors
             if not isinstance(params, qm.VectorParams):
                 raise QdrantSchemaError(f"{self.collection}: expected one unnamed vector")
             if params.size != dimension or params.distance != qm.Distance.COSINE:
@@ -82,13 +96,15 @@ class ChunkStore:
                     "delete the collection deliberately; it is never recreated automatically."
                 )
             created = False
-        for name in QDRANT_KEYWORD_INDEXES:
-            self.client.create_payload_index(
-                self.collection, name, qm.PayloadSchemaType.KEYWORD, wait=True
-            )
-        for name in QDRANT_BOOL_INDEXES:
-            self.client.create_payload_index(
-                self.collection, name, qm.PayloadSchemaType.BOOL, wait=True
+        indexes = [(n, qm.PayloadSchemaType.KEYWORD) for n in QDRANT_KEYWORD_INDEXES] + [
+            (n, qm.PayloadSchemaType.BOOL) for n in QDRANT_BOOL_INDEXES
+        ]
+        for name, schema in indexes:
+            self._call(
+                "create_payload_index",
+                lambda n=name, sc=schema: self.client.create_payload_index(  # type: ignore[misc]
+                    self.collection, n, sc, wait=True
+                ),
             )
         return created
 
@@ -97,13 +113,16 @@ class ChunkStore:
     def _scroll(self, flt: qm.Filter | None, fields: list[str]) -> Iterable[qm.Record]:
         offset: Any = None
         while True:
-            points, offset = self.client.scroll(
-                self.collection,
-                scroll_filter=flt,
-                limit=SCROLL_PAGE,
-                offset=offset,
-                with_payload=fields,
-                with_vectors=False,
+            points, offset = self._call(
+                "scroll",
+                lambda o=offset: self.client.scroll(  # type: ignore[misc]
+                    self.collection,
+                    scroll_filter=flt,
+                    limit=SCROLL_PAGE,
+                    offset=o,
+                    with_payload=fields,
+                    with_vectors=False,
+                ),
             )
             yield from points
             if offset is None:
@@ -132,48 +151,62 @@ class ChunkStore:
         return counts
 
     def count(self, flt: qm.Filter | None = None) -> int:
-        return self.client.count(self.collection, count_filter=flt, exact=True).count
+        return self._call(
+            "count", lambda: self.client.count(self.collection, count_filter=flt, exact=True)
+        ).count
 
     def search(
         self, vector: Sequence[float], limit: int, flt: qm.Filter | None = None
     ) -> list[qm.ScoredPoint]:
-        return self.client.query_points(
-            self.collection, query=list(vector), query_filter=flt, limit=limit,
-            with_payload=True,
+        return self._call(
+            "query_points",
+            lambda: self.client.query_points(
+                self.collection, query=list(vector), query_filter=flt, limit=limit,
+                with_payload=True,
+            ),
         ).points  # fmt: skip
 
     # --- writes ------------------------------------------------------------------
 
     def upsert(self, points: Sequence[qm.PointStruct]) -> None:
         for i in range(0, len(points), UPSERT_BATCH):
-            self.client.upsert(
-                self.collection, points=list(points[i : i + UPSERT_BATCH]), wait=True
+            batch = list(points[i : i + UPSERT_BATCH])
+            self._call(
+                "upsert",
+                lambda b=batch: self.client.upsert(  # type: ignore[misc]
+                    self.collection, points=b, wait=True
+                ),
             )
 
     def overwrite_payload(self, point_id: str, payload: dict[str, Any]) -> None:
-        self.client.overwrite_payload(
-            self.collection, payload=payload, points=[point_id], wait=True
+        self._call(
+            "overwrite_payload",
+            lambda: self.client.overwrite_payload(
+                self.collection, payload=payload, points=[point_id], wait=True
+            ),
         )
 
     def delete(self, ids: Iterable[str]) -> int:
         ids = sorted(ids)
         for i in range(0, len(ids), UPSERT_BATCH):
-            self.client.delete(
-                self.collection,
-                points_selector=qm.PointIdsList(points=list(ids[i : i + UPSERT_BATCH])),
-                wait=True,
+            selector = qm.PointIdsList(points=list(ids[i : i + UPSERT_BATCH]))
+            self._call(
+                "delete",
+                lambda sel=selector: self.client.delete(  # type: ignore[misc]
+                    self.collection, points_selector=sel, wait=True
+                ),
             )
         return len(ids)
 
     def delete_document(self, document_key: str) -> int:
         n = self.count(qm.Filter(must=[_match("document_key", document_key)]))
         if n:
-            self.client.delete(
-                self.collection,
-                points_selector=qm.FilterSelector(
-                    filter=qm.Filter(must=[_match("document_key", document_key)])
-                ),
-                wait=True,
+            selector = qm.FilterSelector(
+                filter=qm.Filter(must=[_match("document_key", document_key)])
+            )
+            self._call(
+                "delete",
+                lambda: self.client.delete(self.collection, points_selector=selector, wait=True),
             )
         return n
 

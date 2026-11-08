@@ -92,9 +92,32 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
   - points whose payload, embedding input, model or revision is out of date.
 
   `reconcile --repair` re-indexes the affected documents from Postgres without re-reading any PDF. Points of documents unknown to Postgres are deleted only with `--delete-unknown`.
-- Commands (`cd backend && ../.venv/Scripts/python -m app.ingestion.cli …`): `ingest [--document KEY]... [--force]`, `reconcile [--repair [--delete-unknown]]`, `runs [--document KEY] [--failed] [--limit N]`.
+- Commands (`cd backend && ../.venv/Scripts/python -m app.ingestion.cli …`): `ingest` (since Stage F an alias of `run`, below), `reconcile [--repair [--delete-unknown]]`, `runs [--document KEY] [--failed] [--limit N]`.
 - Reuse: the functions take a sync SQLAlchemy `Session` (`app.db.session.create_sync_sessionmaker`). Async FastAPI code can call them through `AsyncSession.run_sync`. `ingest_document(..., prepared=...)` accepts an already-prepared document.
 - Measured on the corpus (2026-11-08): 9 documents and 135 pages (5 OCR) stored. 456 chunks: 332 single, 27 parent, 97 child; 429 eligible. 774 document exclusions. All 27 families intact. Postgres and Qdrant both hold 429 eligible chunks/points, consistent in every direction. The first `ingest` on the existing Stage D collection re-embedded 0 points and overwrote 0 payloads, because the rows rebuild byte-identical payloads. A second `ingest` wrote 0 rows.
 
+**Unified workflow, recovery, search and benchmark (implemented, M1 Stage F; `app/ingestion/{cli,pipeline}.py`, `app/retrieval/{evaluation,indexing}.py`, `app/core/retry.py`, `Makefile`):**
+- `run` (alias `ingest`; `make ingest`) is the M1 entry point named at the top of this page. The queue + `POST /ingestion/run` path is M3. It runs in four steps:
+  1. **Manifest and PDFs**: schema rules, every file exists, SHA-256 matches. Any error stops the run before any write.
+  2. **Services**: Postgres reachable and at the Alembic head (otherwise "run `make migrate`"); Qdrant collection created or validated; embedding model and revision; Tesseract version, or a warning that scanned pages will fail.
+  3. **Documents**, one at a time and isolated from each other: the Stage E sequence (A–C → Postgres → Qdrant from committed rows → per-document point check → status), timed per document.
+  4. **Verification**: parent/child integrity and bidirectional reconciliation over the whole store.
+
+  Exit codes: `0` everything ok; `1` a document failed or Postgres/Qdrant are inconsistent; `2` invalid input or a service not ready (nothing was written).
+- Options: `--document KEY` (repeatable; default all), `--path DIR` (a corpus directory holding `manifest.yaml` and the PDFs), `--force` (re-embed every eligible chunk), `--dry-run`.
+- `--dry-run` runs Stages A–C and validation, then executes the Postgres write inside a transaction that is rolled back. It compares with Qdrant read-only (`plan_index`, the read-only half of Stage D's `index_document`). It reports per document what would be inserted, updated or deleted and what would be embedded, overwritten or deleted. It records no run, loads no model and writes nothing.
+- Independent steps reuse the same stage methods (`pipeline.Mode`):
+  - `persist` (`make persist`): Stages A–C + Postgres only. The document is left `pending` ("stored, not fully ingested"), the run ends `pending`, and embedding/indexing are recorded as skipped.
+  - `index --from-db` (`make index`): embeds and indexes from committed Postgres rows (no PDF is read), checks the points, then sets the document `completed`, or `partial` if a stored page failed.
+  - `index` without `--from-db` is still the Stage D in-memory indexer (no Postgres).
+- `retry` (`make retry`) makes one bounded recovery attempt per document. A document that is `completed` or `partial` is skipped. A document that was only persisted, or whose last run failed at `embedding`/`indexing`, is indexed from Postgres, reusing the committed rows. Anything else (never ingested, failed at extraction/OCR/chunking/persistence, stuck in `processing`) runs again in full. There is no automatic retry loop.
+- Transient Qdrant failures (connection errors, timeouts, HTTP 429/5xx) are retried at most twice, with 0.5 s and 1 s backoff, and only for idempotent calls (upsert by id, delete by id, payload overwrite, reads; not `create_collection`). This implements CLAUDE.md principle 8. Postgres has a 5 s connect timeout. A failure that persists becomes a document-level failure, recovered with `retry`.
+- `search QUERY` (`make search Q=…`) returns the top 5 passages with document + page citations (plus region/paragraph), eligibility, reliability and whether the chunk can support MANDATORY. It applies the default eligibility filter (primary + supporting). Options: `--entity` (types or groups), `--bank`, `--document`, `--include-context-only`, `--mandatory-only`, `--top-k`. `--expand` adds the complete parent paragraph of child hits from Postgres.
+- `evaluate` (`make eval`): Recall@5 on `data/eval/m1_retrieval.jsonl` (docs/10, "M1 retrieval benchmark"). It prints, and optionally writes, a markdown report (`data/processed/m1_retrieval_report.md` by default via Make; gitignored).
+- Measured end to end on a fresh database and a fresh collection (2026-11-08, Windows 11, CPU, OCR cache warm):
+  - Cold `run`: 9/9 `completed`, 135 pages, 456 chunks (27 parents), 429 vectors, consistent. 64.0 s in the pipeline (69.9 s wall clock; 169MD 19.8 s).
+  - Second `run`: 0 rows written, 0 embeddings, consistent, 27.9 s (mostly model load and verification).
+  - Failure recovery: see `docs/milestones/M1_HANDOFF.md` §12.
+
 ## Milestone-1 minimal slice
-Accept PDFs -> extract w/ page refs -> embed -> index in Qdrant -> query returns top-5 passages with citations. Measure Recall@5 on a small hand-labeled set.
+Accept PDFs -> extract w/ page refs -> embed -> index in Qdrant -> query returns top-5 passages with citations. Measure Recall@5 on a small hand-labeled set. **Done (M1 Stage F):** `make ingest`, `make search`, `make eval` (Recall@5 0.825 on 20 queries; docs/10).

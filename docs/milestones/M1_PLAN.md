@@ -1,5 +1,7 @@
 # M1 Plan: Document Ingestion (Pipeline A)
 
+> **Status: complete.** Phases 3–5 were delivered as Stages A–F. What was built and measured is in [`M1_HANDOFF.md`](M1_HANDOFF.md); this plan is kept as the record of the decisions.
+
 Phase 1 (corpus inspection) is approved: see `data/processed/corpus_report.md`.
 This plan records the decisions from that review. Phase 2 is detailed below. Phases 3–5 are only outlined and get their own review.
 

@@ -33,10 +33,10 @@ Python 3.11+, FastAPI, LangGraph (+ Postgres checkpointer), Pydantic v2, SQLAlch
 ## Commands (create these in a Makefile)
 - `make up` — start Postgres, Redis, Qdrant via `infra/docker-compose.yml`
 - `make migrate` — run Alembic
-- `make ingest` — run ingestion CLI
+- `make ingest` — run ingestion CLI (`cli run`: validate → extract → OCR → chunk → Postgres → embed → Qdrant → reconcile; `DOC="key ..."` selects documents). Related M1 targets: `ingest-dry`, `persist`, `index` (from Postgres), `retry`, `reconcile`, `repair`, `runs`, `search Q=...`, `check-corpus`, `check-schema` (docs/04)
 - `make api` — run FastAPI (uvicorn --reload)
 - `make test` — pytest
-- `make eval` — run benchmark
+- `make eval` — run benchmark (M1: Recall@5 on `data/eval/m1_retrieval.jsonl`; M6 extends it)
 - `make web` — run frontend
 
 ## Definition of done (every milestone)

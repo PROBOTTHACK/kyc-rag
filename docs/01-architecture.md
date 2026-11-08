@@ -40,6 +40,34 @@ flowchart TD
   G -. progress events .-> RD[(Redis pub/sub)] --> FE
 ```
 
+## Document ingestion (implemented in M1)
+Pipeline A runs offline from the CLI (`make ingest`), one document at a time. Postgres is the source of truth; Qdrant is a derived index built from committed rows, and the two are reconciled rather than written in one transaction.
+```mermaid
+flowchart LR
+  M[manifest.yaml + PDFs] -->|schema, SHA-256| V[Validate]
+  V --> A[A: PyMuPDF extraction<br/>pages, bookmarks, footnotes, tables]
+  A --> B[B: page quality + Tesseract OCR<br/>fold-out regions, cache]
+  B --> C[C: section-aware chunking<br/>parent/child, OCR evidence policy]
+  C --> PG[(Postgres<br/>documents, pages, chunks,<br/>exclusions, ingestion_runs)]
+  PG -->|committed rows| E[D: BGE-small embeddings<br/>eligible chunks only]
+  E --> Q[(Qdrant policy_chunks<br/>429 points)]
+  PG <-->|reconcile / repair| Q
+  Q --> S[search: top-5 + citations]
+  PG -->|parent expansion| S
+```
+| Module | Role |
+|---|---|
+| `app/ingestion/manifest.py` | manifest schema rules, PDF existence + SHA-256 |
+| `app/ingestion/{pdf,structure,quality,ocr,pages}.py` | Stages A–B: extraction, page quality, OCR fallback |
+| `app/ingestion/{cleaning,chunking}.py`, `chunkers/` | Stage C: profile-specific chunkers, parent/child, OCR evidence policy |
+| `app/ingestion/prepare.py` | Stages A–C for one document, failures attributed to a stage |
+| `app/db/{models,corpus,persistence,repository,runs}.py` | Stage E: schema, row mapping, idempotent writes, reads, run log |
+| `app/retrieval/{embeddings,qdrant_store,indexing,search}.py` | Stage D: BGE, Qdrant with bounded backoff, idempotent indexing, filtered dense search |
+| `app/retrieval/{reconcile,evaluation}.py` | Postgres ↔ Qdrant reconciliation; Recall@k benchmark |
+| `app/ingestion/{pipeline,cli}.py` | Stage F: per-document orchestration (full / persist / index), dry run, retry, CLI |
+
+Details: docs/04 (pipeline), docs/08 (tables, payload), docs/15 (vocabularies), `docs/milestones/M1_HANDOFF.md` (status and measurements).
+
 ## Repo structure
 ```
 agentic-kyc-compliance-engine/
