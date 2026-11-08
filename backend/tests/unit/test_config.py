@@ -35,6 +35,19 @@ def test_secrets_are_masked(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "synthetic_pw" not in dumped
 
 
+def test_corpus_paths_resolve_against_repo_root() -> None:
+    s = Settings(_env_file=REPO_ROOT / "infra" / ".env.example")  # type: ignore[call-arg]
+    assert s.CORPUS_DIR == REPO_ROOT / "data" / "raw_pdfs"
+    assert s.CORPUS_MANIFEST == REPO_ROOT / "data" / "raw_pdfs" / "manifest.yaml"
+    assert s.TESSDATA_DIR is None  # blank in .env.example = auto-detect
+
+
+def test_absolute_corpus_path_is_kept(monkeypatch: pytest.MonkeyPatch, tmp_path: object) -> None:
+    monkeypatch.setenv("CORPUS_DIR", str(tmp_path))
+    s = Settings(_env_file=None)  # type: ignore[call-arg]
+    assert str(s.CORPUS_DIR) == str(tmp_path)
+
+
 def test_regeneration_limit_is_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MAX_REGENERATIONS", "5")
     with pytest.raises(ValidationError):

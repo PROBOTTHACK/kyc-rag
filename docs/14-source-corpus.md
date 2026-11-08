@@ -37,76 +37,47 @@ data/raw_pdfs/
 Note: the 2016 Master Direction text itself is not in the corpus. The RBI FAQ cites its paragraph numbers, so treat the FAQ as based on the 2016 direction and let the 2025 Directions win on any difference.
 
 ## Manifest (`data/raw_pdfs/manifest.yaml`)
+The committed manifest is the source of truth (9 entries, verified against the PDFs, see `data/processed/corpus_report.md`). Schema: `app/schemas/corpus.py::DocumentMetadata`. Vocabularies: docs/15. Validate with `python -m app.ingestion.cli validate-manifest` (run in `backend/`).
 ```yaml
-- file: regulatory/169MD.pdf
-  bank: RBI
-  category: regulatory
-  source_authority: RBI
-  title: "Reserve Bank of India (Commercial Banks - Know Your Customer) Directions, 2025"
-  version: "updated 2026-10-01"
-  status: active
-  entity_types: [INDIVIDUAL, LEGAL_ENTITY]
-- file: regulatory/rbi_kyc_faqs_2025-06-09.pdf
-  bank: RBI
-  category: regulatory
-  source_authority: RBI
-  title: "FAQs on Master Direction on KYC dated February 25, 2016"
-  version: "2025-06-09"
-  status: dated            # based on the 2016 Master Direction; 2025 Directions win on conflict
-- file: policy/hdfc_kyc_norms_aml.pdf
+- document_key: hdfc_kyc_aml_faq           # logical identity (stable across versions)
+  file: policy/hdfc_kyc_norms_aml.pdf
+  sha256: 3ee6834f…                         # pins exact content; a mismatch fails validation, never auto-versioned
   bank: HDFC
-  category: policy
-  source_authority: null   # leave null until verified
-  title: "FAQ on KYC Norms and Anti Money Laundering"
+  document_type: policy
+  source_authority: null                   # the text never names HDFC
+  attribution_basis: filename_only
+  title: "Frequently Asked Questions on KYC Norms and Anti Money Laundering"
   version: null
-  status: dated            # based on a 2004 RBI circular
+  issue_date: null
+  effective_from: null
+  effective_until: null
+  source_status: dated
+  status_reason: "States it is based on an RBI circular dated 29/11/2004; ..."
+  supersedes: []
   entity_types: [INDIVIDUAL, COMPANY, PARTNERSHIP, TRUST]
-- file: forms/hdfc_non_individual_account_opening.pdf
-  bank: HDFC
-  category: form
-  title: "Account Opening Form - Sole Proprietorship/HUF/Trust/Firm/Corporate"
-  version: null
-  status: active
-  entity_types: [PROPRIETORSHIP, PARTNERSHIP, LLP, COMPANY, HUF, TRUST, SOCIETY]
-- file: forms/hdfc_nri_nre_nro_account_opening.pdf
-  bank: HDFC
-  category: form
-  entity_types: [NRI]
-- file: forms/hdfc_nri_rekyc.pdf
-  bank: HDFC
-  category: form
-  entity_types: [NRI]
-- file: forms/hdfc_resident_rekyc_dormant.pdf
-  bank: HDFC
-  category: form
-  entity_types: [INDIVIDUAL]
-- file: forms/hdfc_resident_to_nro_conversion.pdf
-  bank: HDFC
-  category: form
-  entity_types: [NRI]
-- file: reference/hdfc_netbanking_company_application.pdf
-  bank: HDFC
-  category: reference
-  status: active           # no KYC content; optional
+  residency_statuses: []
+  coverage_notes: ["Document table is indicative only ('not an exhaustive list')."]
+  notes: "..."
 ```
-Rules: unknown values stay `null`. Verify each file's true origin before filling the manifest.
+Each entry also sets `chunking_profile` (docs/04, docs/15). Rules: unknown values stay `null`. `evidence_eligibility` is derived, never written. Entity groups such as `LEGAL_ENTITY` and residency values such as `NRI` are not valid `entity_types`. `supersedes` is only ever set explicitly; a changed file hash never supersedes anything by itself.
 
 ## Retrieval scope
-- Sources are RBI and HDFC only. Every chunk carries a `bank` field (`RBI` or `HDFC`) so the source hierarchy (RBI > HDFC policy > HDFC forms) can be applied.
+- Sources are RBI and HDFC only. Every chunk carries a `bank` field (`RBI` or `HDFC`) so the source hierarchy (RBI > HDFC policy > HDFC forms) can be applied. `bank=HDFC` means the target bank / project context, not a verified publisher; the publisher is `source_authority` (null unless verified), and `attribution_basis` records how it was established (docs/15).
+- HDFC forms are `source_status: unknown` (their current validity cannot be verified) and `evidence_eligibility: supporting`. They show what a form requests, not a current obligation.
 
 ## Version handling
 - The RBI FAQ is based on the 2016 Master Direction. Prefer the 2025 Directions where they differ.
 - Prefer the current RBI direction. If an older direction or dated bank document disagrees, flag a conflict and route to human review; never merge silently.
-- `status` values: `active`, `superseded`, `dated`. Dated/superseded documents may inform but cannot alone support a MANDATORY item.
+- `source_status` values: `active`, `superseded`, `dated`, `unknown` (docs/15). Dated/superseded/unknown documents may inform but cannot alone support a MANDATORY item (`evidence_eligibility=supporting`).
 
 ## Entity coverage (decide after the corpus report)
-Supported by the sources: resident individual, NRI, non-individual (the HDFC non-individual form lists proprietorship, partnership, LLP, public/private company, HUF, trust, society and others), re-KYC, dormant activation, resident-to-NRO conversion. For LLP, the HDFC form gives the form-side fields; the documents an LLP must provide come from the RBI Directions, because the HDFC FAQ covers only individuals, companies, partnership firms and trusts.
+Supported by the sources: resident individual, NRI, non-individual (the HDFC non-individual form lists proprietorship, partnership, LLP, public/private company, HUF, trust, society and others), re-KYC, dormant activation, resident-to-NRO conversion. For LLP, the HDFC form gives the form-side fields. **Correction (M1 corpus review):** the RBI Directions contain no LLP-specific CDD paragraph ("Limited Liability Partnership" appears only in the sanctions annexes), and the HDFC FAQ covers only individuals, companies, partnership firms and trusts. LLP document requirements therefore stay `UNCLEAR`/`CONDITIONAL`, and which RBI paragraph applies (¶34 or ¶37) is not settled by the corpus. Dormant/inoperative activation is likewise absent from the 2025 Directions; it is covered only by the dated FAQ and an HDFC form.
 
 ## Suggested demo questions
 - Documents for resident individual re-KYC vs NRI re-KYC.
 - Beneficial-owner requirements for a company.
 - Dormant account activation steps.
-- LLP onboarding: which documents and beneficial-owner details (RBI Directions + HDFC non-individual form).
+- LLP onboarding: expected answer is `UNCLEAR`/`CONDITIONAL` with the closest RBI provisions cited (¶34/¶37/¶38) plus the HDFC non-individual form; never MANDATORY on this corpus.
 - 2016-based FAQ vs 2025 Directions conflict test.
 
 ## Git

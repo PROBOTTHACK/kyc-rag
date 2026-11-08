@@ -20,6 +20,11 @@
 | PDF | PyMuPDF, Tesseract OCR fallback | OSS |
 | Files | Local disk / `data/` | OSS (private bucket only if deploying publicly) |
 
+## Dependency pins and licences
+- Exact tested versions live in `backend/requirements.lock` (`make install-locked`; refresh with `make lock` after tests pass). `pyproject.toml` keeps lower bounds only.
+- **PyMuPDF is AGPL-3.0** (dual-licensed with an Artifex commercial licence). It was verified from the installed package metadata (`pymupdf 2.1`: "Dual Licensed - GNU AFFERO GPL 3.0 or Artifex Commercial License"). `pymupdf4llm 2.1`, which `pymupdf 2.1` requires, carries AGPL-3.0 headers in its source. `pymupdf_layout 2.1` is a metadata-only package with no code. This is fine for this open-source, non-commercial portfolio project. **Using the code in a closed-source or network-served product requires either releasing the source under AGPL-3.0 or buying the commercial licence.** Re-check before any such use.
+- Other new M1 dependencies: sentence-transformers (Apache-2.0), torch (Apache-2.0 + BSD components per its metadata; CPU build on Windows), PyYAML (MIT), onnxruntime (MIT; pulled in by pymupdf 2.1). Tesseract (Apache-2.0) is a system binary, not a Python dependency.
+
 ## Where Postgres is used
 - **LangGraph checkpointer** (replaces SQLite) -> pause/resume for clarification & human review.
 - Sessions, documents, reports, claims, review cases, form schemas, rules, evaluation runs (see `08-data-model.md`).

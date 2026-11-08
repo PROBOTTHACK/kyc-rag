@@ -42,7 +42,25 @@ class Settings(BaseSettings):
     MULTIMODAL_MODEL: str | None = None
     # --- Local models ---
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
+    # Hugging Face commit to load; None = latest. Pinned in .env.example for reproducibility.
+    EMBEDDING_MODEL_REVISION: str | None = None
     NLI_MODEL: str | None = None
+    # --- Corpus / ingestion (relative paths resolve against the repo root) ---
+    CORPUS_DIR: Path = Path("data/raw_pdfs")
+    CORPUS_MANIFEST: Path = Path("data/raw_pdfs/manifest.yaml")
+    # Tesseract for PyMuPDF OCR (resolution order in app/ingestion/ocr.py).
+    # TESSERACT_CMD: the tesseract executable; None = PATH, then the standard install location.
+    # TESSDATA_DIR: language data; None = `tessdata` next to the executable, else the
+    # directory the executable reports (Linux packages keep it under /usr/share).
+    TESSERACT_CMD: Path | None = None
+    TESSDATA_DIR: Path | None = None
+    # OCR results cache (gitignored under data/processed/); blank disables caching.
+    OCR_CACHE_DIR: Path | None = Path("data/processed/ocr_cache")
+    # OCR evidence policy (docs/15): a chunk's OCR text is reliable only if its pages are
+    # `ok` and its mean line confidence (0-1) reaches this. Manifest entries may override.
+    OCR_RELIABLE_MIN_CONFIDENCE: float = Field(default=0.80, ge=0, le=1)
+    # Embed uncertain OCR chunks (retrievable, flagged, never MANDATORY evidence)?
+    OCR_EMBED_UNCERTAIN: bool = True
     # --- Tracing ---
     LANGSMITH_TRACING: bool = False
     LANGSMITH_API_KEY: SecretStr | None = None
@@ -65,6 +83,10 @@ class Settings(BaseSettings):
         "PROMPT_GUARD_MODEL",
         "MULTIMODAL_MODEL",
         "NLI_MODEL",
+        "EMBEDDING_MODEL_REVISION",
+        "TESSERACT_CMD",
+        "TESSDATA_DIR",
+        "OCR_CACHE_DIR",
         mode="before",
     )
     @classmethod
@@ -73,6 +95,16 @@ class Settings(BaseSettings):
         if isinstance(v, str) and not v.strip():
             return None
         return v
+
+    @field_validator(
+        "CORPUS_DIR", "CORPUS_MANIFEST", "TESSERACT_CMD", "TESSDATA_DIR", "OCR_CACHE_DIR"
+    )
+    @classmethod
+    def _repo_relative(cls, v: Path | None) -> Path | None:
+        # Same rule as M0's env files: paths work from any working directory.
+        if v is None or v.is_absolute():
+            return v
+        return REPO_ROOT / v
 
 
 @lru_cache

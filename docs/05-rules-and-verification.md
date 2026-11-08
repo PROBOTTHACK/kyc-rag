@@ -5,9 +5,9 @@ Don't rely only on vector retrieval for applicability. Maintain small structured
 ```json
 {"rule_id":"RULE_001","entity_type":"LLP","topic":"entity_verification",
  "source_document":"doc_001","source_page":12,"conditions":[],
- "applicability":"conditional","verification_status":"human_verified"}
+ "applicability":"CONDITIONAL","verification_status":"human_verified"}
 ```
-Distinguish four states: (a) field exists on form, (b) field applies to a specific entity, (c) field is mandatory under a verified policy, (d) applicability can't be established. Only (c) may yield MANDATORY.
+Distinguish four states: (a) field exists on form, (b) field applies to a specific entity, (c) field is mandatory under a verified policy, (d) applicability can't be established. Only (c) may yield MANDATORY. Form instructions are (a)/(b) evidence of what the form requests, never (c) on their own (docs/15, "Form requirements are not obligations").
 
 ## Source hierarchy
 1. Applicable official regulatory directions & amendments
