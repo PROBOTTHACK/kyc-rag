@@ -53,9 +53,12 @@ from app.schemas.forms import (
     PageOutcomeKind,
     PageProvenance,
     extraction_errors,
+    repeated_labels,
 )
 
-GEMINI_EXTRACTOR_VERSION = 1  # bump when the prompt, schema or model changes
+# v1: duplicate labels in a section invalidated the page. v2: repeated labels are kept as
+# separate fields and flagged `repeated_labels` (same prompt, schema and models).
+GEMINI_EXTRACTOR_VERSION = 2  # bump when the prompt, schema, validation or model changes
 PROMPT_ID = "form_extraction"
 PROMPT_VERSION = "1"
 MIN_MATCH_CHARS = 3  # labels shorter than this (normalised) are never "corroborated"
@@ -273,7 +276,8 @@ def build_schema(
                     is_declaration=sec.is_declaration,
                     chunk_ids=chunk_ids,
                     fields=fields,
-                    flags=["no_fields"] if not fields else [],
+                    flags=(["no_fields"] if not fields else [])
+                    + (["repeated_labels"] if repeated_labels(sec) else []),
                 )
             )
     all_fields = [f for s in sections for f in s.fields]
@@ -292,6 +296,8 @@ def build_schema(
         flags.add("scanned_document")
     if any(f.verification_status == "uncorroborated" for f in all_fields):
         flags.add("uncorroborated_fields")
+    if any("repeated_labels" in s.flags for s in sections):
+        flags.add("repeated_labels")  # every occurrence kept as its own field
     if any(f.marker_issue for f in all_fields):
         flags.add("ambiguous_required_markers")
     if not all_fields:

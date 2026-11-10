@@ -30,6 +30,8 @@ Form schemas (M2 C2 deterministic, from stored M1 chunks; M2 G3 multimodal):
                                       extract and persist (idempotent; never overwrites);
                                       gemini = approved blank forms only, live-gated
   forms list                          stored schemas (both methods)
+  forms versions                      per approved form: which extraction versions are
+                                      actually stored (v1 and v2 are never equivalent)
   forms show KEY [--json] [--version N] [--method m1_chunks|gemini_multimodal]
 Checks:
   validate-manifest [--manifest PATH] [--corpus-dir PATH]
@@ -1338,6 +1340,50 @@ async def _gemini_documents(
     return 1 if failed else 0
 
 
+REPORT_FLAGS = (
+    "gemini_extraction_refused",
+    "partial_extraction",
+    "recitation_refused",
+    "repeated_labels",
+)
+
+
+def _forms_versions(
+    settings: Settings,
+    sessions: sessionmaker[Session] | None = None,
+    approvals: dict[str, ApprovedForm] | None = None,
+) -> int:
+    """Per approved form, every stored extraction (method, version) and the current Gemini
+    extractor version. A version is reported as stored only if a row exists for it."""
+    sessions = sessions or _sessions(settings)
+    if not _check_database(sessions):
+        return 2
+    approvals = approvals if approvals is not None else load_approvals()
+    keys = sorted(k for k, a in approvals.items() if a.is_approved)
+    current = GEMINI_EXTRACTOR_VERSION
+    with sessions() as s:
+        rows = [r for r in list_form_schemas(s) if r.form_key in keys]
+    print(f"Gemini extractor: current v{current}. Each version below is a separate stored row.")
+    for key in keys:
+        mine = [r for r in rows if r.form_key == key]
+        m1 = sorted(r.extractor_version for r in mine if r.extraction_method == EXTRACTION_METHOD)
+        gem = sorted(
+            (r for r in mine if r.extraction_method == MULTIMODAL_METHOD),
+            key=lambda r: r.extractor_version,
+        )
+        parts = [f"m1_chunks {','.join(f'v{v}' for v in m1) or 'none'}"]
+        for r in gem:
+            noted = [f for f in REPORT_FLAGS if f in r.quality_flags]
+            parts.append(
+                f"gemini v{r.extractor_version}: stored, {r.field_count} fields"
+                + (f" ({', '.join(noted)})" if noted else "")
+            )
+        if not any(r.extractor_version == current for r in gem):
+            parts.append(f"gemini v{current} (current): NOT extracted")
+        print(f"  {key:<38} " + " | ".join(parts))
+    return 0
+
+
 def _forms_list(settings: Settings, sessions: sessionmaker[Session] | None = None) -> int:
     sessions = sessions or _sessions(settings)
     if not _check_database(sessions):
@@ -1468,6 +1514,7 @@ def build_parser(settings: Settings) -> argparse.ArgumentParser:
         "blank forms only; requires the live gates)",
     )
     fsub.add_parser("list", help="stored form schemas")
+    fsub.add_parser("versions", help="per approved form: stored extraction versions")
     fs = fsub.add_parser("show", help="one stored form schema")
     fs.add_argument("key", metavar="KEY")
     fs.add_argument("--json", action="store_true", help="print the stored schema as JSON")
@@ -1573,6 +1620,8 @@ def main(argv: list[str] | None = None) -> int:
             return _forms_extract(settings, args.document)
         if args.forms_command == "list":
             return _forms_list(settings)
+        if args.forms_command == "versions":
+            return _forms_versions(settings)
         return _forms_show(
             settings, args.key, as_json=args.json, version=args.version, method=args.method
         )

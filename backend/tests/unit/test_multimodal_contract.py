@@ -96,12 +96,13 @@ def test_malformed_output_is_invalid(raw: str) -> None:
     assert parsed is None and errors
 
 
-def test_structural_errors_pages_not_sent_and_duplicates() -> None:
+def test_structural_errors_pages_not_sent_but_repeats_are_valid() -> None:
+    """v2: a repeated label is not a defect; an unsent page still is."""
     ex = extraction(fld("*Name", 1), fld("*Name", 1), fld("PAN", 3))
     errors = extraction_errors(ex, sent_pages={1, 2})
-    assert any("page 3 was not sent" in e for e in errors)
-    assert any("duplicate label" in e for e in errors)
-    assert extraction_errors(extraction(fld("*Name", 1), fld("*Name", 2)), {1, 2}) == []
+    assert errors == ["sections.0.fields.2: page 3 was not sent"]
+    assert extraction_errors(extraction(fld("*Name", 1), fld("*Name", 1)), {1}) == []
+    assert extraction_errors(extraction(fld("   ", 1)), {1}) == ["sections.0.fields.0: blank label"]
 
 
 # --- fake provider ----------------------------------------------------------------------

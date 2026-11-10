@@ -119,6 +119,11 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
   - **Field rules:** `required_as_shown` uses the same printed-`*` rule as the deterministic path. `mandatory_under_policy` is never set; the 0004 guards enforce this on Gemini rows too.
   - **Identity:** (document, `gemini_multimodal`, `GEMINI_EXTRACTOR_VERSION=1`). A stored row means the CLI makes **zero provider calls** and reports `unchanged`. A new prompt, schema or model needs a version bump, because the model output is not deterministic.
   - **Provenance:** provider, model id, prompt id/version, render dpi, per-page PNG SHA-256, token usage, latency, request count and the validation errors of failed attempts. No key and no timestamps.
+- **Extractor v2 (G3 follow-up, owner-approved after the live runs):** v1 invalidated a page whenever a label repeated in one section, but real forms repeat labels on purpose (per applicant, per address, per signatory).
+  - **What changed:** v2 keeps every occurrence as its own field, in order, with its own section, page and position. Nothing is merged or deduplicated. A section with repeats, and the document, are flagged `repeated_labels`.
+  - **Still rejected:** malformed JSON, invalid types, blank labels and pages that were not sent. Prompt, schema and models are unchanged.
+  - **v1 rows are kept unchanged.** v2 rows are separate (`GEMINI_EXTRACTOR_VERSION=2`). A v1 row does not stop v2 extraction, and a stored v2 row means zero calls.
+  - **`forms versions`** reports, per approved form, every stored (method, version) and whether the current Gemini version is stored (`NOT extracted` otherwise). v1 and v2 are never presented as equivalent.
 - **RECITATION refusals (G3 follow-up):** a `RECITATION`/`IMAGE_RECITATION` stop raises `ProviderRecitation`, a refusal.
   - **Never retried:** it is not retried, not re-asked and never sent to another model. `SAFETY`/`SPII` and other refusals are unchanged and still abort the document. 503s and timeouts keep the 5-attempt and fallback path.
   - **Diagnostics recorded:** finish reason, finish message, citation metadata (uri, title, license, indices, date), and the partial output's **length and SHA-256 only**. The partial text is never stored or logged.

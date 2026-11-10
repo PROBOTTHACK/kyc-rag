@@ -225,9 +225,13 @@ class FormExtraction(_Frozen):
 
 
 def extraction_errors(extraction: FormExtraction, sent_pages: set[int]) -> list[str]:
-    """Structural defects beyond the schema: pages not sent, blank or duplicate labels."""
+    """Structural defects beyond the schema: pages not sent and blank labels.
+
+    Repeated labels are NOT defects (extractor v2): real forms print the same label more
+    than once in one section (per applicant, per address, per signatory). Every
+    occurrence is kept as its own field; `repeated_labels` flags them (see
+    `repeated_labels`)."""
     errors: list[str] = []
-    seen: set[tuple[int, str | None, str]] = set()
     for si, sec in enumerate(extraction.sections):
         for fi, f in enumerate(sec.fields):
             where = f"sections.{si}.fields.{fi}"
@@ -235,8 +239,13 @@ def extraction_errors(extraction: FormExtraction, sent_pages: set[int]) -> list[
                 errors.append(f"{where}: page {f.page_number} was not sent")
             if not f.printed_label.strip():
                 errors.append(f"{where}: blank label")
-            key = (f.page_number, sec.name, f.printed_label.strip())
-            if key in seen:
-                errors.append(f"{where}: duplicate label on the same page and section")
-            seen.add(key)
     return errors
+
+
+def repeated_labels(section: ExtractedSection) -> list[str]:
+    """Labels printed more than once on the same page within one section (sorted)."""
+    seen: dict[tuple[int, str], int] = {}
+    for f in section.fields:
+        key = (f.page_number, f.printed_label.strip())
+        seen[key] = seen.get(key, 0) + 1
+    return sorted({label for (_, label), n in seen.items() if n > 1})

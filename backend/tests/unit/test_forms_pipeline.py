@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import uuid
 from pathlib import Path
+from typing import Any
 
 import pymupdf
 import pytest
@@ -163,7 +164,7 @@ def test_mapping_corroboration_markers_and_provenance(prepared: Prepared) -> Non
         ex("Signature", page=2, declaration=True),
     )
     s = build_schema(prepared, outs, provider=fake, dpi=72)  # type: ignore[arg-type]
-    assert (s.extraction_method, s.extractor_version) == ("gemini_multimodal", 1)
+    assert (s.extraction_method, s.extractor_version) == ("gemini_multimodal", 2)
     fields = {f.printed_label: f for sec in s.sections for f in sec.fields}
     cn = fields["*Customer Name"]
     assert (cn.label, cn.required_as_shown, cn.chunk_id) == ("Customer Name", True, "chunk-p1")
@@ -199,3 +200,70 @@ def test_mapping_corroboration_markers_and_provenance(prepared: Prepared) -> Non
     assert [pg.page_number for pg in p.pages] == [1, 2]
     data = s.model_dump(mode="json")
     assert data["sections"][0]["fields"][0]["field_type"] == "text"
+
+
+# --- extractor v2: repeated labels are kept, flagged, never merged ----------------------
+
+
+def sections(*specs: tuple[str, list[tuple[str, int]]]) -> FormExtraction:
+    return FormExtraction(
+        sections=[
+            ExtractedSection(
+                name=name,
+                is_declaration=False,
+                fields=[
+                    ExtractedField(printed_label=lbl, field_type="text", page_number=pg)
+                    for lbl, pg in fields
+                ],
+            )
+            for name, fields in specs
+        ]
+    )
+
+
+def build(prepared: Prepared, *pages: FormExtraction) -> Any:
+    fake = scripted(*pages)
+    outs = asyncio.run(extract_pages(prepared, fake, dpi=72))
+    assert all(o.outcome == "extracted" and o.attempts == 1 for o in outs)  # never re-asked
+    return build_schema(prepared, outs, provider=fake, dpi=72)
+
+
+def test_repeats_in_one_section_are_kept_in_order_and_flagged(prepared: Prepared) -> None:
+    applicants = [("Name", 1), ("PAN", 1), ("Name", 1), ("PAN", 1), ("Name", 1), ("PAN", 1)]
+    s = build(prepared, sections(("APPLICANT DETAILS", applicants)), sections(("B", [("Date", 2)])))
+    sec = s.sections[0]
+    assert [(f.printed_label, f.position, f.page_number) for f in sec.fields] == [
+        (lbl, i, 1) for i, (lbl, _) in enumerate(applicants)
+    ]  # every occurrence, original order, own position
+    assert "repeated_labels" in sec.flags and "repeated_labels" in s.flags
+    assert "repeated_labels" not in s.sections[1].flags
+    assert s.field_count == 7 and "partial_extraction" not in s.flags
+    assert s.provenance is not None and not s.provenance.validation_errors
+
+
+def test_repeats_across_sections_and_applicant_blocks_are_not_merged(prepared: Prepared) -> None:
+    page1 = sections(
+        ("MAILING ADDRESS", [("PIN Code", 1), ("City", 1)]),
+        ("PERMANENT ADDRESS", [("PIN Code", 1), ("City", 1)]),
+        ("1 Authorized Signatory", [("Name", 1), ("Signature", 1)]),
+        ("2 Authorized Signatory", [("Name", 1), ("Signature", 1)]),
+    )
+    s = build(prepared, page1, sections(("MAILING ADDRESS", [("PIN Code", 2)])))
+    assert [len(sec.fields) for sec in s.sections] == [2, 2, 2, 2, 1]
+    assert [sec.name for sec in s.sections][:4] == [
+        "MAILING ADDRESS",
+        "PERMANENT ADDRESS",
+        "1 Authorized Signatory",
+        "2 Authorized Signatory",
+    ]
+    assert s.field_count == 9
+    assert "repeated_labels" not in s.flags  # repeats across sections/pages are not flagged
+
+
+def test_malformed_output_is_still_rejected_with_repeats_present(prepared: Prepared) -> None:
+    bad_page = sections(("A", [("Name", 1), ("Name", 1), ("PAN", 2)]))  # page 2 not sent
+    fake = scripted(bad_page, bad_page, sections(("B", [("Date", 2)])))
+    outs = asyncio.run(extract_pages(prepared, fake, dpi=72))
+    assert outs[0].outcome == "invalid_output" and outs[0].attempts == 2
+    assert all("was not sent" in e for e in outs[0].errors)
+    assert not any("duplicate" in e for e in outs[0].errors)

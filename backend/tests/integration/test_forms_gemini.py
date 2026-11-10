@@ -7,6 +7,7 @@ degraded (partial) path; provider errors storing nothing; method separation (m1_
 schemas unchanged, `forms show --method`); and the database guards on Gemini rows.
 """
 
+import asyncio
 import json
 from collections.abc import Iterator
 
@@ -18,6 +19,7 @@ from app.config import get_settings
 from app.db.forms import load_form_schema
 from app.db.models import FormSchemaRow
 from app.forms.approval import load_approvals
+from app.forms.pipeline import extract_with_provider, prepare
 from app.ingestion import cli
 from app.llm.fake import FakeMultimodalProvider, scripted
 from app.llm.fallback import FallbackMultimodalProvider
@@ -179,7 +181,7 @@ def test_database_guards_apply_to_gemini_rows(db: sessionmaker[Session]) -> None
         assert row is not None
         data = json.loads(json.dumps(row.schema_json))
     data["sections"][0]["fields"][0]["mandatory_under_policy"] = True
-    data["extractor_version"] = 2
+    data["extractor_version"] = 3
     with db() as s, pytest.raises(sa.exc.IntegrityError, match="ck_form_schemas_field_structure"):
         s.execute(
             sa.insert(FormSchemaRow).values(
@@ -190,7 +192,7 @@ def test_database_guards_apply_to_gemini_rows(db: sessionmaker[Session]) -> None
                 document_role=row.document_role,
                 evidence_eligibility=row.evidence_eligibility,
                 extraction_method=GEMINI,
-                extractor_version=2,
+                extractor_version=3,
                 schema_sha256=row.schema_sha256,
                 schema_json=data,
                 section_count=row.section_count,
@@ -313,3 +315,71 @@ def test_mixed_refused_and_extracted_pages(db: sessionmaker[Session]) -> None:
 def test_safety_refusal_still_stores_nothing(db: sessionmaker[Session]) -> None:
     assert extract(db, [KEY], scripted(ProviderRefused("Gemini stopped generation: SAFETY"))) == 1
     assert rows(db, GEMINI) == []
+
+
+def test_v1_and_v2_coexist_immutably_and_are_reported_separately(
+    db: sessionmaker[Session], capsys: pytest.CaptureFixture[str]
+) -> None:
+    settings = get_settings()
+    with db() as s:  # a v1 record, as stored before the v2 correction
+        prepared = prepare(
+            s,
+            KEY,
+            approvals=load_approvals(),
+            corpus_dir=settings.CORPUS_DIR,
+            manifest_path=settings.CORPUS_MANIFEST,
+        )
+        v1 = asyncio.run(
+            extract_with_provider(
+                s,
+                prepared,
+                scripted(ex("SURNAME", page=1), ex("Customer Name", page=2)),
+                extractor_version=1,
+            )
+        )
+        s.commit()
+    assert v1.outcome is not None and v1.outcome.extractor_version == 1
+    with db() as s:
+        v1_row = s.scalar(
+            sa.select(FormSchemaRow).where(
+                FormSchemaRow.form_key == KEY,
+                FormSchemaRow.extraction_method == GEMINI,
+                FormSchemaRow.extractor_version == 1,
+            )
+        )
+        assert v1_row is not None
+        v1_snapshot = (v1_row.id, v1_row.schema_sha256, json.dumps(v1_row.schema_json))
+
+    cli._forms_versions(settings, sessions=db)
+    report = capsys.readouterr().out
+    assert "gemini v1: stored" in report and "gemini v2 (current): NOT extracted" in report
+
+    repeats = ex("Name", "Name", "Name", page=1)  # rejected under v1, valid under v2
+    fake = scripted(repeats, ex("Customer Name", page=2))
+    assert extract(db, [KEY], fake) == 0  # current version = v2: a new row
+    assert "inserted  v2" in capsys.readouterr().out and len(fake.calls) == 2
+    with db() as s:
+        latest = load_form_schema(s, KEY, extraction_method=GEMINI)
+        first = load_form_schema(s, KEY, extraction_method=GEMINI, extractor_version=1)
+        rows_v = s.scalars(
+            sa.select(FormSchemaRow).where(
+                FormSchemaRow.form_key == KEY, FormSchemaRow.extraction_method == GEMINI
+            )
+        ).all()
+        again = next(r for r in rows_v if r.extractor_version == 1)
+        assert (again.id, again.schema_sha256, json.dumps(again.schema_json)) == v1_snapshot
+    assert sorted(r.extractor_version for r in rows_v) == [1, 2]
+    assert latest is not None and latest.extractor_version == 2
+    assert [f.printed_label for f in latest.sections[0].fields] == ["Name"] * 3
+    assert "repeated_labels" in latest.flags
+    assert first is not None and first.extractor_version == 1
+
+    cli._forms_versions(settings, sessions=db)
+    report = capsys.readouterr().out
+    line = next(ln for ln in report.splitlines() if KEY in ln)
+    assert "gemini v1: stored" in line and "gemini v2: stored" in line and "NOT" not in line
+    other = next(ln for ln in report.splitlines() if "hdfc_nri_rekyc" in ln)
+    assert "gemini v2 (current): NOT extracted" in other  # never claimed without a row
+
+    empty = FakeMultimodalProvider([])
+    assert extract(db, [KEY], empty) == 0 and empty.calls == []  # idempotent at v2
