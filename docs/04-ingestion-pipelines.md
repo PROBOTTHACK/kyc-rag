@@ -210,7 +210,7 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
 - **Latency:** `timings_ms` reports `retrieval_ms`, `rerank_ms` and `rerank_load_ms` (first use) separately.
 - **CLI:** `search` / `evaluate --rerank|--no-rerank` (default `RERANK_ENABLED`). The frozen `--select`, `--final-heldout` and `--compare` protocols refuse `--rerank`.
 - **Default unchanged:** with the flag off, the code path is unchanged (`make check-dense-golden`).
-- **Usefulness:** not yet measured. The single B2 diagnostic is a separate, approved step.
+- **Usefulness:** the single B2 diagnostic on the reused M1 dev set (docs/10) gave Recall@5 0.825 → 0.950 and MRR@5 0.775 → 0.796, at about 1.1 s per query on CPU against about 43 ms for dense. This is not a validation, and the flag stays off by default.
 
 ## Milestone-1 minimal slice
 Accept PDFs -> extract w/ page refs -> embed -> index in Qdrant -> query returns top-5 passages with citations. Measure Recall@5 on a small hand-labeled set. **Done (M1 Stage F):** `make ingest`, `make search`, `make eval` (Recall@5 0.825 on 20 queries; docs/10).

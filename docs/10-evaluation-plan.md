@@ -126,6 +126,30 @@ M2 retrieval choices follow `docs/milestones/M2_PLAN.md` §6.
     - C6 has a documented bias towards form and OCR-uncertain chunks, plus the negation risk of the stopword list.
   - **Records unchanged:** the A3 record and the held-out results are unchanged.
   - **Arithmetic check:** a post-evaluation review recomputed every reported figure from the raw results and found no arithmetic error; only wording was clarified.
+- **M2 B2: reranker diagnostic.** This is a diagnostic on a **previously used** development set: **not independent validation and not evidence of generalization.**
+  - **Run:** once, 2026-11-10, `eval/m2_b2_rerank_diagnostic.py`; record `data/eval/m2_b2_rerank_diagnostic.json`.
+  - **Setup:**
+    - R0: dense, top 5.
+    - R1: dense, 20 candidates → `cross-encoder/ms-marco-MiniLM-L6-v2` @ `233902d2…` on CPU → top 5.
+    - The M1 development set only (`m1_retrieval.jsonl`, 20 queries); 1 scored pass + 3 timed passes; nothing tuned.
+
+  | | Recall@5 | Hit@5 | MRR@5 | total p50 / p95 ms | rerank p50 / p95 ms |
+  |---|---|---|---|---|---|
+  | R0 dense | 0.825 (33/40) | 0.900 | 0.775 (31/40) | 42.9 / 52.9 | — |
+  | R1 dense + rerank | **0.950** (19/20) | **1.000** | **0.796** (191/240) | **1131.1 / 1447.4** | **1072.9 / 1388.1** |
+  | Δ R1 − R0 | +0.125 (+1/8) | +0.100 | +0.021 (+1/48) | about 26× slower | |
+
+  - **Ceiling:** dense Recall@20 is **1.000**, so every labelled target was among the 20 candidates and the reranker could in principle recover all of them.
+  - **Model load:** 1,675 ms, once, measured separately on a warm-up text.
+  - **Per query (Recall@5):** 4 wins, 1 loss, 15 unchanged.
+    - Wins: m1-01 (0 → 1, rank 3), m1-05 (0.5 → 1), m1-06 (0.5 → 1, rank 3 → 2), m1-20 (0 → 1, rank 2).
+    - Loss: m1-04 (1 → 0.5, rank 1 → 2). The NRI re-KYC "Form 60" target (dense rank 5) was displaced by RBI para 43, an unlabelled passage that also concerns Form No. 60.
+    - Other first-correct-hit rank change: m1-19, rank 3 → 4 (same recall).
+  - **Reading:**
+    - On this reused set, the reranker recovers most targets dense ranked 6–20. The Recall and Hit gains are large; the MRR gain is small.
+    - **On this laptop CPU, reranking 20 candidates costs about 1.1 s per query (p50), against about 43 ms for dense.**
+    - No generalization claim is made: M2 A3 showed how a dev-set gain can fail to hold on fresh data.
+  - **Decision:** `RERANK_ENABLED` stays `false` and dense remains the operational default. Reranking stays opt-in (`--rerank`). Nothing was tuned: the candidate depth, model and batch size are as registered in B1.
 - **Limitations:**
   - **Single annotator:** all held-out labels were drafted by the implementing assistant and reviewed by the project owner. There was no independent annotation or inter-annotator validation, and no such claim is made.
   - **Resolution:** with 20 queries, one query moves mean Recall@5 by about 0.05, so confidence intervals are wide and "no measurable difference" is a valid outcome.
