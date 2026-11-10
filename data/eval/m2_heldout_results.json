@@ -1,0 +1,1023 @@
+{
+  "stage": "M2 held-out evaluation (one-time)",
+  "dataset": "data/eval/m2_heldout.jsonl",
+  "dataset_sha256": "55ba14d9893333b89cc260ac0ece3ac9115ebede28781aa98adfee4d54b0210c",
+  "frozen_sha256_verified": true,
+  "code_commit": "b701baaae3f3324243d8ed0e9a1dacdfd82ec94d",
+  "decision_record_code_commit": "86d337e30bf1891818bb0969d6a67d28e9dce242",
+  "selected_configuration": "C6",
+  "created_at": "2026-11-10T09:49:14+00:00",
+  "protocol": "one scored pass per configuration; C0 reference + selected only; alternative evidence never scored",
+  "configurations": [
+    {
+      "id": "C0",
+      "label": "dense",
+      "recall_at_5": {
+        "exact": "9/10",
+        "value": 0.9
+      },
+      "hit_at_5": {
+        "exact": "9/10",
+        "value": 0.9
+      },
+      "mrr_at_5": {
+        "exact": "17/20",
+        "value": 0.85
+      },
+      "p50_ms": 46.48,
+      "p95_ms": 60.7,
+      "exact_term_subgroup": {
+        "recall_at_5": {
+          "exact": "1/1",
+          "value": 1.0
+        },
+        "hit_at_5": {
+          "exact": "1/1",
+          "value": 1.0
+        },
+        "mrr_at_5": {
+          "exact": "1/1",
+          "value": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "id": "m2h-01",
+          "recall": {
+            "exact": "0/1",
+            "value": 0.0
+          },
+          "first_match_rank": null,
+          "scoring_target_hit": false,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": null,
+          "retrieved_ids": [
+            "a975a707-cd5d-5e64-9e04-b2c0afff3ce4",
+            "44c7087a-b2f5-56a9-88be-c3c2f1ccd5c5",
+            "7b4c623c-d07b-5e9a-a416-5e5ae410c696",
+            "eefba9c2-bc0b-533a-9704-04728968af96",
+            "89663a37-e8a5-5ca3-a356-f946984ff291"
+          ]
+        },
+        {
+          "id": "m2h-02",
+          "recall": {
+            "exact": "0/1",
+            "value": 0.0
+          },
+          "first_match_rank": null,
+          "scoring_target_hit": false,
+          "alternative_evidence_hit": true,
+          "first_match_provenance": null,
+          "retrieved_ids": [
+            "a22e5c53-3665-5453-a4fe-dfb4582d19ad",
+            "7d07c0e8-f7f5-5e78-a39f-185f1f28289b",
+            "219dbe81-4020-5e9a-8e4a-6b58b396b47b",
+            "dc2c772b-2481-5415-bb91-810819999e12",
+            "f8b944ec-4259-53cf-ad8b-631bf7504566"
+          ]
+        },
+        {
+          "id": "m2h-03",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.8639378,
+            "bm25_rank": null,
+            "bm25_score": null,
+            "fused_score": null
+          },
+          "retrieved_ids": [
+            "cb1674e0-fa06-5207-b8e3-a4d537cc3c78",
+            "107ab95a-3702-513b-8c7b-bd36e3c35200",
+            "039aa244-742d-5e82-aaa0-b9721ff0481c",
+            "43dea98b-403e-55f6-9b95-b00dd093aa1c",
+            "5ed880fe-cc8e-587f-8456-decd514ff59b"
+          ]
+        },
+        {
+          "id": "m2h-04",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.8082481,
+            "bm25_rank": null,
+            "bm25_score": null,
+            "fused_score": null
+          },
+          "retrieved_ids": [
+            "da2f8351-9820-52d3-8e21-6497f997a74d",
+            "039aa244-742d-5e82-aaa0-b9721ff0481c",
+            "18f53165-fecf-5c22-9a99-d1b6a86f791d",
+            "5ed880fe-cc8e-587f-8456-decd514ff59b",
+            "748e7a3c-e35f-5912-8b78-aef7da5a9b49"
+          ]
+        },
+        {
+          "id": "m2h-05",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 2,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 2,
+            "dense_score": 0.6811056,
+            "bm25_rank": null,
+            "bm25_score": null,
+            "fused_score": null
+          },
+          "retrieved_ids": [
+            "43dea98b-403e-55f6-9b95-b00dd093aa1c",
+            "693c3b8b-5c4c-5f65-88d6-e9b8461348b1",
+            "1845e618-ee11-5730-8d4a-3ae1d8adfee3",
+            "8ce784d9-4c71-58c9-8dad-5e13057e7207",
+            "addf322e-742b-505b-999e-5d5c83d71451"
+          ]
+        },
+        {
+          "id": "m2h-06",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.84355545,
+            "bm25_rank": null,
+            "bm25_score": null,
+            "fused_score": null
+          },
+          "retrieved_ids": [
+            "bb262530-1e70-54b4-82e5-9e5820816c0e",
+            "773723e7-5d32-5249-b5f1-dc489d654ad2",
+            "5262f4d4-0b24-528d-a9ba-8c99c3d23128",
+            "854439f7-8fb5-5492-b7a9-42c8a15fc6de",
+            "849e9c12-c0b7-5f54-ae7d-4cda6ec5e7f7"
+          ]
+        },
+        {
+          "id": "m2h-07",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.74578416,
+            "bm25_rank": null,
+            "bm25_score": null,
+            "fused_score": null
+          },
+          "retrieved_ids": [
+            "ec78fd57-b4d2-5b1c-8377-d683d8d9250c",
+            "c5d86a96-315f-59dd-9318-3959ca3b8553",
+            "44c7087a-b2f5-56a9-88be-c3c2f1ccd5c5",
+            "5e22f752-db17-5a44-9c3a-09c27155cbd8",
+            "4ffb4784-d925-5084-9717-fd2f142a8f04"
+          ]
+        },
+        {
+          "id": "m2h-08",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.7862886,
+            "bm25_rank": null,
+            "bm25_score": null,
+            "fused_score": null
+          },
+          "retrieved_ids": [
+            "849e9c12-c0b7-5f54-ae7d-4cda6ec5e7f7",
+            "7014ffc0-e863-5080-92c2-4f14707dd335",
+            "d2d4a34f-f906-5da1-892b-84b4ebb797d1",
+            "ce0faacb-b892-58b1-9729-d5a56225bfbc",
+            "85eaec49-23db-501a-a86d-3bec1c906ac7"
+          ]
+        },
+        {
+          "id": "m2h-09",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.7396083,
+            "bm25_rank": null,
+            "bm25_score": null,
+            "fused_score": null
+          },
+          "retrieved_ids": [
+            "74e5a12f-f48f-5da5-8f54-0b99bfe560d9",
+            "d9595d49-4db3-5b80-ac82-576a1e69fb0c",
+            "617961be-9280-5dc6-9812-4b79d6dd66bc",
+            "ab85699e-fe95-515f-a806-c369d25a1c16",
+            "199e0e4f-f6dc-5e3c-aa6c-44c3e577649f"
+          ]
+        },
+        {
+          "id": "m2h-10",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.79708683,
+            "bm25_rank": null,
+            "bm25_score": null,
+            "fused_score": null
+          },
+          "retrieved_ids": [
+            "0dcb3194-d30f-598d-a9bc-9355075d5556",
+            "3963b55f-c85f-5b3d-85a2-6cf6b413a530",
+            "b388105c-1c8a-5303-8757-fbca0eeb9d73",
+            "8ce784d9-4c71-58c9-8dad-5e13057e7207",
+            "cf83b5c8-be4d-5e57-a46c-780ccda60009"
+          ]
+        },
+        {
+          "id": "m2h-11",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.7933273,
+            "bm25_rank": null,
+            "bm25_score": null,
+            "fused_score": null
+          },
+          "retrieved_ids": [
+            "8e61a35b-ffc9-54b7-9a5d-628631568c72",
+            "bb110e5c-3adb-556f-9a73-6a5fe1e247ce",
+            "3d588d51-0fef-53f0-a7ac-5dd4f2152306",
+            "a8f3f953-6bc4-5dbe-8b91-fea17b644d16",
+            "1bf8e802-74c0-50a7-834e-9e9cd012ac91"
+          ]
+        },
+        {
+          "id": "m2h-12",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.81310654,
+            "bm25_rank": null,
+            "bm25_score": null,
+            "fused_score": null
+          },
+          "retrieved_ids": [
+            "cbe1905e-ef75-5d3d-aec5-f29572cb4088",
+            "fb1c13cb-17c5-59f6-8898-1a4aeeb1eb7b",
+            "317e554f-c547-596c-88a1-2c8db93812fa",
+            "417169d7-936e-5cce-a90c-c6a0ee34f274",
+            "b2f74b0d-e2ec-599b-88ff-9f4333a2476c"
+          ]
+        },
+        {
+          "id": "m2h-13",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.81874,
+            "bm25_rank": null,
+            "bm25_score": null,
+            "fused_score": null
+          },
+          "retrieved_ids": [
+            "50ef854d-de60-51a2-80b1-d9bf767096ae",
+            "5ee989d7-5cb5-549f-b4fa-5e5c187a7a46",
+            "96849425-706a-5746-88d5-4a982d782bb0",
+            "c62ac5f3-d437-5e0d-81d2-c6b05e407eb1",
+            "10458b68-5ea5-52ed-ad73-2a55c6411e07"
+          ]
+        },
+        {
+          "id": "m2h-14",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 2,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 2,
+            "dense_score": 0.69870996,
+            "bm25_rank": null,
+            "bm25_score": null,
+            "fused_score": null
+          },
+          "retrieved_ids": [
+            "5262f4d4-0b24-528d-a9ba-8c99c3d23128",
+            "eb9cba88-93a2-5576-9337-1012253017d5",
+            "44c7087a-b2f5-56a9-88be-c3c2f1ccd5c5",
+            "1ac3f695-d9de-5e04-9efe-1fd4271ba30e",
+            "7f891908-098d-5fc3-aeeb-d823b6f894e6"
+          ]
+        },
+        {
+          "id": "m2h-15",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.79079545,
+            "bm25_rank": null,
+            "bm25_score": null,
+            "fused_score": null
+          },
+          "retrieved_ids": [
+            "932eff95-b707-549f-b432-b3e064dfc036",
+            "7ea6131c-f35d-5b50-aeeb-aa24b2297e38",
+            "7ff9f559-8109-5f3c-8e7a-80888107f48c",
+            "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "b1e04706-9182-5b8c-8644-a2c64f7a6fc3"
+          ]
+        },
+        {
+          "id": "m2h-16",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": true,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.841397,
+            "bm25_rank": null,
+            "bm25_score": null,
+            "fused_score": null
+          },
+          "retrieved_ids": [
+            "52a140a1-4b8d-58da-8922-4eb9d9a5c1e2",
+            "5ac6c6a1-036a-56a3-8805-f3c3667a2972",
+            "e923e629-2872-5b8e-9d51-88d98b9c5b57",
+            "ad1b845c-445b-59c0-9cc1-172fe1b7fd41",
+            "c163bc13-1d72-5e33-966b-2fdcaefb9da8"
+          ]
+        },
+        {
+          "id": "m2h-17",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": true,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.7632612,
+            "bm25_rank": null,
+            "bm25_score": null,
+            "fused_score": null
+          },
+          "retrieved_ids": [
+            "9b3cf202-c120-5145-a694-28e99351941c",
+            "1b00a26a-55d5-52a2-aac5-f14380ce4714",
+            "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "4259b9ff-b142-52fa-b84e-101d909baf3f"
+          ]
+        },
+        {
+          "id": "m2h-18",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.8414109,
+            "bm25_rank": null,
+            "bm25_score": null,
+            "fused_score": null
+          },
+          "retrieved_ids": [
+            "ab85699e-fe95-515f-a806-c369d25a1c16",
+            "617961be-9280-5dc6-9812-4b79d6dd66bc",
+            "d9595d49-4db3-5b80-ac82-576a1e69fb0c",
+            "59905306-58ef-5417-aa68-5b452ee1cfa8",
+            "854439f7-8fb5-5492-b7a9-42c8a15fc6de"
+          ]
+        },
+        {
+          "id": "m2h-19",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.84396,
+            "bm25_rank": null,
+            "bm25_score": null,
+            "fused_score": null
+          },
+          "retrieved_ids": [
+            "145ebc89-5a54-520f-a13a-0830edaffe87",
+            "ec959bd5-12e8-5ffb-baea-c33dfd1e1055",
+            "8ce784d9-4c71-58c9-8dad-5e13057e7207",
+            "7e75bac0-8546-56b5-b42c-d0c6fe77aa78",
+            "f3ef2c76-0384-5403-94c0-cf9c729ee9af"
+          ]
+        },
+        {
+          "id": "m2h-20",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.8530624,
+            "bm25_rank": null,
+            "bm25_score": null,
+            "fused_score": null
+          },
+          "retrieved_ids": [
+            "02c0f02f-b603-544d-89f2-b7ec47640336",
+            "7e75bac0-8546-56b5-b42c-d0c6fe77aa78",
+            "643388d4-5061-5c42-98ab-b0b7ac5c443b",
+            "4259b9ff-b142-52fa-b84e-101d909baf3f",
+            "addf322e-742b-505b-999e-5d5c83d71451"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C6",
+      "label": "hybrid stopwords k=20",
+      "recall_at_5": {
+        "exact": "7/8",
+        "value": 0.875
+      },
+      "hit_at_5": {
+        "exact": "19/20",
+        "value": 0.95
+      },
+      "mrr_at_5": {
+        "exact": "13/15",
+        "value": 0.8666666666666667
+      },
+      "p50_ms": 65.52,
+      "p95_ms": 72.53,
+      "exact_term_subgroup": {
+        "recall_at_5": {
+          "exact": "1/1",
+          "value": 1.0
+        },
+        "hit_at_5": {
+          "exact": "1/1",
+          "value": 1.0
+        },
+        "mrr_at_5": {
+          "exact": "1/1",
+          "value": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "id": "m2h-01",
+          "recall": {
+            "exact": "1/2",
+            "value": 0.5
+          },
+          "first_match_rank": 3,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 23,
+            "dense_score": 0.6395,
+            "bm25_rank": 1,
+            "bm25_score": 12.104353291865293,
+            "fused_score": 0.07087486157253599
+          },
+          "retrieved_ids": [
+            "a975a707-cd5d-5e64-9e04-b2c0afff3ce4",
+            "eefba9c2-bc0b-533a-9704-04728968af96",
+            "ddd6aef7-eebf-5b5d-b728-b74a736a57b0",
+            "44c7087a-b2f5-56a9-88be-c3c2f1ccd5c5",
+            "199e0e4f-f6dc-5e3c-aa6c-44c3e577649f"
+          ]
+        },
+        {
+          "id": "m2h-02",
+          "recall": {
+            "exact": "0/1",
+            "value": 0.0
+          },
+          "first_match_rank": null,
+          "scoring_target_hit": false,
+          "alternative_evidence_hit": true,
+          "first_match_provenance": null,
+          "retrieved_ids": [
+            "dc2c772b-2481-5415-bb91-810819999e12",
+            "f8b944ec-4259-53cf-ad8b-631bf7504566",
+            "5262f4d4-0b24-528d-a9ba-8c99c3d23128",
+            "a22e5c53-3665-5453-a4fe-dfb4582d19ad",
+            "5df7ca42-3b29-566c-b6ae-3d30af28caab"
+          ]
+        },
+        {
+          "id": "m2h-03",
+          "recall": {
+            "exact": "1/2",
+            "value": 0.5
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.8639378,
+            "bm25_rank": 2,
+            "bm25_score": 11.882796809188314,
+            "fused_score": 0.09307359307359307
+          },
+          "retrieved_ids": [
+            "cb1674e0-fa06-5207-b8e3-a4d537cc3c78",
+            "bf04945b-7dac-5a01-93de-a44f9414acaa",
+            "43dea98b-403e-55f6-9b95-b00dd093aa1c",
+            "6f7dec76-cccd-524e-b5ab-7704e1eb6125",
+            "5ed880fe-cc8e-587f-8456-decd514ff59b"
+          ]
+        },
+        {
+          "id": "m2h-04",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.8082481,
+            "bm25_rank": 1,
+            "bm25_score": 12.242905778272167,
+            "fused_score": 0.09523809523809523
+          },
+          "retrieved_ids": [
+            "da2f8351-9820-52d3-8e21-6497f997a74d",
+            "18f53165-fecf-5c22-9a99-d1b6a86f791d",
+            "6f7dec76-cccd-524e-b5ab-7704e1eb6125",
+            "039aa244-742d-5e82-aaa0-b9721ff0481c",
+            "b2f74b0d-e2ec-599b-88ff-9f4333a2476c"
+          ]
+        },
+        {
+          "id": "m2h-05",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 2,
+            "dense_score": 0.6811056,
+            "bm25_rank": 2,
+            "bm25_score": 10.458177816334716,
+            "fused_score": 0.09090909090909091
+          },
+          "retrieved_ids": [
+            "693c3b8b-5c4c-5f65-88d6-e9b8461348b1",
+            "1845e618-ee11-5730-8d4a-3ae1d8adfee3",
+            "8ce784d9-4c71-58c9-8dad-5e13057e7207",
+            "43dea98b-403e-55f6-9b95-b00dd093aa1c",
+            "849e9c12-c0b7-5f54-ae7d-4cda6ec5e7f7"
+          ]
+        },
+        {
+          "id": "m2h-06",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.84355545,
+            "bm25_rank": 1,
+            "bm25_score": 18.53943494045172,
+            "fused_score": 0.09523809523809523
+          },
+          "retrieved_ids": [
+            "bb262530-1e70-54b4-82e5-9e5820816c0e",
+            "773723e7-5d32-5249-b5f1-dc489d654ad2",
+            "1b4a28d9-e929-5ebc-9cd7-cbbbd925546e",
+            "59905306-58ef-5417-aa68-5b452ee1cfa8",
+            "6f7dec76-cccd-524e-b5ab-7704e1eb6125"
+          ]
+        },
+        {
+          "id": "m2h-07",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.74578416,
+            "bm25_rank": 1,
+            "bm25_score": 28.86753184888992,
+            "fused_score": 0.09523809523809523
+          },
+          "retrieved_ids": [
+            "ec78fd57-b4d2-5b1c-8377-d683d8d9250c",
+            "2e3b5d2c-aeef-50f3-a19d-78607b9ff257",
+            "5e22f752-db17-5a44-9c3a-09c27155cbd8",
+            "44c7087a-b2f5-56a9-88be-c3c2f1ccd5c5",
+            "01146dee-9225-59c5-8c63-f4e7c3d42fd2"
+          ]
+        },
+        {
+          "id": "m2h-08",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 2,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.7862886,
+            "bm25_rank": 27,
+            "bm25_score": 9.875323865696004,
+            "fused_score": 0.06889564336372847
+          },
+          "retrieved_ids": [
+            "7014ffc0-e863-5080-92c2-4f14707dd335",
+            "849e9c12-c0b7-5f54-ae7d-4cda6ec5e7f7",
+            "9b3cf202-c120-5145-a694-28e99351941c",
+            "42f47d1c-6b88-5060-9fc4-7d6540eba805",
+            "d2d4a34f-f906-5da1-892b-84b4ebb797d1"
+          ]
+        },
+        {
+          "id": "m2h-09",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.7396083,
+            "bm25_rank": 2,
+            "bm25_score": 13.954038298517892,
+            "fused_score": 0.09307359307359307
+          },
+          "retrieved_ids": [
+            "74e5a12f-f48f-5da5-8f54-0b99bfe560d9",
+            "4944b798-54cb-54c5-b226-2cd14c211e9c",
+            "ab85699e-fe95-515f-a806-c369d25a1c16",
+            "3b322915-275e-5384-a281-8618187d9f9e",
+            "6f7dec76-cccd-524e-b5ab-7704e1eb6125"
+          ]
+        },
+        {
+          "id": "m2h-10",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.79708683,
+            "bm25_rank": 15,
+            "bm25_score": 9.069995147087733,
+            "fused_score": 0.07619047619047618
+          },
+          "retrieved_ids": [
+            "0dcb3194-d30f-598d-a9bc-9355075d5556",
+            "9e7ba22d-23ca-526e-a2db-8db49b39df05",
+            "8ce784d9-4c71-58c9-8dad-5e13057e7207",
+            "087a5231-d0d5-5d11-99e1-b1774c6a3831",
+            "cf83b5c8-be4d-5e57-a46c-780ccda60009"
+          ]
+        },
+        {
+          "id": "m2h-11",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.7933273,
+            "bm25_rank": 1,
+            "bm25_score": 24.1912673758333,
+            "fused_score": 0.09523809523809523
+          },
+          "retrieved_ids": [
+            "8e61a35b-ffc9-54b7-9a5d-628631568c72",
+            "3d588d51-0fef-53f0-a7ac-5dd4f2152306",
+            "d763d3fb-6c65-5206-b3f4-641d4dd058c5",
+            "a8f3f953-6bc4-5dbe-8b91-fea17b644d16",
+            "62d2b1d0-e7b9-509f-af6e-f2f302077e2a"
+          ]
+        },
+        {
+          "id": "m2h-12",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.81310654,
+            "bm25_rank": 1,
+            "bm25_score": 27.809612543115776,
+            "fused_score": 0.09523809523809523
+          },
+          "retrieved_ids": [
+            "cbe1905e-ef75-5d3d-aec5-f29572cb4088",
+            "317e554f-c547-596c-88a1-2c8db93812fa",
+            "fb1c13cb-17c5-59f6-8898-1a4aeeb1eb7b",
+            "c5d86a96-315f-59dd-9318-3959ca3b8553",
+            "417169d7-936e-5cce-a90c-c6a0ee34f274"
+          ]
+        },
+        {
+          "id": "m2h-13",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.81874,
+            "bm25_rank": 1,
+            "bm25_score": 29.39863528999153,
+            "fused_score": 0.09523809523809523
+          },
+          "retrieved_ids": [
+            "50ef854d-de60-51a2-80b1-d9bf767096ae",
+            "5ee989d7-5cb5-549f-b4fa-5e5c187a7a46",
+            "96849425-706a-5746-88d5-4a982d782bb0",
+            "10458b68-5ea5-52ed-ad73-2a55c6411e07",
+            "e4a09bb4-5e18-5d7e-b00b-35848d4cb495"
+          ]
+        },
+        {
+          "id": "m2h-14",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 2,
+            "dense_score": 0.69870996,
+            "bm25_rank": 4,
+            "bm25_score": 7.95168199647837,
+            "fused_score": 0.08712121212121213
+          },
+          "retrieved_ids": [
+            "eb9cba88-93a2-5576-9337-1012253017d5",
+            "44c7087a-b2f5-56a9-88be-c3c2f1ccd5c5",
+            "01146dee-9225-59c5-8c63-f4e7c3d42fd2",
+            "7f891908-098d-5fc3-aeeb-d823b6f894e6",
+            "6f7dec76-cccd-524e-b5ab-7704e1eb6125"
+          ]
+        },
+        {
+          "id": "m2h-15",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.79079545,
+            "bm25_rank": 1,
+            "bm25_score": 22.868231105583813,
+            "fused_score": 0.09523809523809523
+          },
+          "retrieved_ids": [
+            "932eff95-b707-549f-b432-b3e064dfc036",
+            "bab254ef-246c-55dc-ac0c-9a891895882d",
+            "e4559230-8598-5618-9e04-465aaf9bdc77",
+            "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "7ff9f559-8109-5f3c-8e7a-80888107f48c"
+          ]
+        },
+        {
+          "id": "m2h-16",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": true,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.841397,
+            "bm25_rank": 2,
+            "bm25_score": 27.605523032774418,
+            "fused_score": 0.09307359307359307
+          },
+          "retrieved_ids": [
+            "52a140a1-4b8d-58da-8922-4eb9d9a5c1e2",
+            "5ac6c6a1-036a-56a3-8805-f3c3667a2972",
+            "469ca367-6c49-58bb-a580-2189560acce5",
+            "7014ffc0-e863-5080-92c2-4f14707dd335",
+            "c163bc13-1d72-5e33-966b-2fdcaefb9da8"
+          ]
+        },
+        {
+          "id": "m2h-17",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": true,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.7632612,
+            "bm25_rank": 1,
+            "bm25_score": 24.185437057586835,
+            "fused_score": 0.09523809523809523
+          },
+          "retrieved_ids": [
+            "9b3cf202-c120-5145-a694-28e99351941c",
+            "1b00a26a-55d5-52a2-aac5-f14380ce4714",
+            "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "e32b40b7-e464-5a27-bb7d-65f4376fab1e",
+            "e589355a-1f86-54ec-aa1f-7566ea4adeab"
+          ]
+        },
+        {
+          "id": "m2h-18",
+          "recall": {
+            "exact": "1/2",
+            "value": 0.5
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.8414109,
+            "bm25_rank": 2,
+            "bm25_score": 16.03784883902289,
+            "fused_score": 0.09307359307359307
+          },
+          "retrieved_ids": [
+            "ab85699e-fe95-515f-a806-c369d25a1c16",
+            "617961be-9280-5dc6-9812-4b79d6dd66bc",
+            "6f7dec76-cccd-524e-b5ab-7704e1eb6125",
+            "e5698272-a46f-537c-afb6-6358b41210fe",
+            "ed765729-7acd-5894-bb12-882c2e819699"
+          ]
+        },
+        {
+          "id": "m2h-19",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 1,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.84396,
+            "bm25_rank": 2,
+            "bm25_score": 18.250321133407443,
+            "fused_score": 0.09307359307359307
+          },
+          "retrieved_ids": [
+            "145ebc89-5a54-520f-a13a-0830edaffe87",
+            "ec959bd5-12e8-5ffb-baea-c33dfd1e1055",
+            "7e75bac0-8546-56b5-b42c-d0c6fe77aa78",
+            "8ce784d9-4c71-58c9-8dad-5e13057e7207",
+            "9e7ba22d-23ca-526e-a2db-8db49b39df05"
+          ]
+        },
+        {
+          "id": "m2h-20",
+          "recall": {
+            "exact": "1/1",
+            "value": 1.0
+          },
+          "first_match_rank": 2,
+          "scoring_target_hit": true,
+          "alternative_evidence_hit": null,
+          "first_match_provenance": {
+            "dense_rank": 1,
+            "dense_score": 0.8530624,
+            "bm25_rank": 5,
+            "bm25_score": 9.603469444127255,
+            "fused_score": 0.08761904761904762
+          },
+          "retrieved_ids": [
+            "7e75bac0-8546-56b5-b42c-d0c6fe77aa78",
+            "02c0f02f-b603-544d-89f2-b7ec47640336",
+            "bfe48e0f-8463-5df7-ba46-973bd2460e88",
+            "addf322e-742b-505b-999e-5d5c83d71451",
+            "0512902c-17dd-5c4d-ad7c-acfd1969d2ca"
+          ]
+        }
+      ]
+    }
+  ]
+}

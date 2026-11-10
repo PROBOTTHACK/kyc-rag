@@ -101,6 +101,20 @@ M2 retrieval choices follow `docs/milestones/M2_PLAN.md` §6.
     - It loses m1-11 in every hybrid.
   - **Uncertainty:** every bootstrap CI includes zero (C6: [−0.125, +0.275]). On 20 single-annotator queries, C6 is not statistically distinguishable from dense.
   - **Held-out next:** a separate stage runs the held-out set once, for C6 with C0 as the fixed reference, including the exact-term subgroup.
+- **Held-out result (the one-time run, 2026-11-10, commit `b701baa`; `docs/milestones/M2_HELDOUT_EVALUATION.md`, `data/eval/m2_heldout_results.json`):**
+  - **Validation first:** both held-out test modules passed (4/4, 3/3) and the frozen SHA-256 matched.
+  - **What ran:** only C0 and C6, one scored pass each.
+
+  | Config | Recall@5 | Hit@5 | MRR@5 | p50 / p95 ms |
+  |---|---|---|---|---|
+  | C0 dense | 0.900 | 0.900 | 0.850 | 46.5 / 60.7 |
+  | C6 hybrid stopwords k=20 | 0.875 | 0.950 | 0.867 | 65.5 / 72.5 |
+
+  - **The development Recall@5 gain did not generalize:** −0.025 on held-out against +0.075 on development. The paired 95% CI is [−0.125, +0.050].
+  - **Per query:** 1 better, 2 worse, 17 unchanged. Hit@5 is +0.050 and MRR@5 +0.017.
+  - **Exact-term subgroup** (m2h-06/11/12): 1.000 for both configurations, a ceiling.
+  - **Failure mode:** the stopword BM25 leg promotes HDFC form chunks, one of them OCR-uncertain, over policy and FAQ answers (m2h-03, m2h-18).
+  - **What follows:** as pre-registered, the result is reported as is and does not reopen tuning. The A3 decision record is unchanged, and whether to keep C6 as the configured default is the project owner's call.
 - **Limitations:**
   - **Single annotator:** all held-out labels were drafted by the implementing assistant and reviewed by the project owner. There was no independent annotation or inter-annotator validation, and no such claim is made.
   - **Resolution:** with 20 queries, one query moves mean Recall@5 by about 0.05, so confidence intervals are wide and "no measurable difference" is a valid outcome.
