@@ -123,11 +123,23 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
   - `forms extract --provider gemini [--document KEY]...`: the default is `--provider deterministic`, and the default Gemini document set is the approved list. Every requested key is checked first; any refusal sends nothing (exit 2), so the NetBanking reference, any unlisted document and any hash mismatch are rejected.
   - `forms show KEY --method m1_chunks|gemini_multimodal`: the default and every existing caller use `m1_chunks`; the methods are never mixed.
   - `forms list` shows the method.
-- **First live run (2026-11-10, five approved forms, 19 pages; gates enabled only for that process):** **failed, and nothing was stored.**
-  - Four forms got `503 UNAVAILABLE` on all 3 attempts of their first page. The fifth (`hdfc_resident_rekyc_dormant`) got `429 RESOURCE_EXHAUSTED` on all 3.
-  - That is 15 API attempts, with no tokens returned.
-  - AI Studio's per-project limits could not be checked from this environment, so the conservative 10 RPM limiter was kept.
-  - No extraction results exist. The pipeline is verified with the scripted provider on the real stored corpus (tests), not with live Gemini output.
+- **Live runs (2026-11-10; five approved forms, 19 pages; gates and fallback enabled for those processes only, `.env` unchanged):**
+  - **Run 1 (old policy: 3 attempts, no fallback):** failed. Four forms got `503 UNAVAILABLE` and one got `429 RESOURCE_EXHAUSTED`, 15 attempts in all, and nothing was stored.
+  - **Rerun (5 attempts per model, 2→4→8→16 s, fallback `gemini-3.5-flash-lite`):** results in the table below. 3 of 5 forms were stored, 412 fields in total, and the rerun of the stored form made **zero provider calls**. AI Studio's per-project limits could not be checked from this environment, so the 10 RPM limiter was kept.
+
+    | Form | Result | Pages | Fields (corroborated / uncorroborated) | `*` shown | Model | Requests / API attempts | Tokens in / out | Latency |
+    |---|---|---|---|---|---|---|---|---|
+    | hdfc_resident_rekyc_dormant | inserted | 2/2 | 55 (37 / 18) | 0 | primary | 2 / 7 | 2,694 / 1,563 | 34 s |
+    | hdfc_nri_account_opening | inserted, `partial_extraction` | 5/6 (p3 invalid twice) | 296 (215 / 81) | 39 | fallback (all 6 pages) | 10 / 74 | 14,021 / 26,031 | 98 s |
+    | hdfc_nri_rekyc (scanned) | inserted | 3/3 | 61 (47 / 14) | 3 | fallback (all 3 pages) | 3 / 18 | 4,077 / 3,972 | 19 s |
+    | hdfc_non_individual_account_opening (scanned) | **failed**: `RECITATION` refusal | – | – | – | – | – | – | – |
+    | hdfc_resident_to_nro_conversion | **failed**: 503 on both models after 5 attempts each | – | – | – | – | – | – | – |
+
+  - **Findings:**
+    - **Duplicate-label rule:** every invalid attempt (p3–p6 of the NRI form) was rejected by the rule "duplicate label on the same page and section". Real forms repeat labels legitimately (e.g. per-applicant or per-address "PIN Code", "Date"), so this rule is stricter than the forms themselves. It is open for an owner decision and was not changed.
+    - **Uncorroborated labels:** in the sample reviewed, these were real printed labels worded more fully than M1's stored text (e.g. "Form 60. (Non PAN Card holder)", "Gross Annual Income (₹)"). No invented fields were seen.
+    - **RECITATION:** Gemini's recitation filter refused the scanned non-individual form. By design, refusals do not fall back.
+    - **Security:** secret scan clean (logs, all `form_schemas` rows, Redis empty).
 
 **Embeddings and Qdrant indexing (implemented, M1 Stage D; `app/retrieval/{embeddings,qdrant_store,indexing,search}.py`):**
 - Model: `BAAI/bge-small-en-v1.5` at the pinned revision `EMBEDDING_MODEL_REVISION`, on CPU. It produces 384-dimensional vectors, L2-normalised, compared by cosine. Queries get the BGE instruction ("Represent this sentence for searching relevant passages: "); passages don't.
