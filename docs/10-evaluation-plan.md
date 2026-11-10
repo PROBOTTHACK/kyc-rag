@@ -70,6 +70,17 @@ M2 retrieval choices follow `docs/milestones/M2_PLAN.md` §6.
   - **Per-stage p50 latency in hybrid:** dense 48 ms (query embedding 33 ms, Qdrant 15 ms) + BM25 13 ms (freshness check 6 ms, scoring 6 ms) + fusion 0.6 ms. The stages run sequentially, so the latencies add.
   - **Freshness check:** about 6 ms per query, down from ~104 ms in A1, after the A2 switch to the `xmin` version check (docs/04).
   - **No configuration was selected or tuned, and the held-out set was not read.**
+- **A3 selection protocol (registered before the A3 run; `app/retrieval/selection.py`):**
+  - **The seven configurations, and only these:** C0 dense; C1 BM25 plain; C2 BM25 + stopwords; C3 hybrid plain k = 60; C4 hybrid plain k = 20; C5 hybrid stopwords k = 60; C6 hybrid stopwords k = 20.
+  - **Fixed for all:** 50 candidates per retriever, top-k 5, BM25Okapi k1 = 1.5 / b = 0.75, the pinned embedding model and revision, production filters plus the case's entity terms.
+  - **Stopwords:** the registered Lucene English list (docs/04), which removes "no" and "not".
+  - **Qualification:** mean Recall@5 ≥ dense + 0.05 **and** Hit@5 not below dense. Computed with exact fractions. Hit@5 is a condition, never a tie-break.
+  - **Order of qualifiers:** Recall@5, then MRR@5, then simplicity (dense < BM25 plain < BM25 stopwords < hybrid plain < hybrid stopwords; k = 60 and k = 20 equally simple), then p50 latency, then configuration ID. If none qualifies, C0 dense stays.
+  - **Reported only, never decisive:** the paired bootstrap 95% CI of ΔRecall@5 (10,000 resamples, seed 20261110), per-query wins and losses, and per-query trade-off evidence (the original dense and BM25 ranks of the hybrid's first matching chunk, and where dense's first match landed).
+  - **Run once:** `make eval-select` runs once, on the development set only. Its decision record (`data/eval/m2_a3_selection.json`, plus `docs/milestones/M2_A3_SELECTION.md`) is committed before any held-out evaluation.
+  - **Exact-term subgroup:** m2h-06/11/12 are held-out cases, so they are reported **only** in the one-time held-out run, never during A3.
+  - **Tests during A3:** `tests/unit/test_m2_heldout.py` and `tests/integration/test_m2_heldout_labels.py` are excluded (`--ignore`), and the held-out file is checked for changes through git metadata only. Both modules run again in the held-out verification stage.
+  - **Negation limitation:** in the stopword variants, removing "no"/"not" changes lexical matching for negated queries. This is noted as a limitation of the experiment, not corrected after results.
 - **Limitations:**
   - **Single annotator:** all held-out labels were drafted by the implementing assistant and reviewed by the project owner. There was no independent annotation or inter-annotator validation, and no such claim is made.
   - **Resolution:** with 20 queries, one query moves mean Recall@5 by about 0.05, so confidence intervals are wide and "no measurable difference" is a valid outcome.

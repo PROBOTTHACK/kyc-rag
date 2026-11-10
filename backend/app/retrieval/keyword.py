@@ -34,16 +34,29 @@ from app.retrieval.search import DEFAULT_TOP_K, SearchFilters, SearchHit
 
 TOKENIZER_VERSION = 1  # bump when `tokenize` changes
 _TOKEN = re.compile(r"[a-z0-9]+(?:[./-][a-z0-9]+)*")
+# M2 A3 registered variant: the Lucene / Elasticsearch default English stopword list,
+# verbatim (33 words), fixed before any result was seen and never edited afterwards.
+# It removes "no" and "not": negation then no longer counts as a lexical match. That only
+# affects BM25 ranking, never the stored or returned evidence text (docs/04, docs/10).
+STOPWORDS_LUCENE_EN: frozenset[str] = frozenset(
+    {"a", "an", "and", "are", "as", "at", "be", "but", "by", "for", "if", "in", "into", "is",
+     "it", "no", "not", "of", "on", "or", "such", "that", "the", "their", "then", "there",
+     "these", "they", "this", "to", "was", "will", "with"}
+)  # fmt: skip
 
 
 class KeywordIndexUnavailable(RuntimeError):
     """The keyword index cannot be built or verified as current (e.g. Postgres is down)."""
 
 
-def tokenize(text: str) -> list[str]:
+def tokenize(text: str, *, stopwords: bool = False) -> list[str]:
     """Plain tokenizer (v1): NFKC, lowercase, alphanumeric runs. Internal `.`, `/` and `-`
-    join a token, so terms such as "v-cip", "51a", "1.5" and "1718" stay whole."""
-    return _TOKEN.findall(unicodedata.normalize("NFKC", text).lower())
+    join a token, so terms such as "v-cip", "51a", "1.5" and "1718" stay whole.
+
+    `stopwords=True` (M2 A3 variant) then drops `STOPWORDS_LUCENE_EN`; the default plain
+    output is unchanged."""
+    tokens = _TOKEN.findall(unicodedata.normalize("NFKC", text).lower())
+    return [t for t in tokens if t not in STOPWORDS_LUCENE_EN] if stopwords else tokens
 
 
 def index_text(payload: dict[str, Any]) -> str:
@@ -59,17 +72,20 @@ class KeywordIndex:
     fingerprint: str = ""
     build_seconds: float = 0.0
     _bm25: BM25Okapi | None = field(default=None, repr=False)
+    stopwords: bool = False  # tokenizer variant used for the corpus AND for queries
 
     @classmethod
-    def build(cls, payloads: list[dict[str, Any]], fingerprint: str = "") -> "KeywordIndex":
+    def build(
+        cls, payloads: list[dict[str, Any]], fingerprint: str = "", *, stopwords: bool = False
+    ) -> "KeywordIndex":
         for p in payloads:
             if not p.get("embedding_eligible") or p.get("chunk_role") == "parent":
                 raise ValueError(f"chunk {p.get('chunk_id')} is not embedding-eligible")
         started = time.perf_counter()
-        corpus = [tokenize(index_text(p)) for p in payloads]
+        corpus = [tokenize(index_text(p), stopwords=stopwords) for p in payloads]
         # rank_bm25 divides by the corpus size; an empty corpus simply has no index.
         bm25 = BM25Okapi(corpus) if corpus else None
-        return cls(list(payloads), fingerprint, time.perf_counter() - started, bm25)
+        return cls(list(payloads), fingerprint, time.perf_counter() - started, bm25, stopwords)
 
     def __len__(self) -> int:
         return len(self.payloads)
@@ -79,7 +95,7 @@ class KeywordIndex:
     ) -> list[SearchHit]:
         if not query.strip():
             raise ValueError("query is empty")
-        terms = tokenize(query)
+        terms = tokenize(query, stopwords=self.stopwords)
         flt = filters or SearchFilters()
         candidates = [i for i, p in enumerate(self.payloads) if flt.matches(p)]
         if self._bm25 is None or not terms or not candidates:
@@ -107,10 +123,12 @@ class KeywordIndexManager:
         self,
         sessions: sessionmaker[Session],
         *,
-        build: Callable[[list[dict[str, Any]], str], KeywordIndex] = KeywordIndex.build,
+        stopwords: bool = False,
+        build: Callable[..., KeywordIndex] = KeywordIndex.build,
     ) -> None:
         self._sessions = sessions
         self._build = build
+        self.stopwords = stopwords  # tokenizer variant (M2 A3); False = plain (default)
         self._index: KeywordIndex | None = None
         self._lock = threading.Lock()
         self.rebuilds = 0
@@ -124,7 +142,8 @@ class KeywordIndexManager:
             try:
                 with self._sessions() as s:
                     s.connection(execution_options={"isolation_level": "REPEATABLE READ"})
-                    fp = f"t{TOKENIZER_VERSION}:x:{chunk_corpus_version(s)}"
+                    variant = "s" if self.stopwords else ""  # plain keeps the A2 prefix
+                    fp = f"t{TOKENIZER_VERSION}{variant}:x:{chunk_corpus_version(s)}"
                     self.last_check_ms = (time.perf_counter() - started) * 1000
                     if self._index is not None and self._index.fingerprint == fp:
                         return self._index
@@ -134,7 +153,7 @@ class KeywordIndexManager:
                 raise KeywordIndexUnavailable(
                     f"keyword index unavailable: {type(exc).__name__}: {exc}"
                 ) from exc
-            self._index = self._build(payloads, fp)
+            self._index = self._build(payloads, fp, stopwords=self.stopwords)
             self.rebuilds += 1
             self.last_build_ms = (time.perf_counter() - started) * 1000 - self.last_check_ms
             return self._index

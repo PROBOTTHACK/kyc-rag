@@ -19,6 +19,8 @@ Retrieval:
            [--include-context-only] [--mandatory-only] [--expand] [--mode dense|bm25|hybrid]
   evaluate [--dataset PATH] [--top-k N] [--report PATH] [--mode dense|bm25|hybrid]
            [--compare]   (--mode defaults to RETRIEVAL_MODE, i.e. dense)
+  evaluate --select [--report PATH] [--record PATH]   M2 A3 selection: the 7 registered
+           configurations on the development set only; applies the pre-registered rule
            Recall@k benchmark (the frozen held-out set is refused; docs/10)
 Checks:
   validate-manifest [--manifest PATH] [--corpus-dir PATH]
@@ -75,6 +77,14 @@ from app.retrieval.qdrant_store import ChunkStore, store_from_settings
 from app.retrieval.reconcile import ReconcileReport, reconcile, repair
 from app.retrieval.retrieve import RetrievalError, RetrievalMode, RetrievalResult, Retriever
 from app.retrieval.search import SearchFilters, SearchHit, search
+from app.retrieval.selection import (
+    CANDIDATES,
+    Candidate,
+    decide,
+    outcome,
+    render_selection,
+    selection_record,
+)
 from app.schemas.corpus import DocumentMetadata
 
 MAX_LISTED = 10  # issue ids printed per category
@@ -670,7 +680,8 @@ def _search(
             hits = result.hits
         elif mode == "bm25":
             sessions = sessions or _sessions(settings)
-            hits = KeywordIndexManager(sessions).search(query, top_k=top_k, filters=filters)
+            manager = KeywordIndexManager(sessions, stopwords=settings.BM25_STOPWORDS)
+            hits = manager.search(query, top_k=top_k, filters=filters)
         else:
             embedder = embedder or embedder_from_settings(settings)
             store = store or store_from_settings(settings)
@@ -747,7 +758,7 @@ def _retriever(
     return Retriever(
         embedder=lambda: embedder or embedder_from_settings(settings),
         store=lambda: store or store_from_settings(settings),
-        keyword=lambda: KeywordIndexManager(sessions),
+        keyword=lambda: KeywordIndexManager(sessions, stopwords=settings.BM25_STOPWORDS),
         rrf_k=settings.RRF_K,
         candidates=settings.RETRIEVAL_CANDIDATES,
     )
@@ -850,7 +861,9 @@ def _evaluate(
             return _emit(render_comparison(reports, note=note), report_path, REPO_ROOT)
         return _emit(render_markdown(reports[0]), report_path, REPO_ROOT)
     if mode == "bm25":
-        manager = KeywordIndexManager(sessions or _sessions(settings))
+        manager = KeywordIndexManager(
+            sessions or _sessions(settings), stopwords=settings.BM25_STOPWORDS
+        )
         try:
             index = manager.get()
         except KeywordIndexUnavailable as exc:
@@ -872,6 +885,102 @@ def _evaluate(
         store = store or store_from_settings(settings)
         report = evaluate(cases, embedder, store, k=top_k, dataset=str(dataset))
     return _emit(render_markdown(report), report_path, REPO_ROOT)
+
+
+def _select(
+    settings: Settings,
+    *,
+    report_path: Path | None,
+    record_path: Path | None,
+    dataset: Path = DEFAULT_DATASET,
+    embedder: Embedder | None = None,
+    store: ChunkStore | None = None,
+    sessions: sessionmaker[Session] | None = None,
+) -> int:
+    """M2 A3: evaluate the 7 registered configurations on the DEVELOPMENT set and apply the
+    pre-registered rule (app/retrieval/selection.py). `dataset` is not exposed on the CLI;
+    the frozen held-out set is refused like everywhere else."""
+    import hashlib
+    import json
+    import subprocess
+
+    from app.config import REPO_ROOT
+
+    path = dataset if dataset.is_absolute() else REPO_ROOT / dataset
+    if path.name == HELDOUT_DATASET_NAME:
+        print("refused: selection runs on the development set only; the frozen held-out set "
+              "is never used to choose (docs/10).")  # fmt: skip
+        return 2
+    try:
+        cases = load_cases(path)
+        sha = hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+    except (OSError, ValueError) as exc:
+        print(f"invalid dataset: {exc}")
+        return 2
+    sessions = sessions or _sessions(settings)
+    managers = {flag: KeywordIndexManager(sessions, stopwords=flag) for flag in (False, True)}
+    shared_embedder: list[Embedder] = []
+
+    def get_embedder() -> Embedder:
+        if not shared_embedder:  # load the model once for every dense / hybrid candidate
+            shared_embedder.append(embedder or embedder_from_settings(settings))
+        return shared_embedder[0]
+
+    def retriever_for(c: Candidate) -> Retriever:
+        return Retriever(
+            embedder=get_embedder,
+            store=lambda: store or store_from_settings(settings),
+            keyword=lambda: managers[bool(c.stopwords)],
+            rrf_k=c.rrf_k or settings.RRF_K,
+            candidates=settings.RETRIEVAL_CANDIDATES,
+        )
+
+    outcomes = []
+    for c in CANDIDATES:
+        r = retriever_for(c)
+
+        def run(
+            q: str, f: SearchFilters, k: int, r: Retriever = r, m: str = c.mode
+        ) -> RetrievalResult:
+            return r.retrieve(q, mode=m, top_k=k, filters=f)
+
+        print(f"  {c.id} {c.label} ...")
+        try:
+            report = evaluate_retrieval(
+                cases,
+                run,
+                mode=c.mode,
+                description=c.label,
+                k=DEFAULT_K,
+                dataset=str(dataset),
+                timed_passes=TIMED_PASSES,
+            )
+        except (DegradedRunError, RetrievalError) as exc:
+            print(f"selection refused ({c.id}): {type(exc).__name__}: {exc}; nothing recorded")
+            return 2
+        outcomes.append(outcome(c, report))
+    decision = decide(outcomes)
+    try:
+        # Fixed argv, no shell; git from PATH; a read-only query.
+        commit = subprocess.run(  # noqa: S603
+            ["git", "rev-parse", "HEAD"],  # noqa: S607
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=10,
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        commit = "unknown"
+    rel = path.relative_to(REPO_ROOT).as_posix() if path.is_relative_to(REPO_ROOT) else str(path)
+    _emit(render_selection(decision, dataset=rel, dataset_sha256=sha), report_path, REPO_ROOT)
+    if record_path is not None:
+        out = record_path if record_path.is_absolute() else REPO_ROOT / record_path
+        out.parent.mkdir(parents=True, exist_ok=True)
+        record = selection_record(decision, dataset=rel, dataset_sha256=sha, code_commit=commit)
+        out.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+        print(f"decision record written to {out}")
+    return 0
 
 
 def _emit(text: str, report_path: Path | None, root: Path) -> int:
@@ -968,6 +1077,9 @@ def build_parser(settings: Settings) -> argparse.ArgumentParser:
                     help="retrieval mode to evaluate (default: RETRIEVAL_MODE)")  # fmt: skip
     ev.add_argument("--compare", action="store_true",
                     help="compare dense, bm25 and hybrid at fixed A2 defaults")  # fmt: skip
+    ev.add_argument("--select", action="store_true",
+                    help="M2 A3: registered configurations on the dev set")  # fmt: skip
+    ev.add_argument("--record", type=Path, help="with --select: write the decision record here")
     return parser
 
 
@@ -998,6 +1110,13 @@ def main(argv: list[str] | None = None) -> int:
                                   dry_run=args.dry_run)  # fmt: skip
         return _index(settings, args.document, dry_run=args.dry_run, force=args.force,
                       prune=args.prune)  # fmt: skip
+    if args.command == "evaluate" and args.select:
+        if args.mode or args.compare or args.dataset != DEFAULT_DATASET:
+            parser.error("--select uses the registered configurations on the development set; "
+                         "it takes no --mode, --compare or --dataset")  # fmt: skip
+        return _select(settings, report_path=args.report, record_path=args.record)
+    if args.command == "evaluate" and args.record:
+        parser.error("--record requires --select")
     if args.command == "reconcile":
         if args.delete_unknown and not args.repair:
             parser.error("--delete-unknown requires --repair")

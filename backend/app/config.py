@@ -68,6 +68,9 @@ class Settings(BaseSettings):
     RETRIEVAL_MODE: Literal["dense", "bm25", "hybrid"] = "dense"
     RRF_K: int = Field(default=60, ge=1)  # hybrid fusion constant (fixed in A2)
     RETRIEVAL_CANDIDATES: int = Field(default=50, ge=1, le=1000)  # per retriever, hybrid
+    # BM25 tokenizer variant (M2 A3): False = plain v1; True = plain v1 + the registered
+    # Lucene English stopword list (removes "no"/"not"; docs/04).
+    BM25_STOPWORDS: bool = False
     # --- Tracing ---
     LANGSMITH_TRACING: bool = False
     LANGSMITH_API_KEY: SecretStr | None = None

@@ -177,7 +177,14 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
   - `evaluate --mode hybrid`; `evaluate --compare` / `make eval-compare` compares dense, BM25 and hybrid on the development set with per-stage latency (freshness, BM25 scoring, query embedding, Qdrant, fusion) and selects nothing;
   - `make search` / `make eval` take `MODE=dense|bm25|hybrid` (empty = `RETRIEVAL_MODE`);
   - `reconcile` adds one informational line (`keyword index (informational): N chunks; Postgres eligible M; Qdrant P`, or `unavailable: …`), which never affects its verdict, repair or exit code.
-- **Settings** (`infra/.env.example`): `RETRIEVAL_MODE`, `RRF_K`, `RETRIEVAL_CANDIDATES`.
+- **Settings** (`infra/.env.example`): `RETRIEVAL_MODE`, `RRF_K`, `RETRIEVAL_CANDIDATES`, `BM25_STOPWORDS` (M2 A3).
+
+**BM25 tokenizer variant (M2 A3; `STOPWORDS_LUCENE_EN` in `app/retrieval/keyword.py`):**
+- **Setting:** `BM25_STOPWORDS=true` keeps the plain v1 tokenizer and then drops the Lucene/Elasticsearch default English stopword list, verbatim (33 words): `a an and are as at be but by for if in into is it no not of on or such that the their then there these they this to was will with`.
+- **Registered, not tuned:** the list was fixed before any A3 result was seen and is never edited, because editing it would be tuning.
+- **Same tokens for corpus and queries:** the variant applies to both the indexed text and the queries. The default (`false`) is the unchanged plain tokenizer. Each variant has its own index, and the fingerprint names it (`t1s:` against the plain `t1:`).
+- **Negation limitation:** the list removes **"no" and "not"**. With it, a query such as "KYC is not mandatory" matches lexically like "KYC mandatory". This affects BM25 ranking only: evidence text, payloads and citations are untouched, and claims are checked later (M4). Whether the variant is used at all is decided by the A3 selection (docs/10).
+- **Selection harness:** `evaluate --select` / `make eval-select` evaluates the seven registered configurations on the development set and applies the pre-registered rule (`app/retrieval/selection.py`, docs/10).
 - **Measured on the development set:** see docs/10 (A2 comparison).
 
 ## Milestone-1 minimal slice

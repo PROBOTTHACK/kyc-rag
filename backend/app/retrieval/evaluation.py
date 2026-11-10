@@ -79,6 +79,11 @@ class CaseResult(BaseModel):
     reciprocal_rank: float
     matched: list[str]  # target labels found in the top k
     retrieved: list[str]  # citations of the top k, in rank order
+    # Filled only by `evaluate_retrieval` (M2 A3 analysis); M1 `evaluate` leaves them empty.
+    retrieved_ids: list[str] = Field(default_factory=list)  # chunk ids of the top k
+    first_match_id: str | None = None  # chunk id of the first hit matching a target
+    # Original ranks/scores behind that hit: dense_rank, dense_score, bm25_rank, ...
+    first_match_provenance: dict[str, Any] | None = None
 
 
 class Timing(BaseModel):
@@ -224,6 +229,31 @@ def evaluate_with(
     )
 
 
+def _scored(case: RetrievalCase, result: RetrievalResult, k: int) -> CaseResult:
+    """`score_case` plus the chunk ids and the provenance of the first matching hit."""
+    scored = score_case(case, result.hits, k)
+    top = result.hits[:k]
+    first = next((h for h in top if any(t.matches(h.payload) for t in case.targets)), None)
+    prov = result.provenance.get(first.chunk_id) if first is not None else None
+    return scored.model_copy(
+        update={
+            "retrieved_ids": [h.chunk_id for h in top],
+            "first_match_id": first.chunk_id if first is not None else None,
+            "first_match_provenance": (
+                {
+                    "dense_rank": prov.dense_rank,
+                    "dense_score": prov.dense_score,
+                    "bm25_rank": prov.bm25_rank,
+                    "bm25_score": prov.bm25_score,
+                    "fused_score": prov.fused_score,
+                }
+                if prov is not None
+                else None
+            ),
+        }
+    )
+
+
 class DegradedRunError(RuntimeError):
     """A retrieval in an evaluation run was degraded; partial runs are never scored."""
 
@@ -256,7 +286,7 @@ def evaluate_retrieval(
             )
         return result
 
-    results = [score_case(c, checked(c, f).hits, k) for c, f in zip(cases, filters, strict=True)]
+    results = [_scored(c, checked(c, f), k) for c, f in zip(cases, filters, strict=True)]
     timing = None
     if timed_passes > 0:
         totals: list[float] = []

@@ -25,7 +25,7 @@ DOCS = $(foreach d,$(DOC),--document $(d))
 
 .DEFAULT_GOAL := help
 .PHONY: help venv install install-locked lock up down migrate check-schema ingest ingest-dry
-.PHONY: persist index retry reconcile repair runs search check-corpus eval eval-compare check-dense-golden
+.PHONY: persist index retry reconcile repair runs search check-corpus eval eval-compare eval-select check-dense-golden
 .PHONY: api test test-integration lint fmt web
 
 # Printed by make itself ($(info)), so it needs no shell and looks the same everywhere.
@@ -35,7 +35,7 @@ help:
 	$(info Setup:     venv install install-locked lock)
 	$(info Services:  up down migrate check-schema)
 	$(info Ingestion: ingest ingest-dry persist index retry reconcile repair runs check-corpus)
-	$(info Retrieval: search Q="..."  eval  eval-compare  check-dense-golden)
+	$(info Retrieval: search Q="..."  eval  eval-compare  eval-select  check-dense-golden)
 	$(info Dev:       api test test-integration lint fmt)
 	$(info )
 	$(info Typical first run: make up migrate check-corpus ingest)
@@ -140,6 +140,11 @@ eval:
 # Dense vs BM25 vs hybrid on the development set at fixed A2 defaults (selects nothing).
 eval-compare:
 	$(CLI) evaluate --compare --report data/processed/m2_dev_compare_report.md
+
+# M2 A3: the 7 registered configurations on the development set + the pre-registered rule.
+# Writes the decision record committed before the one-time held-out evaluation (docs/10).
+eval-select:
+	$(CLI) evaluate --select --report data/processed/m2_a3_selection_report.md --record data/eval/m2_a3_selection.json
 
 # M1 dense golden regression: real model + dev collection; fails (never skips) if missing.
 check-dense-golden:

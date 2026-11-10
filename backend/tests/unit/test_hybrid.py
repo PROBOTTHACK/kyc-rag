@@ -239,7 +239,10 @@ def test_evaluate_retrieval_scores_hits_and_reports_stages(services: dict[str, A
         return r.retrieve(q, mode="hybrid", top_k=k, filters=f)
 
     report = evaluate_retrieval([CASE], run, mode="hybrid", description="d", timed_passes=2)
-    assert report.results[0] == score_case(CASE, run("trust deed", SearchFilters(), 5).hits, 5)
+    analysis = {"retrieved_ids", "first_match_id", "first_match_provenance"}  # A3 additions
+    expected = score_case(CASE, run("trust deed", SearchFilters(), 5).hits, 5)
+    assert report.results[0].model_dump(exclude=analysis) == expected.model_dump(exclude=analysis)
+    assert report.results[0].retrieved_ids and report.results[0].first_match_id
     assert report.timing is not None and report.timing.passes == 2
     assert {"total", "fusion", "freshness", "embed"} <= report.timing.stages.keys()
     text = render_comparison([report, report.model_copy(update={"mode": "dense"})], note="n")
