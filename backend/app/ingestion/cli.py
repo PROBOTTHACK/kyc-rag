@@ -25,6 +25,10 @@ Retrieval:
   evaluate --final-heldout [--report PATH] [--record PATH]   the ONE-TIME held-out run of
            C0 and the A3-selected configuration (refuses to run twice; docs/10)
            Recall@k benchmark (the frozen held-out set is refused; docs/10)
+Form schemas (M2 C2; deterministic, from stored M1 chunks):
+  forms extract [--document KEY]...   extract and persist (idempotent; never overwrites)
+  forms list                          stored schemas
+  forms show KEY [--json] [--version N]
 Checks:
   validate-manifest [--manifest PATH] [--corpus-dir PATH]
   check-ocr
@@ -44,11 +48,18 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import Settings, get_settings
+from app.db.forms import (
+    FormSchemaConflict,
+    extract_and_save,
+    list_form_schemas,
+    load_form_schema,
+)
 from app.db.migrations import current_revision, head_revision
 from app.db.models import Chunk
 from app.db.repository import evidence_context, family_integrity
 from app.db.runs import recent_runs
 from app.db.session import create_sync_engine, create_sync_sessionmaker
+from app.forms.extract import NotAFormError, extractable_document_keys
 from app.ingestion.manifest import ManifestError, load_manifest, validate_corpus
 from app.ingestion.ocr import SMOKE_TEXT, OcrSetupError, ocr_smoke_test, tesseract_setup
 from app.ingestion.pipeline import (
@@ -1142,6 +1153,101 @@ def _emit(text: str, report_path: Path | None, root: Path) -> int:
     return 0
 
 
+def _forms_extract(
+    settings: Settings, documents: list[str], sessions: sessionmaker[Session] | None = None
+) -> int:
+    """Extract and persist form schemas, one transaction per document. Exit 0 when every
+    document is inserted or unchanged; 1 on a conflict or failure (nothing overwritten);
+    2 when the database is not ready or a key is not an extractable document."""
+    sessions = sessions or _sessions(settings)
+    if not _check_database(sessions):
+        return 2
+    with sessions() as s:
+        known = extractable_document_keys(s)
+    keys = documents or known
+    unknown = sorted(set(keys) - set(known))
+    if unknown:
+        print(f"not extractable (not a stored form or reference document): {', '.join(unknown)}")
+        return 2
+    failed = 0
+    for key in keys:
+        try:
+            with sessions() as s:
+                outcome = extract_and_save(s, key)
+                s.commit()
+            print(f"  {key:<38} {outcome.status:<9} v{outcome.extractor_version} "
+                  f"schema {outcome.schema_sha256[:12]}")  # fmt: skip
+        except FormSchemaConflict as exc:
+            failed += 1
+            print(f"  {key:<38} CONFLICT  {exc}")
+        except (NotAFormError, LookupError, ValueError) as exc:
+            failed += 1
+            print(f"  {key:<38} FAILED    {type(exc).__name__}: {exc}")
+    print(f"forms: {len(keys) - failed} ok, {failed} not saved")
+    return 1 if failed else 0
+
+
+def _forms_list(settings: Settings, sessions: sessionmaker[Session] | None = None) -> int:
+    sessions = sessions or _sessions(settings)
+    if not _check_database(sessions):
+        return 2
+    with sessions() as s:
+        rows = list_form_schemas(s)
+    if not rows:
+        print("no form schemas stored; run `forms extract`")
+    for r in rows:
+        flags = ",".join(r.quality_flags) or "-"
+        print(f"  {r.form_key:<38} {r.document_role:<18} {r.evidence_eligibility:<12} "
+              f"v{r.extractor_version} sections {r.section_count:>3} fields {r.field_count:>3} "
+              f"required-as-shown {r.required_as_shown_count:>3} flags {flags}")  # fmt: skip
+    return 0
+
+
+def _forms_show(
+    settings: Settings,
+    key: str,
+    *,
+    as_json: bool,
+    version: int | None,
+    sessions: sessionmaker[Session] | None = None,
+) -> int:
+    sessions = sessions or _sessions(settings)
+    if not _check_database(sessions):
+        return 2
+    with sessions() as s:
+        schema = load_form_schema(s, key, extractor_version=version)
+    if schema is None:
+        print(f"no stored form schema for {key!r}; run `forms extract --document {key}`")
+        return 2
+    if as_json:
+        print(schema.model_dump_json(indent=2))
+        return 0
+    print(f"{schema.form_key}: {schema.title}")
+    print(f"  role {schema.document_role}; eligibility {schema.evidence_eligibility}; "
+          f"{schema.extraction_method} v{schema.extractor_version}; sha256 "
+          f"{schema.document_sha256[:12]}; flags {', '.join(schema.flags) or '-'}")  # fmt: skip
+    print("  Fields show what the form ASKS FOR (appears on form); they are not policy "
+          "obligations. `*` = marked as required on the form itself.")  # fmt: skip
+    for sec in schema.sections:
+        pages = (f"p.{sec.page_start}" if sec.page_start == sec.page_end
+                 else f"pp.{sec.page_start}-{sec.page_end}")  # fmt: skip
+        tags = (["declaration"] if sec.is_declaration else []) + sec.flags
+        print(f"  [{sec.ordinal}] {sec.name or '(no heading)'}  {pages}"
+              + (f"  ({', '.join(tags)})" if tags else ""))  # fmt: skip
+        for f in sec.fields:
+            mark = {True: "*", False: " ", None: "?"}[f.required_as_shown]
+            note = f"  [marker: {f.marker_issue}]" if f.marker_issue else ""
+            print(f"      {mark} {f.printed_label}  (p.{f.page_number}, chunk "
+                  f"{f.chunk_id[:8]}#{f.position}){note}")  # fmt: skip
+        for b in sec.text_blocks:
+            conf = f", OCR conf {b.ocr_confidence:.2f}" if b.ocr_confidence is not None else ""
+            print(f"      - text (p.{b.page_number}, {b.verification_status}{conf}, chunk "
+                  f"{b.chunk_id[:8]}): {_short(b.text, 120)}")  # fmt: skip
+    for i in schema.issues:
+        print(f"  issue: {i.issue} (p.{i.page_number}, chunk {i.chunk_id[:8]}): {i.detail}")
+    return 0
+
+
 # --- argument parsing ------------------------------------------------------------------
 
 
@@ -1196,6 +1302,16 @@ def build_parser(settings: Settings) -> argparse.ArgumentParser:
                     help="re-index affected documents from Postgres")  # fmt: skip
     rc.add_argument("--delete-unknown", action="store_true",
                     help="with --repair: delete points of documents not in Postgres")  # fmt: skip
+
+    fm = sub.add_parser("forms", help="form schemas from stored M1 chunks (M2 C2)")
+    fsub = fm.add_subparsers(dest="forms_command", required=True)
+    fx = fsub.add_parser("extract", help="extract and persist (idempotent; never overwrites)")
+    _add_documents(fx, "extract")
+    fsub.add_parser("list", help="stored form schemas")
+    fs = fsub.add_parser("show", help="one stored form schema")
+    fs.add_argument("key", metavar="KEY")
+    fs.add_argument("--json", action="store_true", help="print the stored schema as JSON")
+    fs.add_argument("--version", type=int, help="extractor version (default: latest)")
 
     rn = sub.add_parser("runs", help="show recorded ingestion runs")
     rn.add_argument("--document", metavar="KEY")
@@ -1284,6 +1400,12 @@ def main(argv: list[str] | None = None) -> int:
         return _select(settings, report_path=args.report, record_path=args.record)
     if args.command == "evaluate" and args.record:
         parser.error("--record requires --select")
+    if args.command == "forms":
+        if args.forms_command == "extract":
+            return _forms_extract(settings, args.document)
+        if args.forms_command == "list":
+            return _forms_list(settings)
+        return _forms_show(settings, args.key, as_json=args.json, version=args.version)
     if args.command == "reconcile":
         if args.delete_unknown and not args.repair:
             parser.error("--delete-unknown requires --repair")

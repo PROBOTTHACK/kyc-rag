@@ -358,6 +358,90 @@ class DocumentExclusion(Base):
     )
 
 
+class FormSchemaRow(Base):
+    """A persisted form schema (M2 C2, migration 0003): one row per (document, extraction
+    method, extractor version). `schema_json` is the full `app.schemas.forms.FormSchema`.
+
+    Rows are never overwritten: an identical re-extraction writes nothing, and a different
+    schema under an existing identity is refused by the application (`app/db/forms.py`).
+    The CHECKs mirror migration 0003, including the database-level guard that no field
+    carries `mandatory_under_policy` and every field `appears_on_form`.
+    """
+
+    __tablename__ = "form_schemas"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
+    )
+    form_key: Mapped[str] = mapped_column(Text, nullable=False)
+    document_sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    document_role: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence_eligibility: Mapped[str] = mapped_column(Text, nullable=False)
+    extraction_method: Mapped[str] = mapped_column(Text, nullable=False)
+    extractor_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    schema_sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    schema_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    section_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    field_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    required_as_shown_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    text_block_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    quality_flags: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), nullable=False, server_default=text("'{}'::text[]")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "document_id",
+            "extraction_method",
+            "extractor_version",
+            name="uq_form_schemas_document_method_version",
+        ),
+        CheckConstraint(
+            "document_role IN ('kyc_form', 'reference_document')",
+            name="ck_form_schemas_document_role",
+        ),
+        CheckConstraint(
+            _in("evidence_eligibility", EvidenceEligibility),
+            name="ck_form_schemas_evidence_eligibility",
+        ),
+        CheckConstraint(
+            "extraction_method IN ('m1_chunks')", name="ck_form_schemas_extraction_method"
+        ),
+        CheckConstraint("extractor_version >= 1", name="ck_form_schemas_extractor_version"),
+        CheckConstraint(
+            "document_sha256 ~ '^[0-9a-f]{64}$'", name="ck_form_schemas_document_sha256"
+        ),
+        CheckConstraint("schema_sha256 ~ '^[0-9a-f]{64}$'", name="ck_form_schemas_schema_sha256"),
+        CheckConstraint(
+            "section_count >= 0 AND field_count >= 0 AND required_as_shown_count >= 0 "
+            "AND text_block_count >= 0 AND required_as_shown_count <= field_count",
+            name="ck_form_schemas_counts",
+        ),
+        CheckConstraint(
+            "NOT jsonb_path_exists(schema_json, "
+            "'$.sections[*].fields[*] ? (@.mandatory_under_policy != null)')",
+            name="ck_form_schemas_no_policy_obligation",
+        ),
+        CheckConstraint(
+            "NOT jsonb_path_exists(schema_json, "
+            "'$.sections[*].fields[*] ? (@.appears_on_form != true)')",
+            name="ck_form_schemas_fields_appear_on_form",
+        ),
+        CheckConstraint(
+            "schema_json ->> 'document_role' = document_role "
+            "AND schema_json ->> 'extraction_method' = extraction_method "
+            "AND (schema_json ->> 'extractor_version')::int = extractor_version "
+            "AND schema_json ->> 'document_sha256' = document_sha256",
+            name="ck_form_schemas_json_matches_columns",
+        ),
+        Index("ix_form_schemas_form_key", "form_key"),
+    )
+
+
 class IngestionRun(Base):
     """One ingestion attempt for one document: per-stage outcome and the error, if any.
 

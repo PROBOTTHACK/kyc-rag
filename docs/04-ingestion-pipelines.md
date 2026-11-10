@@ -77,6 +77,12 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
   | NRI re-KYC | KYC form (scanned) | 9 | 0 | 0 | 12 | no field structure, OCR uncertain |
   | NetBanking corporate application | reference (context-only) | 4 | 14 | 0 | 5 | reference, context_only |
 
+- **Persistence (M2 C2; migration `0003_m2_form_schemas`, `app/db/forms.py`; docs/08):**
+  - `forms extract [--document KEY]…` (`make forms [DOC=…]`) extracts and stores each schema, one transaction per document.
+  - **Outcomes:** each document is `inserted`, `unchanged` (an identical schema is already stored; nothing is written) or `CONFLICT`. A conflict means a different schema under the same document and extractor version; it is refused, never overwritten, and exits 1.
+  - **New identities:** a new PDF or a bumped `extractor_version` is a new row, and older rows are kept.
+  - `forms list` prints a summary of the stored schemas. `forms show KEY [--json] [--version N]` prints one stored schema with page and chunk citations, and states that fields show what the form asks for, not policy obligations.
+  - Like `ingest`, these commands require the database to be at the Alembic head.
 - **Limitations:**
   - `printed_label` is the label as M1 stored it, which is already NFKC- and whitespace-normalised. The untouched source lines are in the chunk's `raw_text`, linked by `chunk_id`.
   - M1 sometimes merges option groups into one label ("*Gender Married Unmarried …") and lists form furniture as labels ("Page 1 of 6", "DDMMYYYY"). These are kept as printed, never filtered by guesswork.

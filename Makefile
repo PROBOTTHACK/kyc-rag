@@ -25,7 +25,7 @@ DOCS = $(foreach d,$(DOC),--document $(d))
 
 .DEFAULT_GOAL := help
 .PHONY: help venv install install-locked lock up down migrate check-schema ingest ingest-dry
-.PHONY: persist index retry reconcile repair runs search check-corpus eval eval-compare eval-select eval-heldout check-dense-golden
+.PHONY: persist index retry reconcile repair runs forms search check-corpus eval eval-compare eval-select eval-heldout check-dense-golden
 .PHONY: api test test-integration lint fmt web
 
 # Printed by make itself ($(info)), so it needs no shell and looks the same everywhere.
@@ -35,6 +35,7 @@ help:
 	$(info Setup:     venv install install-locked lock)
 	$(info Services:  up down migrate check-schema)
 	$(info Ingestion: ingest ingest-dry persist index retry reconcile repair runs check-corpus)
+	$(info Forms:     forms [DOC="key ..."]  (then: cli forms list | show KEY))
 	$(info Retrieval: search Q="..."  eval  eval-compare  eval-select  check-dense-golden)
 	$(info Dev:       api test test-integration lint fmt)
 	$(info )
@@ -100,6 +101,11 @@ reconcile:
 # Re-index inconsistent documents from Postgres (never deletes points of unknown documents).
 repair:
 	$(CLI) reconcile --repair
+
+# M2 C2: extract and persist form schemas from stored M1 chunks [DOC="key ..."].
+# Idempotent; a changed schema under an existing version is refused, never overwritten.
+forms:
+	$(CLI) forms extract $(DOCS)
 
 runs:
 	$(CLI) runs --limit 30
