@@ -143,13 +143,18 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
     | hdfc_resident_rekyc_dormant | inserted | 2/2 | 55 (37 / 18) | 0 | primary | 2 / 7 | 2,694 / 1,563 | 34 s |
     | hdfc_nri_account_opening | inserted, `partial_extraction` | 5/6 (p3 invalid twice) | 296 (215 / 81) | 39 | fallback (all 6 pages) | 10 / 74 | 14,021 / 26,031 | 98 s |
     | hdfc_nri_rekyc (scanned) | inserted | 3/3 | 61 (47 / 14) | 3 | fallback (all 3 pages) | 3 / 18 | 4,077 / 3,972 | 19 s |
-    | hdfc_non_individual_account_opening (scanned) | **failed**: `RECITATION` refusal | – | – | – | – | – | – | – |
+    | hdfc_non_individual_account_opening (scanned) | rerun: refused (`RECITATION`); diagnostic 2026-11-11: inserted, `partial_extraction` | 1/2 (p1 invalid twice) | 35 (22 / 13) | 1 | fallback (both pages) | 3 / 21 | 4,273 / 16,162 | 50 s |
     | hdfc_resident_to_nro_conversion | **failed**: 503 on both models after 5 attempts each | – | – | – | – | – | – | – |
 
   - **Findings:**
     - **Duplicate-label rule:** every invalid attempt (p3–p6 of the NRI form) was rejected by the rule "duplicate label on the same page and section". Real forms repeat labels legitimately (e.g. per-applicant or per-address "PIN Code", "Date"), so this rule is stricter than the forms themselves. It is open for an owner decision and was not changed.
     - **Uncorroborated labels:** in the sample reviewed, these were real printed labels worded more fully than M1's stored text (e.g. "Form 60. (Non PAN Card holder)", "Gross Annual Income (₹)"). No invented fields were seen.
-    - **RECITATION:** Gemini's recitation filter refused the scanned non-individual form. By design, refusals do not fall back.
+    - **RECITATION:** Gemini's recitation filter refused the scanned non-individual form during the rerun. Refusals never fall back to another model, and no diagnostics were captured then.
+      - **Diagnostic (2026-11-11, the one authorized run, this form only, after the OCR fallback was built):** **RECITATION did not recur.** Both pages were answered by the fallback model; the primary was overloaded again.
+        - **Page 1:** rejected twice by the duplicate-label rule (26 duplicates).
+        - **Page 2:** extracted 35 fields.
+        - The form is now stored, so a rerun makes no call, and the RECITATION finish reason, citations and partial output could not be observed.
+      - **Still unexercised live:** the OCR fallback (covered by tests with real local Tesseract).
     - **Security:** secret scan clean (logs, all `form_schemas` rows, Redis empty).
 
 **Embeddings and Qdrant indexing (implemented, M1 Stage D; `app/retrieval/{embeddings,qdrant_store,indexing,search}.py`):**
