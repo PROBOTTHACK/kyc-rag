@@ -1238,7 +1238,7 @@ def _forms_show(
             mark = {True: "*", False: " ", None: "?"}[f.required_as_shown]
             note = f"  [marker: {f.marker_issue}]" if f.marker_issue else ""
             print(f"      {mark} {f.printed_label}  (p.{f.page_number}, chunk "
-                  f"{f.chunk_id[:8]}#{f.position}){note}")  # fmt: skip
+                  f"{(f.chunk_id or 'none')[:8]}#{f.position}){note}")  # fmt: skip
         for b in sec.text_blocks:
             conf = f", OCR conf {b.ocr_confidence:.2f}" if b.ocr_confidence is not None else ""
             print(f"      - text (p.{b.page_number}, {b.verification_status}{conf}, chunk "

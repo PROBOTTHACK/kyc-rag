@@ -86,7 +86,20 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
 - **Limitations:**
   - `printed_label` is the label as M1 stored it, which is already NFKC- and whitespace-normalised. The untouched source lines are in the chunk's `raw_text`, linked by `chunk_id`.
   - M1 sometimes merges option groups into one label ("*Gender Married Unmarried …") and lists form furniture as labels ("Page 1 of 6", "DDMMYYYY"). These are kept as printed, never filtered by guesswork.
-  - No checkbox, signature or layout understanding: Gemini is deferred.
+  - No checkbox, signature or layout understanding in the deterministic path; that is the multimodal path below.
+
+**Multimodal form path (M2 Pipeline B, in progress; G1 = contract only, no live calls yet):**
+- `app/llm/multimodal.py`: the provider-agnostic `MultimodalProvider` contract (`PageImage`, `MultimodalRequest`, `MultimodalResult`, `ProviderUnavailable/RateLimited/Refused/Timeout`), plus `parse_structured`, which validates model text against a Pydantic schema. `app/llm/fake.py` is a scripted provider for tests.
+- `app/forms/render.py`: re-hashes the PDF and refuses it if the hash differs, then renders the pages to PNG (150 dpi), recording each image's SHA-256.
+- `app/forms/approval.py` + tracked `data/raw_pdfs/forms_approved.yaml`. A document may be sent to an external model only if it is:
+  - `document_type=form`;
+  - listed with the `public_blank_form` attestation;
+  - matching the manifest and database SHA-256;
+  - signed off with a named approver and date (`approved_by` / `approved_on`).
+
+  The five HDFC forms are listed and **all are blocked until the owner approves them**. The NetBanking reference is not a form, so it is never sent.
+- **Output schema:** `FormExtraction` (`app/schemas/forms.py`) is deliberately small: sections, and fields with printed label, `field_type`, options and page. It has no `mandatory_under_policy` and no applicability. `extraction_errors` rejects pages that were not sent, blank labels and duplicates.
+- **Stored schema:** results are stored as a `FormSchema` with `extraction_method="gemini_multimodal"`. The extension keys `field_type`, `options` and `provenance` are omitted when unset, so the stored `m1_chunks` hashes are unchanged.
 
 **Embeddings and Qdrant indexing (implemented, M1 Stage D; `app/retrieval/{embeddings,qdrant_store,indexing,search}.py`):**
 - Model: `BAAI/bge-small-en-v1.5` at the pinned revision `EMBEDDING_MODEL_REVISION`, on CPU. It produces 384-dimensional vectors, L2-normalised, compared by cosine. Queries get the BGE instruction ("Represent this sentence for searching relevant passages: "); passages don't.

@@ -11,26 +11,52 @@ These describe what a form SHOWS, never what policy REQUIRES:
 
 Extraction is deterministic and timestamp-free: identical stored chunks give identical
 schemas (`extractor_version` changes whenever the output for the same input would).
+
+Pipeline B (multimodal, `extraction_method="gemini_multimodal"`) reuses these models. Its
+extra keys (`field_type`, `options`, `provenance`) are omitted from the serialised JSON
+when unset, so `m1_chunks` schemas (and their stored hashes) are unchanged. Its fields
+are `corroborated` only when the label is found in that page's stored M1 text, else
+`uncorroborated`: model output is a claim, never verified by itself.
 """
 
-from typing import Literal
+from typing import Any, ClassVar, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, SerializerFunctionWrapHandler, model_serializer
 
 EXTRACTOR_VERSION = 1
 EXTRACTION_METHOD: Literal["m1_chunks"] = "m1_chunks"
+MULTIMODAL_METHOD: Literal["gemini_multimodal"] = "gemini_multimodal"
+ExtractionMethod = Literal["m1_chunks", "gemini_multimodal"]
+FieldType = Literal["text", "date", "number", "checkbox", "signature", "photo", "table", "other"]
 
 DocumentRole = Literal["kyc_form", "reference_document"]
 # `extracted` = read from the native text layer (not verified by a person);
 # `ocr_reliable` / `ocr_uncertain` = OCR text, with M1's reliability verdict.
-VerificationStatus = Literal["extracted", "ocr_reliable", "ocr_uncertain"]
+# `corroborated` / `uncorroborated` = multimodal output whose label was / was not found in
+# that page's stored M1 text (corroboration shows it appears on the form, nothing more).
+VerificationStatus = Literal[
+    "extracted", "ocr_reliable", "ocr_uncertain", "corroborated", "uncorroborated"
+]
 
 
 class _Frozen(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
+    # Optional extension keys dropped from the serialised form when None or empty.
+    _omit_when_unset: ClassVar[tuple[str, ...]] = ()
+
+    @model_serializer(mode="wrap")
+    def _omit_unset(self, handler: SerializerFunctionWrapHandler) -> Any:
+        data = handler(self)
+        if isinstance(data, dict):
+            for key in self._omit_when_unset:
+                if data.get(key) in (None, [], {}):
+                    data.pop(key, None)
+        return data
 
 
 class FormField(_Frozen):
+    _omit_when_unset = ("field_type", "options")
+
     printed_label: str  # exactly as stored in the M1 chunk, including any `*`
     label: str  # display form: leading `*` marker(s) and surrounding spaces removed
     required_as_shown: bool | None  # see module docstring; never inferred
@@ -38,12 +64,16 @@ class FormField(_Frozen):
     page_number: int = Field(ge=1)  # physical PDF page of the field chunk
     page_end: int | None = None
     region: str | None = None
-    chunk_id: str
-    position: int = Field(ge=0)  # order of the label within its chunk
+    # M1 chunk holding the label; for multimodal fields, the chunk that corroborates it
+    # (None when uncorroborated).
+    chunk_id: str | None
+    position: int = Field(ge=0)  # order of the label within its chunk (or its section)
     text_reliability: str
     verification_status: VerificationStatus
     appears_on_form: Literal[True] = True
     mandatory_under_policy: None = None  # never set by extraction
+    field_type: FieldType | None = None  # multimodal only
+    options: list[str] = Field(default_factory=list)  # printed choices (multimodal only)
 
 
 class TextBlock(_Frozen):
@@ -80,7 +110,30 @@ class ParseIssue(_Frozen):
     detail: str
 
 
+class PageProvenance(_Frozen):
+    page_number: int = Field(ge=1)
+    png_sha256: str
+
+
+class ExtractionProvenance(_Frozen):
+    """How a multimodal schema was produced (no secrets, no timestamps)."""
+
+    provider: str
+    model_id: str
+    prompt_id: str
+    prompt_version: str
+    render_dpi: int
+    pages: list[PageProvenance]
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    latency_ms: int = Field(ge=0)
+    attempts: int = Field(ge=1)  # provider calls made (validation retry included)
+    validation_errors: list[str] = Field(default_factory=list)  # from the failed attempts
+
+
 class FormSchema(_Frozen):
+    _omit_when_unset = ("provenance",)
+
     form_key: str  # = documents.document_key
     document_id: str
     document_sha256: str
@@ -90,7 +143,7 @@ class FormSchema(_Frozen):
     document_role: DocumentRole
     evidence_eligibility: str
     quality: str | None
-    extraction_method: Literal["m1_chunks"] = EXTRACTION_METHOD
+    extraction_method: ExtractionMethod = EXTRACTION_METHOD
     extractor_version: int = EXTRACTOR_VERSION
     sections: list[FormSection]
     issues: list[ParseIssue] = Field(default_factory=list)
@@ -99,3 +152,43 @@ class FormSchema(_Frozen):
     field_count: int
     required_as_shown_count: int
     text_block_count: int
+    provenance: ExtractionProvenance | None = None  # multimodal only
+
+
+# --- Multimodal structured output (what the model returns; validated before use) -------
+# Deliberately small: no `mandatory_under_policy`, no applicability or legal judgment.
+
+
+class ExtractedField(_Frozen):
+    printed_label: str = Field(min_length=1)  # exactly as printed, including any `*`
+    field_type: FieldType
+    options: list[str] = Field(default_factory=list)
+    page_number: int = Field(ge=1)
+
+
+class ExtractedSection(_Frozen):
+    name: str | None
+    is_declaration: bool
+    fields: list[ExtractedField]
+
+
+class FormExtraction(_Frozen):
+    sections: list[ExtractedSection]
+
+
+def extraction_errors(extraction: FormExtraction, sent_pages: set[int]) -> list[str]:
+    """Structural defects beyond the schema: pages not sent, blank or duplicate labels."""
+    errors: list[str] = []
+    seen: set[tuple[int, str | None, str]] = set()
+    for si, sec in enumerate(extraction.sections):
+        for fi, f in enumerate(sec.fields):
+            where = f"sections.{si}.fields.{fi}"
+            if f.page_number not in sent_pages:
+                errors.append(f"{where}: page {f.page_number} was not sent")
+            if not f.printed_label.strip():
+                errors.append(f"{where}: blank label")
+            key = (f.page_number, sec.name, f.printed_label.strip())
+            if key in seen:
+                errors.append(f"{where}: duplicate label on the same page and section")
+            seen.add(key)
+    return errors
