@@ -22,6 +22,8 @@ dependencies = [
     "pymupdf>=2.1",
     "sentence-transformers>=3.0",
     "pyyaml>=6.0",
+    # M2: BM25 keyword retrieval (Apache-2.0; pure Python, needs numpy).
+    "rank_bm25==0.2.2",
 ]
 
 [project.optional-dependencies]
@@ -60,7 +62,7 @@ exclude = ["alembic/"]
 
 [[tool.mypy.overrides]]
 # yaml: no stubs; types-PyYAML not added (only approved deps).
-module = ["qdrant_client.*", "yaml"]
+module = ["qdrant_client.*", "yaml", "rank_bm25"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

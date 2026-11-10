@@ -25,17 +25,17 @@ DOCS = $(foreach d,$(DOC),--document $(d))
 
 .DEFAULT_GOAL := help
 .PHONY: help venv install install-locked lock up down migrate check-schema ingest ingest-dry
-.PHONY: persist index retry reconcile repair runs search check-corpus eval
+.PHONY: persist index retry reconcile repair runs search check-corpus eval check-dense-golden
 .PHONY: api test test-integration lint fmt web
 
 # Printed by make itself ($(info)), so it needs no shell and looks the same everywhere.
 help:
-	$(info Usage: make <target> [DOC="key ..."] [Q="query"])
+	$(info Usage: make <target> [DOC="key ..."] [Q="query"] [MODE=dense|bm25])
 	$(info )
 	$(info Setup:     venv install install-locked lock)
 	$(info Services:  up down migrate check-schema)
 	$(info Ingestion: ingest ingest-dry persist index retry reconcile repair runs check-corpus)
-	$(info Retrieval: search Q="..."  eval)
+	$(info Retrieval: search Q="..."  eval  check-dense-golden)
 	$(info Dev:       api test test-integration lint fmt)
 	$(info )
 	$(info Typical first run: make up migrate check-corpus ingest)
@@ -104,9 +104,10 @@ repair:
 runs:
 	$(CLI) runs --limit 30
 
-# make search Q="documents for opening a company account"
+# make search Q="documents for opening a company account" [MODE=bm25]   (MODE: dense | bm25)
+MODE ?= dense
 search:
-	$(CLI) search "$(Q)" --expand
+	$(CLI) search "$(Q)" --expand --mode $(MODE)
 
 # Manifest + PDF hashes, and a real Tesseract smoke test.
 check-corpus:
@@ -129,9 +130,14 @@ lint:
 fmt:
 	cd $(BACKEND) && $(PY) -m ruff check --fix . && $(PY) -m black .
 
-# M1 retrieval benchmark (Recall@5 on data/eval/m1_retrieval.jsonl); M6 extends `eval`.
+# Retrieval benchmark on the development set (Recall@5 on data/eval/m1_retrieval.jsonl);
+# MODE=bm25 evaluates the keyword index. The frozen held-out set is refused (docs/10).
 eval:
-	$(CLI) evaluate --report data/processed/m1_retrieval_report.md
+	$(CLI) evaluate --mode $(MODE) --report data/processed/$(if $(filter dense,$(MODE)),m1_retrieval_report.md,m2_dev_$(MODE)_report.md)
+
+# M1 dense golden regression: real model + dev collection; fails (never skips) if missing.
+check-dense-golden:
+	cd $(BACKEND) && $(PY) -m pytest -m integration tests/integration/test_dense_golden.py
 
 web:
 	$(error make web: not implemented until Milestone 5 (docs/12))

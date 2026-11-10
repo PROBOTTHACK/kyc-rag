@@ -16,8 +16,9 @@ Recovery and inspection:
   runs     [--document KEY] [--failed] [--limit N]
 Retrieval:
   search   QUERY [--top-k N] [--entity T]... [--bank B]... [--document KEY]...
-           [--include-context-only] [--mandatory-only] [--expand]
-  evaluate [--dataset PATH] [--top-k N] [--report PATH]   Recall@k benchmark
+           [--include-context-only] [--mandatory-only] [--expand] [--mode dense|bm25]
+  evaluate [--dataset PATH] [--top-k N] [--report PATH] [--mode dense|bm25]
+           Recall@k benchmark (the frozen held-out set is refused; docs/10)
 Checks:
   validate-manifest [--manifest PATH] [--corpus-dir PATH]
   check-ocr
@@ -56,17 +57,25 @@ from app.retrieval.embeddings import Embedder, embedder_from_settings
 from app.retrieval.evaluation import (
     DEFAULT_K,
     evaluate,
+    evaluate_with,
     load_cases,
     render_markdown,
 )
 from app.retrieval.indexing import find_orphans, index_document, prune_orphans
+from app.retrieval.keyword import TOKENIZER_VERSION, KeywordIndexManager, KeywordIndexUnavailable
 from app.retrieval.qdrant_store import ChunkStore, store_from_settings
 from app.retrieval.reconcile import ReconcileReport, reconcile, repair
-from app.retrieval.search import SearchFilters, search
+from app.retrieval.search import SearchFilters, SearchHit, search
 from app.schemas.corpus import DocumentMetadata
 
 MAX_LISTED = 10  # issue ids printed per category
 DEFAULT_DATASET = Path("data/eval/m1_retrieval.jsonl")
+# Retrieval modes. `dense` is the M1 path and the default; hybrid arrives in M2 A2.
+MODES = ("dense", "bm25")
+# The frozen M2 held-out set is used only to report an already-selected configuration
+# (docs/10, M2_PLAN section 6); `evaluate` refuses it until that explicit final run.
+HELDOUT_DATASET_NAME = "m2_heldout.jsonl"
+BM25_TIMED_PASSES = 3
 
 
 def _validate_manifest(manifest: Path, corpus_dir: Path) -> int:
@@ -613,17 +622,29 @@ def _search(
     top_k: int,
     filters: SearchFilters,
     expand: bool,
+    mode: str = "dense",
     embedder: Embedder | None = None,
     store: ChunkStore | None = None,
     sessions: sessionmaker[Session] | None = None,
 ) -> int:
-    """Top-k passages with document + page citations (dense BGE search, docs/04)."""
-    embedder = embedder or embedder_from_settings(settings)
-    store = store or store_from_settings(settings)
+    """Top-k passages with document + page citations (docs/04).
+
+    `dense`: BGE + Qdrant (M1). `bm25`: keyword index built from Postgres (M2 A1); it
+    loads no embedding model and does not contact Qdrant."""
+    hits: list[SearchHit]
     try:
-        hits = search(query, embedder, store, top_k=top_k, filters=filters)
+        if mode == "bm25":
+            sessions = sessions or _sessions(settings)
+            hits = KeywordIndexManager(sessions).search(query, top_k=top_k, filters=filters)
+        else:
+            embedder = embedder or embedder_from_settings(settings)
+            store = store or store_from_settings(settings)
+            hits = search(query, embedder, store, top_k=top_k, filters=filters)
     except ValueError as exc:
         print(f"invalid query: {exc}")
+        return 2
+    except KeywordIndexUnavailable as exc:
+        print(f"search failed: {exc}")
         return 2
     except Exception as exc:
         print(f"search failed: {type(exc).__name__}: {exc}")
@@ -631,6 +652,8 @@ def _search(
     scope = "primary+supporting" + (" +context_only" if filters.include_context_only else "")
     if filters.mandatory_evidence_only:
         scope += ", MANDATORY-capable evidence only"
+    if mode != "dense":
+        scope += f"; {mode}"
     print(f"query: {query!r}  (top {top_k}; {scope})")
     contexts = {}
     if expand and hits:
@@ -663,20 +686,49 @@ def _evaluate(
     *,
     top_k: int,
     report_path: Path | None,
+    mode: str = "dense",
     embedder: Embedder | None = None,
     store: ChunkStore | None = None,
+    sessions: sessionmaker[Session] | None = None,
 ) -> int:
+    from importlib.metadata import version
+
     from app.config import REPO_ROOT
 
     path = dataset if dataset.is_absolute() else REPO_ROOT / dataset
+    if path.name == HELDOUT_DATASET_NAME:
+        print(
+            f"refused: {path.name} is the frozen held-out set. It is never used to choose or "
+            "tune; only the final run of a selected configuration may read it (docs/10)."
+        )
+        return 2
     try:
         cases = load_cases(path)
     except (OSError, ValueError) as exc:
         print(f"invalid dataset: {exc}")
         return 2
-    embedder = embedder or embedder_from_settings(settings)
-    store = store or store_from_settings(settings)
-    report = evaluate(cases, embedder, store, k=top_k, dataset=str(dataset))
+    if mode == "bm25":
+        manager = KeywordIndexManager(sessions or _sessions(settings))
+        try:
+            index = manager.get()
+        except KeywordIndexUnavailable as exc:
+            print(f"evaluation failed: {exc}")
+            return 2
+        description = (
+            f"BM25 (rank_bm25 {version('rank_bm25')} BM25Okapi, k1=1.5, b=0.75, plain "
+            f"tokenizer v{TOKENIZER_VERSION}) over {len(index)} eligible chunks from Postgres"
+        )
+
+        def retriever(query: str, filters: SearchFilters, k: int) -> list[SearchHit]:
+            return manager.search(query, top_k=k, filters=filters)
+
+        report = evaluate_with(cases, retriever, mode=mode, description=description, k=top_k,
+                               dataset=str(dataset), timed_passes=BM25_TIMED_PASSES,
+                               index_build_s=index.build_seconds)  # fmt: skip
+    else:
+        embedder = embedder or embedder_from_settings(settings)
+        store = store or store_from_settings(settings)
+        report = evaluate(cases, embedder, store, k=top_k, dataset=str(dataset))
     text = render_markdown(report)
     print(text)
     if report_path is not None:
@@ -760,11 +812,15 @@ def build_parser(settings: Settings) -> argparse.ArgumentParser:
                     help="only evidence that can support a MANDATORY requirement")  # fmt: skip
     se.add_argument("--expand", action="store_true",
                     help="show the complete parent paragraph of child hits (Postgres)")  # fmt: skip
+    se.add_argument("--mode", choices=MODES, default="dense",
+                    help="dense (BGE + Qdrant; default) or bm25 (Postgres keywords)")  # fmt: skip
 
     ev = sub.add_parser("evaluate", help="Recall@k on the labelled retrieval benchmark")
     ev.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
     ev.add_argument("--top-k", type=int, default=DEFAULT_K)
     ev.add_argument("--report", type=Path, help="also write the markdown report here")
+    ev.add_argument("--mode", choices=MODES, default="dense",
+                    help="retrieval mode to evaluate (default dense)")  # fmt: skip
     return parser
 
 
@@ -782,7 +838,7 @@ def main(argv: list[str] | None = None) -> int:
         "retry": lambda: _retry(settings, args.document, force=args.force),
         "runs": lambda: _runs(settings, args.document, args.failed, args.limit),
         "evaluate": lambda: _evaluate(settings, args.dataset, top_k=args.top_k,
-                                      report_path=args.report),
+                                      report_path=args.report, mode=args.mode),
     }  # fmt: skip
     commands["ingest"] = commands["run"]
     if args.command == "index":
@@ -808,7 +864,7 @@ def main(argv: list[str] | None = None) -> int:
             entity_terms=tuple(args.entity),
         )
         return _search(settings, args.query, top_k=args.top_k, filters=filters,
-                       expand=args.expand)  # fmt: skip
+                       expand=args.expand, mode=args.mode)  # fmt: skip
     return commands[args.command]()
 
 

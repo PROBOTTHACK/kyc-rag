@@ -5,6 +5,7 @@
 # Licences to note (docs/02 "Dependency pins and licences"):
 #   pymupdf 2.1 / pymupdf4llm 2.1: AGPL-3.0 (or Artifex commercial licence).
 #   pymupdf_layout 2.1: metadata-only package (no code, no licence field), required by pymupdf 2.1.
+#   rank-bm25 0.2.2 (M2 A1): Apache-2.0 (LICENSE file; metadata field reads "Apache2.0").
 # Platform note: torch==2.15.0 from PyPI is the CPU build on Windows/macOS; on Linux, PyPI
 # serves a CUDA build. For CPU on Linux add: --extra-index-url https://download.pytorch.org/whl/cpu
 alembic==1.20.1
@@ -73,6 +74,7 @@ python-dotenv==1.2.4
 pytokens==0.4.1
 PyYAML==6.0.3
 qdrant-client==1.20.0
+rank-bm25==0.2.2
 redis==8.1.0
 regex==2026.11.7
 rich==15.0.0

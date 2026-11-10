@@ -119,5 +119,30 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
   - Second `run`: 0 rows written, 0 embeddings, consistent, 27.9 s (mostly model load and verification).
   - Failure recovery: see `docs/milestones/M1_HANDOFF.md` §12.
 
+**BM25 keyword retrieval (implemented, M2 A1; `app/retrieval/keyword.py`, `SearchFilters.matches` in `app/retrieval/search.py`, `eligible_chunk_payloads` / `chunk_corpus_fingerprint` in `app/db/repository.py`):**
+- **Corpus:** every embedding-eligible chunk read from Postgres: the same 429 single and child chunks Qdrant holds, every eligibility value. Parents are never indexed; a child hit expands to its parent paragraph through `evidence_context`, exactly as a dense hit does.
+- **Payloads:** built by the same row → payload mapping as Qdrant (`chunk_metadata_from_rows`), so citations and provenance are identical. A test compares all 429 payloads with Qdrant's (minus the `index` bookkeeping).
+- **Indexed text:** `embedding_input` (the child's `context` + `content`), the same text dense retrieval embeds.
+- **Tokenizer** (plain, `TOKENIZER_VERSION = 1`): NFKC, lowercase, alphanumeric runs joined by internal `.`, `/` or `-`, so "v-cip", "51a" and "1718" stay whole. No stopwords and no stemming. The stopword variant is added in M2 A3, for the development-set comparison only.
+- **Scoring:** `rank_bm25` 0.2.2 `BM25Okapi` with library defaults (k1 = 1.5, b = 0.75), not tuned. IDF and average length are global over the 429 chunks.
+- **Filtering before scoring:** metadata filters are applied first. Only chunks that pass `SearchFilters.matches` are scored at all, so a filtered-out chunk can never occupy a rank. Filters restrict the candidates; they don't change the corpus statistics.
+  - `SearchFilters.matches` is the in-process equivalent of the Qdrant filter (`build_filter`, unchanged).
+  - Parity is tested on the Qdrant server over the full cartesian product of representative values of every filter: 256 combinations covering eligibility × mandatory-only × bank × document × entity terms and groups.
+  - Eligibility and authority are filters, never ranking signals.
+- **Ranking:** zero-score chunks are dropped, and ties are ordered by `chunk_id`.
+- **Freshness:** `KeywordIndexManager.get()` re-reads a fingerprint on every call and rebuilds the index when it changes. The fingerprint and the rows are read in one REPEATABLE READ transaction, so an index always matches the snapshot its fingerprint describes.
+  - **Coverage:** the fingerprint is a SHA-256 over every stored chunk row (parents included; only timestamps left out) plus the document columns that reach payloads (title, file, authority, version, effective dates). It therefore covers indexed text, payloads and citations, filter fields and parent/child links.
+  - **Read failure:** if the database read fails, the manager drops its index and raises `KeywordIndexUnavailable`. A stale index is never served.
+  - **Pipeline hook:** an `invalidate()` hook in the ingestion pipeline is deferred to M3. CLI processes always build fresh, and the per-query check covers long-lived processes.
+- **CLI:**
+  - `search QUERY --mode bm25` (also `make search Q=… MODE=bm25`) loads no embedding model and does not contact Qdrant; `--expand` works as in dense mode. An unavailable database exits with code 2.
+  - `evaluate --mode bm25` (`make eval MODE=bm25`) runs the development set and reports latency.
+  - `--mode` defaults to `dense`, which is the unchanged M1 path. `make check-dense-golden` verifies it against the M1 golden snapshot.
+  - `evaluate` refuses the frozen held-out set (`m2_heldout.jsonl`) in every mode (docs/10).
+- **Measured** (2026-11-10, Windows laptop, local Docker Postgres, indicative):
+  - index build over 429 chunks: 0.05 s (target < 1 s; a measured target, not a gate);
+  - query latency: p50 ~110 ms, dominated by the per-query fingerprint check (~104 ms, hashing about 0.9 MB of row text); BM25 scoring itself takes ~4 ms;
+  - cheaper change detection (for example a database-maintained version counter, which would be a schema change) is a later option.
+
 ## Milestone-1 minimal slice
 Accept PDFs -> extract w/ page refs -> embed -> index in Qdrant -> query returns top-5 passages with citations. Measure Recall@5 on a small hand-labeled set. **Done (M1 Stage F):** `make ingest`, `make search`, `make eval` (Recall@5 0.825 on 20 queries; docs/10).

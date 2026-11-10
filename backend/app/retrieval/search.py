@@ -27,6 +27,29 @@ class SearchFilters:
     document_keys: tuple[str, ...] = ()
     entity_terms: tuple[str, ...] = ()  # entity types and/or groups
 
+    def matches(self, payload: dict[str, Any]) -> bool:
+        """In-process equivalent of `build_filter` (keyword retrieval filters before
+        scoring). Same semantics as the Qdrant filter, including its edge cases: a
+        list-valued field matches `MatchAny` when any element is allowed, a missing or
+        empty field never matches, and `mandatory_evidence_only` needs a boolean true.
+        Parity with Qdrant is tested on the real corpus (tests/integration)."""
+        allowed = {EvidenceEligibility.PRIMARY.value, EvidenceEligibility.SUPPORTING.value}
+        if self.include_context_only:
+            allowed.add(EvidenceEligibility.CONTEXT_ONLY.value)
+        if payload.get("evidence_eligibility") not in allowed:
+            return False
+        if self.mandatory_evidence_only and payload.get("can_support_mandatory") is not True:
+            return False
+        if self.banks and payload.get("bank") not in self.banks:
+            return False
+        if self.document_keys and payload.get("document_key") not in self.document_keys:
+            return False
+        if self.entity_terms:
+            types = {t.value for t in expand_entity_terms(list(self.entity_terms))}
+            if not types & set(payload.get("entity_types") or ()):
+                return False
+        return True
+
 
 @dataclass(frozen=True)
 class SearchHit:

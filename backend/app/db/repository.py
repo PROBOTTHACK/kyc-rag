@@ -8,17 +8,20 @@ LangGraph retrieval node (sync `Session`; async callers use `AsyncSession.run_sy
 - `evidence_context`: expand retrieved chunk ids to the text synthesis should see: a
   child expands to its complete parent paragraph, anything else to itself.
 - `family_integrity`: parent/child checks over stored rows.
+- `eligible_chunk_payloads` / `chunk_corpus_fingerprint`: the keyword (BM25) index corpus
+  and the fingerprint that tells when it must be rebuilt (M2 A1).
 """
 
 import uuid
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from app.db.corpus import chunk_record_from_rows
+from app.db.corpus import DOCUMENT_LEVEL_PAYLOAD_FIELDS, chunk_record_from_rows
 from app.db.models import Chunk, Document
 from app.ingestion.chunking import ChunkingResult, ChunkRecord
 from app.schemas.taxonomy import ChunkingProfile, ChunkRole
@@ -95,6 +98,51 @@ def children_of(session: Session, parent_id: str | uuid.UUID) -> list[ChunkRecor
         .order_by(Chunk.chunk_index)
     ).all()
     return [chunk_record_from_rows(c, d) for c, d in rows]
+
+
+def eligible_chunk_payloads(session: Session) -> list[dict[str, Any]]:
+    """Payloads (= Qdrant payload without `index`) of every embedding-eligible chunk.
+
+    The same rows, and the same row -> payload mapping, as the Qdrant index: single and
+    child chunks of every eligibility value; parents are never embedding-eligible.
+    """
+    rows = session.execute(
+        select(Chunk, Document)
+        .join(Document, Document.id == Chunk.document_id)
+        .where(Chunk.embedding_eligible.is_(True))
+        .order_by(Chunk.document_key, Chunk.chunk_index)
+    ).all()
+    return [chunk_record_from_rows(c, d).metadata.to_qdrant_payload() for c, d in rows]
+
+
+# Document columns that reach a chunk payload (citations: title, file, version, ...).
+_FINGERPRINT_DOCUMENT_COLUMNS = ("id", *sorted(set(DOCUMENT_LEVEL_PAYLOAD_FIELDS.values())))
+
+
+def chunk_corpus_fingerprint(session: Session) -> str:
+    """SHA-256 over every stored chunk row and the payload-relevant document columns.
+
+    Deliberately over-inclusive, so no field that affects the keyword index can change
+    unnoticed: indexed text (`content`, `metadata.context`), payloads and citations
+    (pages, section, paragraph, region, document title / file / version, ...),
+    filters (eligibility, bank, document, entity types, mandatory flag) and parent/child
+    links. All chunks are covered, parents included. Only the row timestamps are left
+    out. Over-inclusion merely costs an occasional, cheap rebuild.
+    """
+    return str(session.execute(_FINGERPRINT_SQL).scalar_one())
+
+
+# The document column list is written out literally (no string interpolation in SQL); a
+# unit test keeps it equal to `_FINGERPRINT_DOCUMENT_COLUMNS`.
+_FINGERPRINT_SQL = text(
+    "SELECT encode(sha256(convert_to(coalesce(string_agg(r.line, E'\\n' ORDER BY r.id), ''),"
+    " 'UTF8')), 'hex') FROM ("
+    "  SELECT c.id, ((to_jsonb(c) - 'created_at' - 'updated_at')::text || '|' ||"
+    "   to_jsonb(ROW(d.id, d.effective_from, d.effective_until, d.file, d.source_authority,"
+    "   d.title, d.version))::text) AS line"
+    "  FROM chunks c JOIN documents d ON d.id = c.document_id"
+    ") r"
+)
 
 
 @dataclass

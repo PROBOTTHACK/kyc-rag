@@ -11,9 +11,14 @@ Metrics per case, then averaged:
 - `reciprocal rank` = 1 / rank of the first matching hit (0 if none in the top k).
 
 Search uses the production filters (`SearchFilters()`: primary + supporting sources).
+`evaluate` runs the M1 dense search; `evaluate_with` runs any retriever (M2: BM25) with
+the same scoring, plus optional latency timing. Scoring is identical for every mode.
 """
 
 import json
+import statistics
+import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -25,6 +30,8 @@ from app.retrieval.qdrant_store import ChunkStore
 from app.retrieval.search import SearchFilters, SearchHit, search
 
 DEFAULT_K = 5
+# (query, filters, k) -> ranked hits
+Retriever = Callable[[str, SearchFilters, int], list[SearchHit]]
 
 
 class Target(BaseModel):
@@ -73,14 +80,27 @@ class CaseResult(BaseModel):
     retrieved: list[str]  # citations of the top k, in rank order
 
 
+class Timing(BaseModel):
+    """Per-query retrieval latency over timed passes (after one warm-up pass)."""
+
+    passes: int
+    p50_ms: float
+    p95_ms: float
+    mean_ms: float
+    index_build_s: float | None = None
+
+
 class EvalReport(BaseModel):
     dataset: str
     k: int
-    embedding_model: str
+    embedding_model: str | None
     embedding_revision: str | None
-    collection: str
+    collection: str | None
     created_at: str
     results: list[CaseResult]
+    mode: str = "dense"
+    retriever: str | None = None  # description for non-dense modes
+    timing: Timing | None = None
 
     @property
     def mean_recall(self) -> float:
@@ -147,15 +167,86 @@ def evaluate(
     )
 
 
+def _percentile(values: list[float], q: float) -> float:
+    ordered = sorted(values)
+    return ordered[min(len(ordered) - 1, max(0, round(q * (len(ordered) - 1))))]
+
+
+def evaluate_with(
+    cases: list[RetrievalCase],
+    retriever: Retriever,
+    *,
+    mode: str,
+    description: str,
+    k: int = DEFAULT_K,
+    dataset: str = "",
+    timed_passes: int = 0,
+    index_build_s: float | None = None,
+) -> EvalReport:
+    """Score `retriever` exactly as `evaluate` scores dense search.
+
+    The scored results come from the first pass, which doubles as the warm-up. With
+    `timed_passes > 0`, every case is then timed `timed_passes` more times.
+    """
+    filters = [SearchFilters(entity_terms=tuple(c.entity_terms)) for c in cases]
+    results = [
+        score_case(c, retriever(c.query, f, k), k) for c, f in zip(cases, filters, strict=True)
+    ]
+    timing = None
+    if timed_passes > 0:
+        samples = []
+        for _ in range(timed_passes):
+            for c, f in zip(cases, filters, strict=True):
+                started = time.perf_counter()
+                retriever(c.query, f, k)
+                samples.append((time.perf_counter() - started) * 1000)
+        timing = Timing(
+            passes=timed_passes,
+            p50_ms=_percentile(samples, 0.50),
+            p95_ms=_percentile(samples, 0.95),
+            mean_ms=statistics.fmean(samples),
+            index_build_s=index_build_s,
+        )
+    return EvalReport(
+        dataset=dataset,
+        k=k,
+        embedding_model=None,
+        embedding_revision=None,
+        collection=None,
+        created_at=datetime.now(UTC).isoformat(timespec="seconds"),
+        results=results,
+        mode=mode,
+        retriever=description,
+        timing=timing,
+    )
+
+
 def render_markdown(report: EvalReport) -> str:
     k = report.k
+    if report.mode == "dense":
+        title = f"# M1 retrieval benchmark: Recall@{k}"
+        setup = (
+            f"- Model: `{report.embedding_model}` @ `{report.embedding_revision}`; "
+            f"collection `{report.collection}`; dense search, default eligibility filters"
+        )
+    else:
+        title = f"# Retrieval benchmark ({report.mode}): Recall@{k}"
+        setup = f"- Retrieval: {report.retriever}; default eligibility filters"
+    t = report.timing
+    latency = []
+    if t is not None:
+        build = f"; index build {t.index_build_s:.3f} s" if t.index_build_s is not None else ""
+        latency = [
+            f"- Latency per query ({t.passes} timed passes after a warm-up): p50 "
+            f"{t.p50_ms:.1f} ms, p95 {t.p95_ms:.1f} ms, mean {t.mean_ms:.1f} ms{build}"
+        ]
     lines = [
-        f"# M1 retrieval benchmark: Recall@{k}",
+        title,
         "",
         f"- Dataset: `{report.dataset}` ({len(report.results)} queries)",
-        f"- Model: `{report.embedding_model}` @ `{report.embedding_revision}`; "
-        f"collection `{report.collection}`; dense search, default eligibility filters",
+        setup,
         f"- Run: {report.created_at}",
+        *latency,
         "",
         f"| Metric | Value |\n|---|---|\n| mean Recall@{k} | {report.mean_recall:.3f} |\n"
         f"| Hit@{k} | {report.hit_rate:.3f} |\n| MRR@{k} | {report.mrr:.3f} |",
