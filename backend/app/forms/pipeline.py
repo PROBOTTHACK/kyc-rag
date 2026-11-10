@@ -114,6 +114,7 @@ class PageOutcome:
     input_tokens: int = 0
     output_tokens: int = 0
     errors: list[str] = field(default_factory=list)
+    model_id: str | None = None  # model of the last response (fallback shows here)
 
 
 def prepare(
@@ -177,6 +178,7 @@ async def extract_pages(
             )
             result = await provider.analyze_pages([page.png], req, FormExtraction)
             out.latency_ms += result.latency_ms
+            out.model_id = result.model_id
             if result.usage is not None:
                 out.input_tokens += result.usage.input_tokens or 0
                 out.output_tokens += result.usage.output_tokens or 0
@@ -262,7 +264,8 @@ def build_schema(
         prompt_version=PROMPT_VERSION,
         render_dpi=dpi,
         pages=[
-            PageProvenance(page_number=o.page_number, png_sha256=o.png_sha256) for o in outcomes
+            PageProvenance(page_number=o.page_number, png_sha256=o.png_sha256, model_id=o.model_id)
+            for o in outcomes
         ],
         input_tokens=sum(o.input_tokens for o in outcomes),
         output_tokens=sum(o.output_tokens for o in outcomes),

@@ -10,8 +10,11 @@ Boundaries:
   printed, logged, put in an exception, a repr, a result or a stored row; any SDK error
   text is redacted before use.
 - Each attempt is bounded by a timeout (default 60 s). Transient failures (429, 5xx,
-  timeouts, transport errors) are retried at most `max_retries` (≤ 2) times with bounded
-  exponential backoff; the SDK's own retries are disabled so this is the only loop.
+  timeouts, transport errors) are retried at most `max_retries` (default and hard max 4,
+  an owner-approved override of the project default of 2) times. Waits are exponential
+  without jitter: 2 -> 4 -> 8 -> 16 s, each capped (default 32 s, at most 60 s). The SDK's
+  own retries are disabled so this is the only loop. A final transient error is marked
+  `transient=True`, which lets `FallbackMultimodalProvider` try the fallback model.
 - An in-process sliding-window limiter keeps calls (retries included) ≤ `rpm` per minute.
 - Output is JSON constrained by the Pydantic schema and is validated again here; invalid
   output is returned as `parsed=None` with the errors (the caller decides on its single
@@ -20,7 +23,6 @@ Boundaries:
 
 import asyncio
 import collections
-import random
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -30,8 +32,10 @@ from pydantic import SecretStr
 
 from app.config import Settings
 from app.llm.multimodal import (
+    MultimodalProvider,
     MultimodalRequest,
     MultimodalResult,
+    ProviderError,
     ProviderRateLimited,
     ProviderRefused,
     ProviderTimeout,
@@ -44,9 +48,10 @@ from app.llm.multimodal import (
 
 PROVIDER_NAME = "gemini"
 DEFAULT_TIMEOUT_S = 60.0
-MAX_RETRIES_CAP = 2
-BACKOFF_BASE_S = 2.0
-BACKOFF_CAP_S = 20.0
+MAX_RETRIES_CAP = 4
+BACKOFF_INITIAL_S = 2.0
+BACKOFF_CAP_S = 32.0
+BACKOFF_CAP_MAX_S = 60.0
 RETRYABLE_STATUS = frozenset({408, 429, 500, 502, 503, 504})
 REFUSAL_REASONS = frozenset(
     {"SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII", "RECITATION", "IMAGE_SAFETY"}
@@ -107,6 +112,9 @@ class GeminiProvider:
     rpm: int
     timeout_s: float = DEFAULT_TIMEOUT_S
     max_retries: int = MAX_RETRIES_CAP
+    backoff_initial_s: float = BACKOFF_INITIAL_S
+    backoff_cap_s: float = BACKOFF_CAP_S
+    limiter: "RpmLimiter | None" = None  # shared with a fallback model; else private
     sleep: Sleep = asyncio.sleep
     clock: Clock = time.monotonic
     generate: GenerateFn | None = None  # injected in tests; default = live SDK call
@@ -120,14 +128,23 @@ class GeminiProvider:
             raise ValueError(f"max_retries must be 0..{MAX_RETRIES_CAP}")
         if self.timeout_s <= 0 or self.rpm <= 0:
             raise ValueError("timeout_s and rpm must be positive")
-        self._limiter = RpmLimiter(self.rpm, clock=self.clock, sleep=self.sleep)
+        if not 0 < self.backoff_initial_s <= self.backoff_cap_s <= BACKOFF_CAP_MAX_S:
+            raise ValueError(f"need 0 < backoff_initial_s <= backoff_cap_s <= {BACKOFF_CAP_MAX_S}")
+        self._limiter = self.limiter or RpmLimiter(self.rpm, clock=self.clock, sleep=self.sleep)
 
     def __repr__(self) -> str:  # never shows the key
         return f"GeminiProvider(model_id={self.model_id!r}, rpm={self.rpm})"
 
     @classmethod
-    def from_settings(cls, settings: Settings) -> "GeminiProvider":
-        """The live provider, or `ProviderUnavailable` naming what is missing."""
+    def from_settings(
+        cls,
+        settings: Settings,
+        *,
+        model_id: str | None = None,
+        limiter: "RpmLimiter | None" = None,
+    ) -> "GeminiProvider":
+        """The live provider (for `model_id`, default `MULTIMODAL_MODEL`), or
+        `ProviderUnavailable` naming what is missing."""
         missing = [
             name
             for name, ok in (
@@ -144,11 +161,14 @@ class GeminiProvider:
         if key is None or model is None:  # unreachable after the check above (for mypy)
             raise ProviderUnavailable("Gemini is not configured")
         return cls(
-            model_id=model,
+            model_id=model_id or model,
             api_key=key,
             rpm=settings.RATE_LIMIT_GEMINI_RPM,
             timeout_s=settings.GEMINI_TIMEOUT_S,
             max_retries=settings.GEMINI_MAX_RETRIES,
+            backoff_initial_s=settings.GEMINI_BACKOFF_INITIAL_S,
+            backoff_cap_s=settings.GEMINI_BACKOFF_CAP_S,
+            limiter=limiter,
         )
 
     # --- public API -------------------------------------------------------------------
@@ -179,8 +199,8 @@ class GeminiProvider:
     # --- internals --------------------------------------------------------------------
 
     def _backoff(self, attempt: int) -> float:
-        base: float = min(BACKOFF_CAP_S, BACKOFF_BASE_S * (2**attempt))
-        return base + random.uniform(0, base / 4)  # noqa: S311 (jitter, not crypto)
+        """Wait before retry `attempt + 1`: initial x 2^attempt, capped (no jitter)."""
+        return float(min(self.backoff_cap_s, self.backoff_initial_s * (2**attempt)))
 
     def _redact(self, text: str) -> str:
         key = self.api_key.get_secret_value()
@@ -296,8 +316,27 @@ def _is_transport_error(exc: Exception) -> bool:
 
 def _final_error(failure: _Transient, *, attempts: int) -> Exception:
     msg = f"{failure} (after {attempts} attempt{'s' if attempts > 1 else ''})"
+    err: ProviderError
     if failure.kind == "rate_limited":
-        return ProviderRateLimited(msg)
-    if failure.kind == "timeout":
-        return ProviderTimeout(msg)
-    return ProviderUnavailable(msg)
+        err = ProviderRateLimited(msg)
+    elif failure.kind == "timeout":
+        err = ProviderTimeout(msg)
+    else:
+        err = ProviderUnavailable(msg)
+    err.transient = True  # retries exhausted on a transient failure: fallback may help
+    return err
+
+
+def multimodal_from_settings(settings: Settings) -> MultimodalProvider:
+    """The live primary model, wrapped with `MULTIMODAL_FALLBACK_MODEL` when configured.
+    Both share one RPM limiter, so fallback attempts count against the same budget."""
+    from app.llm.fallback import FallbackMultimodalProvider
+
+    primary = GeminiProvider.from_settings(settings)
+    fallback_model = settings.MULTIMODAL_FALLBACK_MODEL
+    if fallback_model is None or fallback_model == primary.model_id:
+        return primary
+    fallback = GeminiProvider.from_settings(
+        settings, model_id=fallback_model, limiter=primary._limiter
+    )
+    return FallbackMultimodalProvider(primary, fallback)

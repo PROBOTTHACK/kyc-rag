@@ -55,7 +55,11 @@ class MultimodalResult(BaseModel, Generic[T]):
 
 
 class ProviderError(Exception):
-    """Base class; messages must never contain secrets."""
+    """Base class; messages must never contain secrets. `transient` is True only when a
+    provider gave up after exhausting retries on rate limits, server errors or timeouts
+    (never for refusals, invalid requests or auth failures)."""
+
+    transient: bool = False
 
 
 class ProviderUnavailable(ProviderError):
@@ -75,8 +79,11 @@ class ProviderTimeout(ProviderError):
 
 
 class MultimodalProvider(Protocol):
-    name: str
-    model_id: str
+    @property
+    def name(self) -> str: ...
+
+    @property
+    def model_id(self) -> str: ...
 
     async def analyze_pages(
         self, images: list[bytes], request: MultimodalRequest, schema: type[T]

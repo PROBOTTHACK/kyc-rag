@@ -147,43 +147,59 @@ def test_refusals_raise(finish: str, block: str | None) -> None:
 
 @pytest.mark.parametrize("code", [429, 500, 503])
 def test_transient_errors_are_retried_then_succeed(code: int) -> None:
-    p, t, calls = provider([api_error(code), api_error(code), response(VALID.model_dump_json())])
+    p, t, calls = provider([api_error(code)] * 4 + [response(VALID.model_dump_json())])
     assert run(p).parsed == VALID
-    assert len(calls) == 3 and len(t.sleeps) == 2
-    assert 2.0 <= t.sleeps[0] <= 2.5 and 4.0 <= t.sleeps[1] <= 5.0  # bounded backoff
+    assert len(calls) == 5
+    assert t.sleeps == [2.0, 4.0, 8.0, 16.0]  # exact exponential waits, no jitter
 
 
 @pytest.mark.parametrize(("code", "exc"), [(429, ProviderRateLimited), (503, ProviderUnavailable)])
-def test_at_most_two_retries(code: int, exc: type[Exception]) -> None:
-    p, _, calls = provider([api_error(code)] * 5)
-    with pytest.raises(exc, match="after 3 attempts"):
+def test_at_most_four_retries_then_a_transient_error(code: int, exc: type[Exception]) -> None:
+    p, t, calls = provider([api_error(code)] * 8)
+    with pytest.raises(exc, match="after 5 attempts") as err:
         run(p)
-    assert len(calls) == 3
+    assert len(calls) == 5 and t.sleeps == [2.0, 4.0, 8.0, 16.0]
+    assert err.value.transient is True  # eligible for the fallback model
+
+
+def test_each_wait_is_capped() -> None:
+    p, t, _ = provider(
+        [api_error(503)] * 4 + [response(VALID.model_dump_json())],
+        backoff_initial_s=20.0,
+        backoff_cap_s=32.0,
+    )
+    run(p)
+    assert t.sleeps == [20.0, 32.0, 32.0, 32.0]
 
 
 @pytest.mark.parametrize("code", [400, 401, 403, 404])
 def test_non_transient_errors_are_not_retried(code: int) -> None:
     p, t, calls = provider([api_error(code)] * 3)
-    with pytest.raises(ProviderUnavailable, match="rejected"):
+    with pytest.raises(ProviderUnavailable, match="rejected") as err:
         run(p)
     assert len(calls) == 1 and t.sleeps == []
+    assert err.value.transient is False  # never sent to the fallback model
 
 
 def test_timeout_is_enforced_and_retried() -> None:
     async def hang() -> Any:
         await asyncio.sleep(10)
 
-    p, _, calls = provider([hang, hang, hang], timeout_s=0.01)
-    with pytest.raises(ProviderTimeout, match="after 3 attempts"):
+    p, _, calls = provider([hang] * 5, timeout_s=0.01)
+    with pytest.raises(ProviderTimeout, match="after 5 attempts"):
         run(p)
-    assert len(calls) == 3
+    assert len(calls) == 5
 
 
 def test_retry_and_timeout_limits_are_capped() -> None:
     with pytest.raises(ValueError):
-        provider([], max_retries=3)
+        provider([], max_retries=5)
     with pytest.raises(ValueError):
-        Settings(_env_file=EXAMPLE_ENV, GEMINI_MAX_RETRIES=3)  # type: ignore[call-arg]
+        provider([], backoff_cap_s=61.0)
+    with pytest.raises(ValueError):
+        Settings(_env_file=EXAMPLE_ENV, GEMINI_MAX_RETRIES=5)  # type: ignore[call-arg]
+    with pytest.raises(ValueError):
+        Settings(_env_file=EXAMPLE_ENV, GEMINI_BACKOFF_CAP_S=61)  # type: ignore[call-arg]
     with pytest.raises(ValueError):
         Settings(_env_file=EXAMPLE_ENV, GEMINI_TIMEOUT_S=61)  # type: ignore[call-arg]
 
@@ -255,7 +271,7 @@ def test_live_provider_requires_every_gate(override: dict[str, Any], missing: st
 
 def test_live_provider_is_built_when_all_gates_set_without_any_call() -> None:
     p = GeminiProvider.from_settings(settings())
-    assert p.model_id == "gemini-3.8-flash" and p.timeout_s == 60.0 and p.max_retries == 2
+    assert p.model_id == "gemini-3.8-flash" and p.timeout_s == 60.0 and p.max_retries == 4
     assert p._client is None  # no SDK client, no network until a call is made
 
 

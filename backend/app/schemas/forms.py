@@ -111,8 +111,11 @@ class ParseIssue(_Frozen):
 
 
 class PageProvenance(_Frozen):
+    _omit_when_unset = ("model_id",)
+
     page_number: int = Field(ge=1)
     png_sha256: str
+    model_id: str | None = None  # the model that answered this page (primary or fallback)
 
 
 class ExtractionProvenance(_Frozen):

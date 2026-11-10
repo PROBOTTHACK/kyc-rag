@@ -47,7 +47,13 @@ class Settings(BaseSettings):
     GEMINI_LIVE_ENABLED: bool = False
     GEMINI_DATA_TERMS_VERIFIED_ON: dt.date | None = None
     GEMINI_TIMEOUT_S: float = Field(default=60.0, gt=0, le=60)
-    GEMINI_MAX_RETRIES: int = Field(default=2, ge=0, le=2)
+    # Owner-approved override of the project default of 2 (Gemini transport only):
+    # 5 attempts per model, waits 2 -> 4 -> 8 -> 16 s, each capped.
+    GEMINI_MAX_RETRIES: int = Field(default=4, ge=0, le=4)
+    GEMINI_BACKOFF_INITIAL_S: float = Field(default=2.0, gt=0, le=60)
+    GEMINI_BACKOFF_CAP_S: float = Field(default=32.0, gt=0, le=60)
+    # Used only after the primary model exhausts its retries on transient errors.
+    MULTIMODAL_FALLBACK_MODEL: str | None = None
     # --- Local models ---
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     # Hugging Face commit to load; None = latest. Pinned in .env.example for reproducibility.
@@ -110,6 +116,7 @@ class Settings(BaseSettings):
         "FALLBACK_LLM_MODEL",
         "PROMPT_GUARD_MODEL",
         "MULTIMODAL_MODEL",
+        "MULTIMODAL_FALLBACK_MODEL",
         "GEMINI_DATA_TERMS_VERIFIED_ON",
         "NLI_MODEL",
         "EMBEDDING_MODEL_REVISION",

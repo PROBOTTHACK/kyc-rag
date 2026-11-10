@@ -102,7 +102,8 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
 - **Provider (G2):** `app/llm/gemini.py` `GeminiProvider` implements the contract.
   - **Request:** the page PNGs plus the task instruction; a fixed system instruction (images are untrusted data; extraction only; no legal, mandatory or applicability judgments); JSON output constrained by `FormExtraction`'s JSON schema at temperature 0.
   - **Validation:** every response is validated again with Pydantic. Invalid or truncated output comes back as `parsed=None` with the errors. A refusal or block raises `ProviderRefused`.
-  - **Limits:** 60 s timeout per attempt, at most 2 retries with bounded backoff on 429/5xx/timeouts/transport errors (the SDK's own retries are disabled), and an in-process RPM limiter.
+  - **Limits:** 60 s timeout per attempt; 5 attempts per model on 429/5xx/timeouts/transport errors, waiting 2 → 4 → 8 → 16 s (each capped at 32 s; the SDK's own retries are disabled); an in-process RPM limiter.
+  - **Fallback:** after transient exhaustion, the same page goes to `MULTIMODAL_FALLBACK_MODEL` (`FallbackMultimodalProvider`, `app/llm/fallback.py`; shared limiter). There is no fallback on refusals, other 4xx or invalid output. `provenance.pages[].model_id` records which model answered each page; the CLI reports `fallback pages N`.
   - **Off by default:** live calls are gated (docs/02).
 - **Stored schema:** results are stored as a `FormSchema` with `extraction_method="gemini_multimodal"`. The extension keys `field_type`, `options` and `provenance` are omitted when unset, so the stored `m1_chunks` hashes are unchanged.
 - **Pipeline (G3, `app/forms/pipeline.py`; migration `0005_m2_gemini_method`):**

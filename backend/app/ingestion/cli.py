@@ -1217,8 +1217,11 @@ def _gemini_line(key: str, run: GeminiRun) -> str:
         return head + "  (stored; no provider call)"
     fields = [f for sec in run.schema.sections for f in sec.fields]
     corr = sum(f.verification_status == "corroborated" for f in fields)
+    primary = run.schema.provenance.model_id if run.schema.provenance else None
+    fallback = sum(p.model_id is not None and p.model_id != primary for p in pages)
     return (
-        f"{head}\n      pages ok {ok}/{len(pages)}; fields {len(fields)} (corroborated {corr}, "
+        f"{head}\n      pages ok {ok}/{len(pages)} (fallback pages {fallback}); "
+        f"fields {len(fields)} (corroborated {corr}, "
         f"uncorroborated {len(fields) - corr}, required-as-shown "
         f"{run.schema.required_as_shown_count}); flags {', '.join(run.schema.flags)}\n"
         f"      {usage}"
@@ -1290,9 +1293,9 @@ async def _gemini_documents(
             )
             try:
                 if provider is None and stored is None:
-                    from app.llm.gemini import GeminiProvider  # live provider, lazily
+                    from app.llm.gemini import multimodal_from_settings  # lazily
 
-                    provider = GeminiProvider.from_settings(settings)
+                    provider = multimodal_from_settings(settings)
                 if provider is None:  # stored: extract_with_provider makes no call
                     print(f"  {key:<38} unchanged v{GEMINI_EXTRACTOR_VERSION} schema "
                           f"{stored.schema_sha256[:12]}  (stored; no provider call)")  # type: ignore[union-attr]  # fmt: skip

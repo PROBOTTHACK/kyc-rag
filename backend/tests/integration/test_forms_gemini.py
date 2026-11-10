@@ -20,7 +20,8 @@ from app.db.models import FormSchemaRow
 from app.forms.approval import load_approvals
 from app.ingestion import cli
 from app.llm.fake import FakeMultimodalProvider, scripted
-from app.llm.multimodal import ProviderTimeout
+from app.llm.fallback import FallbackMultimodalProvider
+from app.llm.multimodal import ProviderRateLimited, ProviderTimeout
 from app.retrieval.qdrant_store import ChunkStore
 from app.schemas.forms import ExtractedField, ExtractedSection, FormExtraction
 
@@ -193,3 +194,35 @@ def test_database_guards_apply_to_gemini_rows(db: sessionmaker[Session]) -> None
             )
         )
         s.commit()
+
+
+def _exhausted() -> ProviderRateLimited:
+    err = ProviderRateLimited("quota (after 5 attempts)")
+    err.transient = True
+    return err
+
+
+def test_fallback_model_answers_and_is_recorded_per_page(
+    db: sessionmaker[Session], capsys: pytest.CaptureFixture[str]
+) -> None:
+    primary = scripted(ex("SURNAME", page=1), _exhausted())
+    primary.model_id = "primary-model"
+    fallback = FakeMultimodalProvider(
+        [ex("Customer Name", page=2).model_dump_json()], model_id="fallback-model"
+    )
+    assert extract(db, [KEY], FallbackMultimodalProvider(primary, fallback)) == 0
+    assert "(fallback pages 1)" in capsys.readouterr().out
+    with db() as s:
+        schema = load_form_schema(s, KEY, extraction_method=GEMINI)
+    assert schema is not None and schema.provenance is not None
+    assert [(p.page_number, p.model_id) for p in schema.provenance.pages] == [
+        (1, "primary-model"),
+        (2, "fallback-model"),
+    ]
+
+
+def test_both_models_exhausted_store_nothing(db: sessionmaker[Session]) -> None:
+    primary = scripted(_exhausted())
+    fallback = scripted(_exhausted())
+    assert extract(db, [KEY], FallbackMultimodalProvider(primary, fallback)) == 1
+    assert rows(db, GEMINI) == []
