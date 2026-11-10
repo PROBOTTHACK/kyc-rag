@@ -438,6 +438,32 @@ class FormSchemaRow(Base):
             "AND schema_json ->> 'document_sha256' = document_sha256",
             name="ck_form_schemas_json_matches_columns",
         ),
+        # Migration 0004: strict guards whose expressions are never NULL (missing, null,
+        # mistyped or misplaced JSON keys are definite failures). Same SQL as 0004.
+        CheckConstraint(
+            "schema_json ->> 'document_role' IS NOT DISTINCT FROM document_role "
+            "AND schema_json ->> 'extraction_method' IS NOT DISTINCT FROM extraction_method "
+            "AND COALESCE(jsonb_typeof(schema_json -> 'extractor_version') = 'number', false) "
+            "AND schema_json ->> 'extractor_version' IS NOT DISTINCT FROM extractor_version::text "
+            "AND schema_json ->> 'document_sha256' IS NOT DISTINCT FROM document_sha256",
+            name="ck_form_schemas_json_identity",
+        ),
+        CheckConstraint(
+            "CASE WHEN COALESCE(jsonb_typeof(schema_json -> 'sections') = 'array', false) THEN "
+            "CASE WHEN NOT jsonb_path_exists(schema_json, "
+            '\'lax $.sections[*] ? (@.type() != "object" || !exists(@.fields) '
+            '|| @.fields.type() != "array")\') THEN '
+            "NOT jsonb_path_exists(schema_json, "
+            '\'lax $.sections[*].fields[*] ? (@.type() != "object" '
+            '|| !exists(@.appears_on_form) || @.appears_on_form.type() != "boolean" '
+            "|| @.appears_on_form != true "
+            '|| !exists(@.mandatory_under_policy) || @.mandatory_under_policy.type() != "null")\') '
+            "AND NOT jsonb_path_exists(schema_json, "
+            "'strict $.sections[*].fields[*] ? (@.type() != \"object\")') "
+            "ELSE false END "
+            "ELSE false END",
+            name="ck_form_schemas_field_structure",
+        ),
         Index("ix_form_schemas_form_key", "form_key"),
     )
 

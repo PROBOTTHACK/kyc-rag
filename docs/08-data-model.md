@@ -9,7 +9,7 @@ M1 tables (Alembic `0001_m1_corpus` + `0002_m1_persistence`; ORM `app/db/models.
 - `ingestion_runs` (0002): one row per ingestion attempt: `id`, `document_key`, `sha256`, `document_id` (no FK, so a rolled-back first ingestion is still recorded), `command`, `status` (processing|pending|completed|partial|failed; `pending` = persist-only run), `failed_stage` (extraction|ocr|chunking|persistence|embedding|indexing), `error`, `stages` jsonb (per-stage status, counts, error), `started_at`, `finished_at`. A failed run must name its stage and error.
 - `documents.ingestion_status`: `pending` after `persist` (stored, not yet indexed; `retry` or `index --from-db` finishes it); `processing` while a run is between its Postgres write and its indexing check; `completed` only after every stage succeeded; `partial` when every stage ran but some pages failed (recorded with their error); `failed` when the latest run failed (earlier rows and vectors stay intact).
 - A document's version relationship is never inferred from a hash change. A changed file fails manifest validation (SHA-256 mismatch) and is not ingested until a person records its identity and version relationship in the manifest. `supersedes` comes only from the manifest. `version_review_status` holds the review state of a recorded relationship (default `not_required`).
-- `form_schemas` (implemented, M2 C2, migration `0003_m2_form_schemas`; ORM `FormSchemaRow`; repository `app/db/forms.py`): one row per **(document, extraction method, extractor version)**.
+- `form_schemas` (implemented, M2 C2, migrations `0003_m2_form_schemas` + `0004_m2_form_schema_guards`; ORM `FormSchemaRow`; repository `app/db/forms.py`): one row per **(document, extraction method, extractor version)**.
   - **Columns:**
     - `id`: UUID derived from the document SHA-256, method and version;
     - `document_id`: FK to `documents`, ON DELETE CASCADE;
@@ -26,6 +26,10 @@ M1 tables (Alembic `0001_m1_corpus` + `0002_m1_persistence`; ORM `app/db/models.
     - no field in `schema_json` may carry `mandatory_under_policy`, and every field must have `appears_on_form = true`;
     - the JSON's role, method, version and SHA-256 must equal the columns;
     - roles, method, eligibility, SHA-256 format and counts are constrained.
+    - **Strict guards (migration `0004_m2_form_schema_guards`, M2 C2 follow-up):** a CHECK accepts a NULL result, so the 0003 expressions could be bypassed by JSON keys that were missing, null, wrongly typed or misplaced. 0004 adds two constraints whose expressions are always a definite TRUE or FALSE:
+      - `ck_form_schemas_json_identity`: the JSON's `document_role`, `extraction_method` and `document_sha256` must equal their columns (`IS NOT DISTINCT FROM`, so a missing or null key is a mismatch), and `extractor_version` must be a JSON number equal to the column;
+      - `ck_form_schemas_field_structure`: `sections` must be an array of objects, each with a `fields` array. Every field must be an object (not nested in an extra array) in which `appears_on_form` exists, is a boolean and is `true`, and `mandatory_under_policy` exists and is JSON `null`.
+      - 0003 is unchanged. The downgrade drops only these two constraints. Adversarial raw-insert tests are in `tests/integration/test_form_schema_guards.py`.
   - **Not stored:** review status and entity applicability. These belong to later human-review and rules stages, and are not inferred from forms.
 - `rules`(rule_id PK, entity_type, topic, source_document FK, source_page, conditions jsonb, applicability, verification_status)
 - `sessions`(id, entity_type, account_type, status, created_at, expires_at)

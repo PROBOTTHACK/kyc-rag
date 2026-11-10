@@ -84,3 +84,25 @@ def test_forms_cli_parses(argv: list[str], expected: tuple[str, list[str] | None
 def test_forms_requires_a_subcommand() -> None:
     with pytest.raises(SystemExit):
         cli.build_parser(get_settings()).parse_args(["forms"])
+
+
+def test_orm_guards_match_migration_0004_exactly() -> None:
+    import importlib.util
+
+    from app.db.models import FormSchemaRow
+
+    spec = importlib.util.spec_from_file_location(
+        "m0004", "alembic/versions/0004_m2_form_schema_guards.py"
+    )
+    assert spec is not None and spec.loader is not None
+    m0004 = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m0004)
+    orm = {
+        c.name: str(c.sqltext)  # type: ignore[attr-defined]
+        for c in FormSchemaRow.__table__.constraints
+        if c.name in ("ck_form_schemas_json_identity", "ck_form_schemas_field_structure")
+    }
+    assert orm == {
+        "ck_form_schemas_json_identity": m0004.IDENTITY,
+        "ck_form_schemas_field_structure": m0004.FIELD_STRUCTURE,
+    }

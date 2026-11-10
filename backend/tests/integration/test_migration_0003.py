@@ -48,7 +48,6 @@ def test_0003_is_additive_and_reversible(temp_db: str) -> None:
 
     command.upgrade(cfg, "0003_m2_form_schemas")
     assert "form_schemas" in tables(engine) and snapshot(engine) == before
-    command.check(cfg)  # ORM and migrations agree
     with sa.orm.Session(engine) as s:
         doc = s.get(Document, meta.row_id)
         assert doc is not None
@@ -61,6 +60,7 @@ def test_0003_is_additive_and_reversible(temp_db: str) -> None:
     assert "form_schemas" not in tables(engine) and snapshot(engine) == before
     command.upgrade(cfg, "head")
     assert "form_schemas" in tables(engine) and snapshot(engine) == before
+    command.check(cfg)  # ORM and migrations agree (at head: 0003 is no longer the head)
     with engine.connect() as conn:  # the downgrade dropped the schemas; nothing resurrected
         assert conn.execute(sa.text("SELECT count(*) FROM form_schemas")).scalar() == 0
 

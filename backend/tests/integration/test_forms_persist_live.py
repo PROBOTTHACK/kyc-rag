@@ -175,21 +175,23 @@ def _raw_insert(sessions: sessionmaker[Session], schema_json: dict[str, Any], **
     [
         (
             lambda j: j["sections"][1]["fields"][0].__setitem__("mandatory_under_policy", True),
-            "ck_form_schemas_no_policy_obligation",
+            "ck_form_schemas_(no_policy_obligation|field_structure)",
         ),
         (
             lambda j: j["sections"][1]["fields"][0].__setitem__("appears_on_form", False),
-            "ck_form_schemas_fields_appear_on_form",
+            "ck_form_schemas_(fields_appear_on_form|field_structure)",
         ),
         (
             lambda j: j.__setitem__("document_role", "reference_document"),
-            "ck_form_schemas_json_matches_columns",
+            "ck_form_schemas_(json_matches_columns|json_identity)",
         ),
     ],
 )
 def test_database_rejects_policy_obligations_and_mismatches(
     stored: sessionmaker[Session], mutate: Any, constraint: str
 ) -> None:
+    # PostgreSQL evaluates CHECKs in name order, so since migration 0004 its stricter
+    # constraint may fire before the 0003 one; either name is a definite rejection.
     with stored() as s:
         schema = extract_form(s, NATIVE)
     data = json.loads(schema.model_dump_json())
