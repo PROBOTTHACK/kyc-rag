@@ -53,11 +53,12 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import Settings, get_settings
+from app.core.cache import JsonCache
 from app.db.forms import (
     FormSchemaConflict,
     extract_and_save,
     list_form_schemas,
-    load_form_schema,
+    load_form_schema_cached,
     stored_form_schema_row,
 )
 from app.db.migrations import current_revision, head_revision
@@ -1413,8 +1414,11 @@ def _forms_show(
     sessions = sessions or _sessions(settings)
     if not _check_database(sessions):
         return 2
+    cache = JsonCache.from_settings(settings)
     with sessions() as s:
-        schema = load_form_schema(s, key, extractor_version=version, extraction_method=method)
+        schema = load_form_schema_cached(
+            s, cache, key, extractor_version=version, extraction_method=method
+        )
     if schema is None:
         print(f"no stored {method} form schema for {key!r}; run `forms extract --document {key}`")
         return 2
@@ -1422,6 +1426,10 @@ def _forms_show(
         print(schema.model_dump_json(indent=2))
         return 0
     print(f"{schema.form_key}: {schema.title}")
+    if cache is not None:
+        st = cache.stats
+        state = "hit" if st.hits else ("bypassed (Redis unavailable)" if st.bypassed else "miss")
+        print(f"  cache: {state} (Postgres is the source of truth)")
     print(f"  role {schema.document_role}; eligibility {schema.evidence_eligibility}; "
           f"{schema.extraction_method} v{schema.extractor_version}; sha256 "
           f"{schema.document_sha256[:12]}; flags {', '.join(schema.flags) or '-'}")  # fmt: skip

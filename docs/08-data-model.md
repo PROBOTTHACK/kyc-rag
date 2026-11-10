@@ -31,6 +31,7 @@ M1 tables (Alembic `0001_m1_corpus` + `0002_m1_persistence`; ORM `app/db/models.
       - `ck_form_schemas_json_identity`: the JSON's `document_role`, `extraction_method` and `document_sha256` must equal their columns (`IS NOT DISTINCT FROM`, so a missing or null key is a mismatch), and `extractor_version` must be a JSON number equal to the column;
       - `ck_form_schemas_field_structure`: `sections` must be an array of objects, each with a `fields` array. Every field must be an object (not nested in an extra array) in which `appears_on_form` exists, is a boolean and is `true`, and `mandatory_under_policy` exists and is JSON `null`.
       - 0003 is unchanged. The downgrade drops only these two constraints. Adversarial raw-insert tests are in `tests/integration/test_form_schema_guards.py`.
+  - **Read cache (M2 G4):** reads can go through the Redis cache keyed by (form_key, method, version). Postgres decides the current row and validates every cached entry (docs/02); the table is unchanged.
   - **Not stored:** review status and entity applicability. These belong to later human-review and rules stages, and are not inferred from forms.
 - `rules`(rule_id PK, entity_type, topic, source_document FK, source_page, conditions jsonb, applicability, verification_status)
 - `sessions`(id, entity_type, account_type, status, created_at, expires_at)

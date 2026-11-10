@@ -21,9 +21,11 @@ import uuid
 from dataclasses import dataclass
 from typing import Literal
 
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.cache import JsonCache
 from app.db.models import Document, FormSchemaRow
 from app.forms.extract import extract_form
 from app.schemas.corpus import ID_NAMESPACE
@@ -151,6 +153,92 @@ def load_form_schema(
         stmt = stmt.where(FormSchemaRow.extractor_version == extractor_version)
     row = session.scalar(stmt.order_by(FormSchemaRow.extractor_version.desc()).limit(1))
     return FormSchema.model_validate(row.schema_json) if row is not None else None
+
+
+CACHE_FORMAT = 1  # bump when the cached value's structure changes
+
+
+def _identity(
+    session: Session, form_key: str, extraction_method: str, extractor_version: int | None
+) -> tuple[uuid.UUID, int, str] | None:
+    """(row id, version, schema SHA-256) of the row `load_form_schema` would return, read
+    from Postgres without the JSON payload."""
+    stmt = (
+        select(FormSchemaRow.id, FormSchemaRow.extractor_version, FormSchemaRow.schema_sha256)
+        .join(Document, Document.id == FormSchemaRow.document_id)
+        .where(
+            Document.document_key == form_key,
+            FormSchemaRow.extraction_method == extraction_method,
+        )
+    )
+    if extractor_version is not None:
+        stmt = stmt.where(FormSchemaRow.extractor_version == extractor_version)
+    row = session.execute(stmt.order_by(FormSchemaRow.extractor_version.desc()).limit(1)).first()
+    return (row[0], row[1], row[2]) if row is not None else None
+
+
+def load_form_schema_cached(
+    session: Session,
+    cache: JsonCache | None,
+    form_key: str,
+    *,
+    extractor_version: int | None = None,
+    extraction_method: str = EXTRACTION_METHOD,
+) -> FormSchema | None:
+    """`load_form_schema` with a Redis read-through cache keyed by
+    (form_key, extraction_method, extractor_version).
+
+    Postgres decides WHICH row is current (a small query without the JSON), so a newly
+    inserted version is found immediately and a deleted row is never served. A cached
+    entry is used only if its row id and schema SHA-256 equal that row's and its JSON
+    re-hashes to the same SHA-256; otherwise it is deleted. Misses, unusable entries and
+    any Redis failure load from Postgres (identical result) and refresh the entry."""
+    if cache is None:
+        return load_form_schema(
+            session,
+            form_key,
+            extractor_version=extractor_version,
+            extraction_method=extraction_method,
+        )
+    ident = _identity(session, form_key, extraction_method, extractor_version)
+    if ident is None:
+        return None
+    row_id, version, sha = ident
+    key = cache.key(form_key, extraction_method, f"v{version}")
+    entry = cache.get(key)
+    if entry is not None:
+        schema = _usable(entry, row_id, sha)
+        if schema is not None:
+            cache.stats.hits += 1
+            return schema
+        cache.reject(key)
+    cache.stats.misses += 1
+    row = session.get(FormSchemaRow, row_id)
+    if row is None:  # deleted between the two reads
+        return None
+    schema = FormSchema.model_validate(row.schema_json)
+    cache.set(
+        key,
+        {
+            "format": CACHE_FORMAT,
+            "row_id": str(row.id),
+            "schema_sha256": row.schema_sha256,
+            "schema_json": row.schema_json,
+        },
+    )
+    return schema
+
+
+def _usable(entry: dict[str, object], row_id: uuid.UUID, sha: str) -> FormSchema | None:
+    if entry.get("format") != CACHE_FORMAT or entry.get("row_id") != str(row_id):
+        return None
+    if entry.get("schema_sha256") != sha:
+        return None
+    try:
+        schema = FormSchema.model_validate(entry.get("schema_json"))
+    except ValidationError:
+        return None
+    return schema if schema_sha256(schema) == sha else None  # integrity of the payload
 
 
 def list_form_schemas(session: Session) -> list[FormSchemaRow]:

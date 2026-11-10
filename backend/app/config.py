@@ -106,6 +106,10 @@ class Settings(BaseSettings):
     RATE_LIMIT_GEMINI_RPM: int = Field(default=10, gt=0)
     # --- Health checks ---
     HEALTH_CHECK_TIMEOUT_S: float = Field(default=2.0, gt=0)
+    # --- Form-schema cache (Redis; Postgres stays the source of truth) ---
+    FORM_CACHE_ENABLED: bool = True
+    FORM_CACHE_TTL_S: int = Field(default=604800, gt=0)  # 7 days
+    FORM_CACHE_TIMEOUT_S: float = Field(default=0.25, gt=0, le=5)
 
     @field_validator(
         "QDRANT_API_KEY",

@@ -65,6 +65,15 @@ Sources read on 2026-11-10. The `ai.google.dev` URLs now redirect permanently to
 6. **Short-lived session/UI state** with TTL (retention limits).
 Never store secrets or raw PII in Redis; set TTLs on everything.
 
+**Implemented so far (M2 G4): the form-schema read cache** (`app/core/cache.py` `JsonCache`, `app/db/forms.py` `load_form_schema_cached`; used by `forms show`).
+- **Key and value:** the key is `kyc:form_schema:{form_key}:{extraction_method}:v{extractor_version}`. The value is `{format, row_id, schema_sha256, schema_json}`, which is public form structure with no secrets. TTL is `FORM_CACHE_TTL_S` (7 days).
+- **Postgres stays the source of truth.** Each read first asks Postgres, without the JSON payload, which row is current (id, version, SHA-256).
+  - **When an entry is used:** only if its row id and SHA-256 match that row, and its JSON re-hashes to the same SHA-256.
+  - **What that guarantees:** a newly inserted version is found at once and never shadowed by a cached older one, and a deleted row is never served.
+- **Fallback:** corrupt, tampered or mismatched entries are deleted. Misses, those entries and any Redis error or timeout (`FORM_CACHE_TIMEOUT_S=0.25`) load from Postgres with an identical result, then refresh the entry.
+- **Turning it off:** `FORM_CACHE_ENABLED=false` makes every read a plain Postgres read.
+- **Other uses:** rate limiting, pub/sub and the rest of the list above remain for M3.
+
 ## Provider abstraction (required)
 ```python
 class LLMProvider(Protocol):
