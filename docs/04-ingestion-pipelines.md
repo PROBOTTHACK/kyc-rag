@@ -149,7 +149,7 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
     | hdfc_nri_account_opening | inserted, `partial_extraction` | 5/6 (p3 invalid twice) | 296 (215 / 81) | 39 | fallback (all 6 pages) | 10 / 74 | 14,021 / 26,031 | 98 s |
     | hdfc_nri_rekyc (scanned) | inserted | 3/3 | 61 (47 / 14) | 3 | fallback (all 3 pages) | 3 / 18 | 4,077 / 3,972 | 19 s |
     | hdfc_non_individual_account_opening (scanned) | rerun: refused (`RECITATION`); diagnostic 2026-11-11: inserted, `partial_extraction` | 1/2 (p1 invalid twice) | 35 (22 / 13) | 1 | fallback (both pages) | 3 / 21 | 4,273 / 16,162 | 50 s |
-    | hdfc_resident_to_nro_conversion | **failed**: 503 on both models after 5 attempts each | – | – | – | – | – | – | – |
+    | hdfc_resident_to_nro_conversion | rerun: 503 on both models; **v2 targeted rerun 2026-11-11: inserted** | 6/6 | 298 (267 / 31) | 45 | fallback (all 6 pages) | 6 / 43 | 8,154 / 16,041 | 53 s |
 
   - **Findings:**
     - **Duplicate-label rule:** every invalid attempt (p3–p6 of the NRI form) was rejected by the rule "duplicate label on the same page and section". Real forms repeat labels legitimately (e.g. per-applicant or per-address "PIN Code", "Date"), so this rule is stricter than the forms themselves. It is open for an owner decision and was not changed.
@@ -160,6 +160,20 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
         - **Page 2:** extracted 35 fields.
         - The form is now stored, so a rerun makes no call, and the RECITATION finish reason, citations and partial output could not be observed.
       - **Still unexercised live:** the OCR fallback (covered by tests with real local Tesseract).
+  - **v2 targeted rerun (2026-11-11, only `hdfc_resident_to_nro_conversion`, the one form with no Gemini record; hash re-verified):**
+    - **Pages:** all 6 extracted, with no invalid output and no validation errors. Fields per page: 71 / 77 / 54 / 51 / 38 / 7 (corroborated 66 / 67 / 40 / 51 / 36 / 7).
+    - **Repeats:** 11 of 25 sections had repeated labels, kept as separate fields and flagged `repeated_labels`. Under v1 each of those would have invalidated the page.
+    - **Usage:** 43 API attempts for 6 requests. The primary was overloaded again, and all pages were answered by the fallback.
+    - **Other forms:** no other form was sent. Secret scan clean.
+  - **Extraction versions per approved form** (`forms versions`, 2026-11-11). v2 is claimed only where a v2 row exists.
+
+    | Form | m1_chunks | Gemini v1 | Gemini v2 (current) |
+    |---|---|---|---|
+    | hdfc_non_individual_account_opening | v1 | stored, 35 fields, partial (p1 lost to the v1 duplicate rule) | **not extracted** |
+    | hdfc_nri_account_opening | v1 | stored, 296 fields, partial (p3 lost to the v1 duplicate rule) | **not extracted** |
+    | hdfc_nri_rekyc | v1 | stored, 61 fields | **not extracted** |
+    | hdfc_resident_rekyc_dormant | v1 | stored, 55 fields | **not extracted** |
+    | hdfc_resident_to_nro_conversion | v1 | none | stored, 298 fields (`repeated_labels`) |
     - **Security:** secret scan clean (logs, all `form_schemas` rows, Redis empty).
 
 **Embeddings and Qdrant indexing (implemented, M1 Stage D; `app/retrieval/{embeddings,qdrant_store,indexing,search}.py`):**
