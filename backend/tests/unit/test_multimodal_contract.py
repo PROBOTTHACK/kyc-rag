@@ -12,6 +12,7 @@ from pathlib import Path
 import pymupdf
 import pytest
 
+from app.config import get_settings
 from app.db.forms import schema_sha256
 from app.forms.approval import (
     DEFAULT_PATH,
@@ -21,6 +22,7 @@ from app.forms.approval import (
     load_approvals,
 )
 from app.forms.render import RenderRefused, render_pages
+from app.ingestion.manifest import load_manifest, sha256_file
 from app.llm.fake import scripted
 from app.llm.multimodal import MultimodalRequest, ProviderRefused, parse_structured
 from app.schemas.forms import (
@@ -212,11 +214,51 @@ def test_attestation_is_required() -> None:
         approved(attestation="filled_form")
 
 
-def test_tracked_list_parses_and_blocks_everything_until_approved() -> None:
+APPROVED_FORMS = {
+    "hdfc_non_individual_account_opening",
+    "hdfc_nri_account_opening",
+    "hdfc_nri_rekyc",
+    "hdfc_resident_rekyc_dormant",
+    "hdfc_resident_to_nro_conversion",
+}
+
+
+def test_tracked_list_approves_exactly_the_five_blank_forms() -> None:
     approvals = load_approvals(DEFAULT_PATH)
-    assert len(approvals) == 5
-    assert all(e.attestation == "public_blank_form" for e in approvals.values())
-    assert not any(e.is_approved for e in approvals.values())  # owner has not signed off
+    assert set(approvals) == APPROVED_FORMS
+    for e in approvals.values():
+        assert e.attestation == "public_blank_form" and e.is_approved
+        assert (e.approved_by, e.approved_on) == ("project owner", dt.date(2026, 11, 10))
+
+
+def test_tracked_hashes_match_manifest_and_files() -> None:
+    manifest = {m.document_key: m for m in load_manifest(get_settings().CORPUS_MANIFEST)}
+    for key, e in load_approvals(DEFAULT_PATH).items():
+        m = manifest[key]
+        assert m.document_type.value == "form" and m.sha256 == e.sha256
+        pdf = get_settings().CORPUS_DIR / m.file
+        if pdf.is_file():  # the PDFs are gitignored; checked wherever they exist
+            assert sha256_file(pdf) == e.sha256, key
+
+
+@pytest.mark.parametrize(
+    ("key", "doc_type"),
+    [
+        ("hdfc_netbanking_corporate_application", "reference"),  # excluded: not a form
+        ("hdfc_netbanking_corporate_application", "form"),  # and not listed either
+        ("rbi_kyc_directions_2025", "regulatory"),
+        ("some_unlisted_form", "form"),
+    ],
+)
+def test_unlisted_and_non_form_documents_are_refused(key: str, doc_type: str) -> None:
+    with pytest.raises(NotApproved):
+        check_approved(
+            load_approvals(DEFAULT_PATH),
+            document_key=key,
+            document_type=doc_type,
+            manifest_sha256=SHA,
+            stored_sha256=SHA,
+        )
 
 
 def test_malformed_and_duplicate_lists_are_refused(tmp_path: Path) -> None:
