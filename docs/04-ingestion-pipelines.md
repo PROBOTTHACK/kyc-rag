@@ -165,12 +165,23 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
     - **Repeats:** 11 of 25 sections had repeated labels, kept as separate fields and flagged `repeated_labels`. Under v1 each of those would have invalidated the page.
     - **Usage:** 43 API attempts for 6 requests. The primary was overloaded again, and all pages were answered by the fallback.
     - **Other forms:** no other form was sent. Secret scan clean.
+  - **v2 targeted extraction of the two partial forms (2026-11-11; only these two; hashes re-verified):** both are now complete. Every page was extracted, with no `partial_extraction` and no validation errors.
+    - **Page reuse:** the implementation does not reuse page results across extractor versions; each identity is extracted whole, by design. So all 8 pages were re-sent; nothing was spliced from v1.
+
+    | Form (v2) | Pages | Fields per page (corroborated) | Total (corr. / uncorr.) | `*` shown | Repeat sections | Requests / API attempts | Tokens in / out | Latency |
+    |---|---|---|---|---|---|---|---|---|
+    | hdfc_non_individual_account_opening | 2/2 | p1 86 (55), p2 34 (21) | 120 (76 / 44) | 19 | 2 / 8 | 2 / 15 | 2,718 / 6,018 | 21 s |
+    | hdfc_nri_account_opening | 6/6 | 81 (66), 72 (63), 74 (73), 11 (11), 78 (74), 46 (45) | 362 (332 / 30) | 50 | 7 / 36 | 6 / 36 | 8,154 / 18,966 | 52 s |
+
+    - **Recovered pages:** p1 of the non-individual form (v1: 35 fields) and p3 of the NRI form (v1: 296 fields, 74 of them on p3 alone in v2) are now extracted.
+    - **Model:** every page was answered by the fallback model; the primary was overloaded.
+    - **Unchanged rows:** the v1 rows are byte-identical. Secret scan clean.
   - **Extraction versions per approved form** (`forms versions`, 2026-11-11). v2 is claimed only where a v2 row exists.
 
     | Form | m1_chunks | Gemini v1 | Gemini v2 (current) |
     |---|---|---|---|
-    | hdfc_non_individual_account_opening | v1 | stored, 35 fields, partial (p1 lost to the v1 duplicate rule) | **not extracted** |
-    | hdfc_nri_account_opening | v1 | stored, 296 fields, partial (p3 lost to the v1 duplicate rule) | **not extracted** |
+    | hdfc_non_individual_account_opening | v1 | stored, 35 fields, partial (p1 lost to the v1 duplicate rule) | stored, 120 fields, complete (`repeated_labels`) |
+    | hdfc_nri_account_opening | v1 | stored, 296 fields, partial (p3 lost to the v1 duplicate rule) | stored, 362 fields, complete (`repeated_labels`) |
     | hdfc_nri_rekyc | v1 | stored, 61 fields | **not extracted** |
     | hdfc_resident_rekyc_dormant | v1 | stored, 55 fields | **not extracted** |
     | hdfc_resident_to_nro_conversion | v1 | none | stored, 298 fields (`repeated_labels`) |
