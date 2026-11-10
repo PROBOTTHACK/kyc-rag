@@ -88,7 +88,7 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
   - M1 sometimes merges option groups into one label ("*Gender Married Unmarried …") and lists form furniture as labels ("Page 1 of 6", "DDMMYYYY"). These are kept as printed, never filtered by guesswork.
   - No checkbox, signature or layout understanding in the deterministic path; that is the multimodal path below.
 
-**Multimodal form path (M2 Pipeline B, in progress; G1 contract + G2 provider, no live calls yet):**
+**Multimodal form path (M2 Pipeline B; G1 contract, G2 provider, G3 pipeline + CLI):**
 - `app/llm/multimodal.py`: the provider-agnostic `MultimodalProvider` contract (`PageImage`, `MultimodalRequest`, `MultimodalResult`, `ProviderUnavailable/RateLimited/Refused/Timeout`), plus `parse_structured`, which validates model text against a Pydantic schema. `app/llm/fake.py` is a scripted provider for tests.
 - `app/forms/render.py`: re-hashes the PDF and refuses it if the hash differs, then renders the pages to PNG (150 dpi), recording each image's SHA-256.
 - `app/forms/approval.py` + tracked `data/raw_pdfs/forms_approved.yaml`. A document may be sent to an external model only if it is:
@@ -105,6 +105,28 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
   - **Limits:** 60 s timeout per attempt, at most 2 retries with bounded backoff on 429/5xx/timeouts/transport errors (the SDK's own retries are disabled), and an in-process RPM limiter.
   - **Off by default:** live calls are gated (docs/02).
 - **Stored schema:** results are stored as a `FormSchema` with `extraction_method="gemini_multimodal"`. The extension keys `field_type`, `options` and `provenance` are omitted when unset, so the stored `m1_chunks` hashes are unchanged.
+- **Pipeline (G3, `app/forms/pipeline.py`; migration `0005_m2_gemini_method`):**
+  - **Order of steps:** approval check, then manifest/database/registry SHA-256 check (both before rendering), then 150 dpi render, then one provider request per page, then Pydantic + structural validation, then corroboration, then `FormSchema`, then `save_form_schema`.
+  - **Invalid output:** re-asked once, quoting the validation errors. If it is still invalid, that page contributes nothing and the schema is flagged `partial_extraction` plus `invalid_output_page_N`. It is never repaired. If no page is valid, nothing is stored.
+  - **Provider errors** (refusal, rate limit, timeout, outage) abort the document, and nothing is stored.
+  - **Corroboration:**
+    - **Matching:** the label (leading `*` removed; NFKC, casefolded, punctuation collapsed) must appear as whole words in the stored M1 chunk text of that physical page. Child chunks are checked before parents, and labels under 3 alphanumeric characters never match.
+    - **Match:** `corroborated`, carrying the chunk id and that chunk's `text_reliability`.
+    - **No match:** `uncorroborated` (`chunk_id=None`, `text_reliability="model_output"`), and the document is flagged `uncorroborated_fields`.
+
+    Corroboration shows the label appears on the form, nothing more.
+  - **Field rules:** `required_as_shown` uses the same printed-`*` rule as the deterministic path. `mandatory_under_policy` is never set; the 0004 guards enforce this on Gemini rows too.
+  - **Identity:** (document, `gemini_multimodal`, `GEMINI_EXTRACTOR_VERSION=1`). A stored row means the CLI makes **zero provider calls** and reports `unchanged`. A new prompt, schema or model needs a version bump, because the model output is not deterministic.
+  - **Provenance:** provider, model id, prompt id/version, render dpi, per-page PNG SHA-256, token usage, latency, request count and the validation errors of failed attempts. No key and no timestamps.
+- **CLI:**
+  - `forms extract --provider gemini [--document KEY]...`: the default is `--provider deterministic`, and the default Gemini document set is the approved list. Every requested key is checked first; any refusal sends nothing (exit 2), so the NetBanking reference, any unlisted document and any hash mismatch are rejected.
+  - `forms show KEY --method m1_chunks|gemini_multimodal`: the default and every existing caller use `m1_chunks`; the methods are never mixed.
+  - `forms list` shows the method.
+- **First live run (2026-11-10, five approved forms, 19 pages; gates enabled only for that process):** **failed, and nothing was stored.**
+  - Four forms got `503 UNAVAILABLE` on all 3 attempts of their first page. The fifth (`hdfc_resident_rekyc_dormant`) got `429 RESOURCE_EXHAUSTED` on all 3.
+  - That is 15 API attempts, with no tokens returned.
+  - AI Studio's per-project limits could not be checked from this environment, so the conservative 10 RPM limiter was kept.
+  - No extraction results exist. The pipeline is verified with the scripted provider on the real stored corpus (tests), not with live Gemini output.
 
 **Embeddings and Qdrant indexing (implemented, M1 Stage D; `app/retrieval/{embeddings,qdrant_store,indexing,search}.py`):**
 - Model: `BAAI/bge-small-en-v1.5` at the pinned revision `EMBEDDING_MODEL_REVISION`, on CPU. It produces 384-dimensional vectors, L2-normalised, compared by cosine. Queries get the BGE instruction ("Represent this sentence for searching relevant passages: "); passages don't.

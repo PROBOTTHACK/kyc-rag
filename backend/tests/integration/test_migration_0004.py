@@ -128,7 +128,6 @@ def test_0004_adds_only_two_constraints_and_is_reversible(temp_db: str) -> None:
     assert revision(engine) == "0004_m2_form_schema_guards"
     assert checks(engine) == FROM_0003 | NEW  # exactly two added
     assert snapshot(engine) == before  # M1 rows and the stored schema untouched
-    command.check(cfg)  # ORM and migrations agree at head
     with pytest.raises(sa.exc.IntegrityError, match="ck_form_schemas_field_structure"):
         insert_missing_appears(engine, base)
 
@@ -143,5 +142,6 @@ def test_0004_adds_only_two_constraints_and_is_reversible(temp_db: str) -> None:
 
     command.upgrade(cfg, "head")
     assert checks(engine) == FROM_0003 | NEW and snapshot(engine) == before
+    command.check(cfg)  # ORM and migrations agree (at head; 0004 is no longer the head)
     with pytest.raises(sa.exc.IntegrityError, match="ck_form_schemas_field_structure"):
         insert_missing_appears(engine, base)

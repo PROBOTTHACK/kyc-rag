@@ -25,10 +25,12 @@ Retrieval:
   evaluate --final-heldout [--report PATH] [--record PATH]   the ONE-TIME held-out run of
            C0 and the A3-selected configuration (refuses to run twice; docs/10)
            Recall@k benchmark (the frozen held-out set is refused; docs/10)
-Form schemas (M2 C2; deterministic, from stored M1 chunks):
-  forms extract [--document KEY]...   extract and persist (idempotent; never overwrites)
-  forms list                          stored schemas
-  forms show KEY [--json] [--version N]
+Form schemas (M2 C2 deterministic, from stored M1 chunks; M2 G3 multimodal):
+  forms extract [--document KEY]... [--provider deterministic|gemini]
+                                      extract and persist (idempotent; never overwrites);
+                                      gemini = approved blank forms only, live-gated
+  forms list                          stored schemas (both methods)
+  forms show KEY [--json] [--version N] [--method m1_chunks|gemini_multimodal]
 Checks:
   validate-manifest [--manifest PATH] [--corpus-dir PATH]
   check-ocr
@@ -39,6 +41,7 @@ search (one retriever failed) is a valid, labelled result: exit 0 + a DEGRADED b
 """
 
 import argparse
+import asyncio
 import sys
 import time
 from collections.abc import Callable
@@ -53,13 +56,22 @@ from app.db.forms import (
     extract_and_save,
     list_form_schemas,
     load_form_schema,
+    stored_form_schema_row,
 )
 from app.db.migrations import current_revision, head_revision
 from app.db.models import Chunk
 from app.db.repository import evidence_context, family_integrity
 from app.db.runs import recent_runs
 from app.db.session import create_sync_engine, create_sync_sessionmaker
+from app.forms.approval import ApprovedForm, NotApproved, load_approvals
 from app.forms.extract import NotAFormError, extractable_document_keys
+from app.forms.pipeline import (
+    GEMINI_EXTRACTOR_VERSION,
+    GeminiRun,
+    Prepared,
+    extract_with_provider,
+    prepare,
+)
 from app.ingestion.manifest import ManifestError, load_manifest, validate_corpus
 from app.ingestion.ocr import SMOKE_TEXT, OcrSetupError, ocr_smoke_test, tesseract_setup
 from app.ingestion.pipeline import (
@@ -72,6 +84,7 @@ from app.ingestion.pipeline import (
     retry_action,
 )
 from app.ingestion.prepare import ocr_setup, prepare_document
+from app.llm.multimodal import MultimodalProvider, ProviderError, ProviderUnavailable
 from app.retrieval.embeddings import Embedder, embedder_from_settings
 from app.retrieval.evaluation import (
     DEFAULT_K,
@@ -116,6 +129,7 @@ from app.retrieval.selection import (
     selection_record,
 )
 from app.schemas.corpus import DocumentMetadata
+from app.schemas.forms import EXTRACTION_METHOD, MULTIMODAL_METHOD
 
 MAX_LISTED = 10  # issue ids printed per category
 DEFAULT_DATASET = Path("data/eval/m1_retrieval.jsonl")
@@ -1187,6 +1201,131 @@ def _forms_extract(
     return 1 if failed else 0
 
 
+def _gemini_line(key: str, run: GeminiRun) -> str:
+    pages = run.pages
+    ok = sum(p.extraction is not None for p in pages)
+    usage = (
+        f"requests {sum(p.attempts for p in pages)}, api attempts {run.provider_calls}, "
+        f"tokens in {sum(p.input_tokens for p in pages)} / out "
+        f"{sum(p.output_tokens for p in pages)}, latency {sum(p.latency_ms for p in pages)} ms"
+    )
+    if run.outcome is None:
+        return f"  {key:<38} FAILED    no valid page output ({ok}/{len(pages)} pages); {usage}"
+    o = run.outcome
+    head = f"  {key:<38} {o.status:<9} v{o.extractor_version} schema {o.schema_sha256[:12]}"
+    if run.schema is None:
+        return head + "  (stored; no provider call)"
+    fields = [f for sec in run.schema.sections for f in sec.fields]
+    corr = sum(f.verification_status == "corroborated" for f in fields)
+    return (
+        f"{head}\n      pages ok {ok}/{len(pages)}; fields {len(fields)} (corroborated {corr}, "
+        f"uncorroborated {len(fields) - corr}, required-as-shown "
+        f"{run.schema.required_as_shown_count}); flags {', '.join(run.schema.flags)}\n"
+        f"      {usage}"
+    )
+
+
+def _gemini_prepare(
+    settings: Settings, s: Session, key: str, approvals: dict[str, ApprovedForm]
+) -> Prepared:
+    return prepare(
+        s,
+        key,
+        approvals=approvals,
+        corpus_dir=settings.CORPUS_DIR,
+        manifest_path=settings.CORPUS_MANIFEST,
+    )
+
+
+def _forms_extract_gemini(
+    settings: Settings,
+    documents: list[str],
+    *,
+    sessions: sessionmaker[Session] | None = None,
+    provider: MultimodalProvider | None = None,
+    approvals: dict[str, ApprovedForm] | None = None,
+) -> int:
+    """Multimodal extraction of approved blank forms. Every requested document is checked
+    (approval list, manifest and database SHA-256) BEFORE anything is rendered or sent;
+    any refusal sends nothing (exit 2). Stored schemas are skipped with no provider call.
+    Exit 1 if any document failed (provider error, no valid output, conflict)."""
+    sessions = sessions or _sessions(settings)
+    if not _check_database(sessions):
+        return 2
+    try:
+        approvals = approvals if approvals is not None else load_approvals()
+    except NotApproved as exc:
+        print(f"refused: {exc}")
+        return 2
+    keys = documents or sorted(k for k, a in approvals.items() if a.is_approved)
+    refused = []
+    with sessions() as s:
+        for key in keys:
+            try:
+                _gemini_prepare(settings, s, key, approvals)
+            except (NotApproved, LookupError) as exc:
+                refused.append(f"{key}: {exc}")
+    if refused:
+        print("refused before rendering; nothing was sent:")
+        for r in refused:
+            print(f"  {r}")
+        return 2
+    return asyncio.run(_gemini_documents(settings, keys, sessions, provider, approvals))
+
+
+async def _gemini_documents(
+    settings: Settings,
+    keys: list[str],
+    sessions: sessionmaker[Session],
+    provider: MultimodalProvider | None,
+    approvals: dict[str, ApprovedForm],
+) -> int:
+    """One event loop for all documents (the SDK's async client is bound to it)."""
+    failed = 0
+    for key in keys:
+        with sessions() as s:
+            prepared = _gemini_prepare(settings, s, key, approvals)
+            stored = stored_form_schema_row(
+                s, prepared.document.id, MULTIMODAL_METHOD, GEMINI_EXTRACTOR_VERSION
+            )
+            try:
+                if provider is None and stored is None:
+                    from app.llm.gemini import GeminiProvider  # live provider, lazily
+
+                    provider = GeminiProvider.from_settings(settings)
+                if provider is None:  # stored: extract_with_provider makes no call
+                    print(f"  {key:<38} unchanged v{GEMINI_EXTRACTOR_VERSION} schema "
+                          f"{stored.schema_sha256[:12]}  (stored; no provider call)")  # type: ignore[union-attr]  # fmt: skip
+                    continue
+                run = await extract_with_provider(s, prepared, provider)
+            except ProviderUnavailable as exc:
+                if "disabled" in str(exc):
+                    print(f"forms: {exc}; nothing was sent")
+                    return 2
+                failed += 1
+                s.rollback()
+                print(f"  {key:<38} FAILED    {type(exc).__name__}: {exc} (nothing stored)")
+                continue
+            except ProviderError as exc:  # messages are redacted by the provider
+                failed += 1
+                s.rollback()
+                print(f"  {key:<38} FAILED    {type(exc).__name__}: {exc} (nothing stored)")
+                continue
+            except FormSchemaConflict as exc:
+                failed += 1
+                s.rollback()
+                print(f"  {key:<38} CONFLICT  {exc}")
+                continue
+            if run.outcome is None:
+                failed += 1
+                s.rollback()
+            else:
+                s.commit()
+            print(_gemini_line(key, run))
+    print(f"forms (gemini): {len(keys) - failed} ok, {failed} not saved")
+    return 1 if failed else 0
+
+
 def _forms_list(settings: Settings, sessions: sessionmaker[Session] | None = None) -> int:
     sessions = sessions or _sessions(settings)
     if not _check_database(sessions):
@@ -1198,7 +1337,8 @@ def _forms_list(settings: Settings, sessions: sessionmaker[Session] | None = Non
     for r in rows:
         flags = ",".join(r.quality_flags) or "-"
         print(f"  {r.form_key:<38} {r.document_role:<18} {r.evidence_eligibility:<12} "
-              f"v{r.extractor_version} sections {r.section_count:>3} fields {r.field_count:>3} "
+              f"{r.extraction_method:<17} v{r.extractor_version} "
+              f"sections {r.section_count:>3} fields {r.field_count:>3} "
               f"required-as-shown {r.required_as_shown_count:>3} flags {flags}")  # fmt: skip
     return 0
 
@@ -1210,14 +1350,15 @@ def _forms_show(
     as_json: bool,
     version: int | None,
     sessions: sessionmaker[Session] | None = None,
+    method: str = EXTRACTION_METHOD,
 ) -> int:
     sessions = sessions or _sessions(settings)
     if not _check_database(sessions):
         return 2
     with sessions() as s:
-        schema = load_form_schema(s, key, extractor_version=version)
+        schema = load_form_schema(s, key, extractor_version=version, extraction_method=method)
     if schema is None:
-        print(f"no stored form schema for {key!r}; run `forms extract --document {key}`")
+        print(f"no stored {method} form schema for {key!r}; run `forms extract --document {key}`")
         return 2
     if as_json:
         print(schema.model_dump_json(indent=2))
@@ -1307,11 +1448,24 @@ def build_parser(settings: Settings) -> argparse.ArgumentParser:
     fsub = fm.add_subparsers(dest="forms_command", required=True)
     fx = fsub.add_parser("extract", help="extract and persist (idempotent; never overwrites)")
     _add_documents(fx, "extract")
+    fx.add_argument(
+        "--provider",
+        choices=["deterministic", "gemini"],
+        default="deterministic",
+        help="deterministic (default; stored M1 chunks) or gemini (multimodal; approved "
+        "blank forms only; requires the live gates)",
+    )
     fsub.add_parser("list", help="stored form schemas")
     fs = fsub.add_parser("show", help="one stored form schema")
     fs.add_argument("key", metavar="KEY")
     fs.add_argument("--json", action="store_true", help="print the stored schema as JSON")
     fs.add_argument("--version", type=int, help="extractor version (default: latest)")
+    fs.add_argument(
+        "--method",
+        choices=[EXTRACTION_METHOD, MULTIMODAL_METHOD],
+        default=EXTRACTION_METHOD,
+        help="extraction method (default: m1_chunks)",
+    )
 
     rn = sub.add_parser("runs", help="show recorded ingestion runs")
     rn.add_argument("--document", metavar="KEY")
@@ -1402,10 +1556,14 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--record requires --select")
     if args.command == "forms":
         if args.forms_command == "extract":
+            if args.provider == "gemini":
+                return _forms_extract_gemini(settings, args.document)
             return _forms_extract(settings, args.document)
         if args.forms_command == "list":
             return _forms_list(settings)
-        return _forms_show(settings, args.key, as_json=args.json, version=args.version)
+        return _forms_show(
+            settings, args.key, as_json=args.json, version=args.version, method=args.method
+        )
     if args.command == "reconcile":
         if args.delete_unknown and not args.repair:
             parser.error("--delete-unknown requires --repair")

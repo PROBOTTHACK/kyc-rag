@@ -409,7 +409,9 @@ class FormSchemaRow(Base):
             name="ck_form_schemas_evidence_eligibility",
         ),
         CheckConstraint(
-            "extraction_method IN ('m1_chunks')", name="ck_form_schemas_extraction_method"
+            # Widened by migration 0005 (M2 G3).
+            "extraction_method IN ('m1_chunks', 'gemini_multimodal')",
+            name="ck_form_schemas_extraction_method",
         ),
         CheckConstraint("extractor_version >= 1", name="ck_form_schemas_extractor_version"),
         CheckConstraint(

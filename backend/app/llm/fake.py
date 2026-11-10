@@ -29,6 +29,10 @@ class FakeMultimodalProvider:
     model_id: str = "fake-multimodal-1"
     calls: list[FakeCall] = field(default_factory=list)
 
+    @property
+    def attempts_made(self) -> int:
+        return len(self.calls)
+
     async def analyze_pages(
         self, images: list[bytes], request: MultimodalRequest, schema: type[T]
     ) -> MultimodalResult[T]:

@@ -113,6 +113,7 @@ class GeminiProvider:
     name: str = PROVIDER_NAME
     _limiter: RpmLimiter = field(init=False)
     _client: Any = field(init=False, default=None)
+    attempts_made: int = field(init=False, default=0)  # every API attempt, retries included
 
     def __post_init__(self) -> None:
         if not 0 <= self.max_retries <= MAX_RETRIES_CAP:
@@ -158,6 +159,7 @@ class GeminiProvider:
         attempt = 0
         while True:
             await self._limiter.acquire()
+            self.attempts_made += 1
             started = self.clock()
             try:
                 response = await asyncio.wait_for(

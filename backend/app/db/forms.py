@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 from app.db.models import Document, FormSchemaRow
 from app.forms.extract import extract_form
 from app.schemas.corpus import ID_NAMESPACE
-from app.schemas.forms import FormSchema
+from app.schemas.forms import EXTRACTION_METHOD, FormSchema
 
 SaveStatus = Literal["inserted", "unchanged"]
 
@@ -117,15 +117,36 @@ def extract_and_save(session: Session, document_key: str) -> SaveOutcome:
     return save_form_schema(session, extract_form(session, document_key))
 
 
+def stored_form_schema_row(
+    session: Session, document_id: uuid.UUID, extraction_method: str, extractor_version: int
+) -> FormSchemaRow | None:
+    """The row stored under one identity, if any (used to skip provider calls)."""
+    return session.scalar(
+        select(FormSchemaRow).where(
+            FormSchemaRow.document_id == document_id,
+            FormSchemaRow.extraction_method == extraction_method,
+            FormSchemaRow.extractor_version == extractor_version,
+        )
+    )
+
+
 def load_form_schema(
-    session: Session, form_key: str, *, extractor_version: int | None = None
+    session: Session,
+    form_key: str,
+    *,
+    extractor_version: int | None = None,
+    extraction_method: str = EXTRACTION_METHOD,
 ) -> FormSchema | None:
-    """The stored schema of the CURRENT document under `form_key` (the highest extractor
-    version unless one is given), validated back into a `FormSchema`."""
+    """The stored schema of the CURRENT document under `form_key` for one extraction
+    method (default: the deterministic `m1_chunks`; methods are never mixed), at the
+    highest extractor version unless one is given, validated back into a `FormSchema`."""
     document = session.scalar(select(Document).where(Document.document_key == form_key))
     if document is None:
         return None
-    stmt = select(FormSchemaRow).where(FormSchemaRow.document_id == document.id)
+    stmt = select(FormSchemaRow).where(
+        FormSchemaRow.document_id == document.id,
+        FormSchemaRow.extraction_method == extraction_method,
+    )
     if extractor_version is not None:
         stmt = stmt.where(FormSchemaRow.extractor_version == extractor_version)
     row = session.scalar(stmt.order_by(FormSchemaRow.extractor_version.desc()).limit(1))
@@ -135,6 +156,10 @@ def load_form_schema(
 def list_form_schemas(session: Session) -> list[FormSchemaRow]:
     return list(
         session.scalars(
-            select(FormSchemaRow).order_by(FormSchemaRow.form_key, FormSchemaRow.extractor_version)
+            select(FormSchemaRow).order_by(
+                FormSchemaRow.form_key,
+                FormSchemaRow.extraction_method.desc(),  # m1_chunks first
+                FormSchemaRow.extractor_version,
+            )
         )
     )
