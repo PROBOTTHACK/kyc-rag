@@ -115,6 +115,17 @@ M2 retrieval choices follow `docs/milestones/M2_PLAN.md` §6.
   - **Exact-term subgroup** (m2h-06/11/12): 1.000 for both configurations, a ceiling.
   - **Failure mode:** the stopword BM25 leg promotes HDFC form chunks, one of them OCR-uncertain, over policy and FAQ answers (m2h-03, m2h-18).
   - **What follows:** as pre-registered, the result is reported as is and does not reopen tuning. The A3 decision record is unchanged, and whether to keep C6 as the configured default is the project owner's call.
+- **Operational default after the held-out review** (a separate decision; `docs/milestones/M2_RETRIEVAL_OPERATIONAL_DECISION.md`):
+  - **Default:** `RETRIEVAL_MODE=dense`.
+  - **C6:** stays an explicitly selectable experimental mode (`--mode hybrid` with `RRF_K=20`, `BM25_STOPWORDS=true`).
+  - **Why:**
+    - Recall@5 is not better on held-out (−0.025);
+    - the Hit@5 (+0.050) and MRR@5 (+0.017) gains are one query or less;
+    - no difference is statistically significant;
+    - C6 adds +19 ms at p50;
+    - C6 has a documented bias towards form and OCR-uncertain chunks, plus the negation risk of the stopword list.
+  - **Records unchanged:** the A3 record and the held-out results are unchanged.
+  - **Arithmetic check:** a post-evaluation review recomputed every reported figure from the raw results and found no arithmetic error; only wording was clarified.
 - **Limitations:**
   - **Single annotator:** all held-out labels were drafted by the implementing assistant and reviewed by the project owner. There was no independent annotation or inter-annotator validation, and no such claim is made.
   - **Resolution:** with 20 queries, one query moves mean Recall@5 by about 0.05, so confidence intervals are wide and "no measurable difference" is a valid outcome.

@@ -63,14 +63,17 @@ class Settings(BaseSettings):
     # Embed uncertain OCR chunks (retrievable, flagged, never MANDATORY evidence)?
     OCR_EMBED_UNCERTAIN: bool = True
     # --- Retrieval (M2) ---
-    # Default mode for `search` / `evaluate` without --mode. Set by the M2 A3 selection on
-    # the development set (docs/milestones/M2_A3_SELECTION.md, data/eval/m2_a3_selection.json):
-    # C6 = hybrid, BM25 stopword variant, RRF k=20. `--mode dense` is the unchanged M1 path.
-    RETRIEVAL_MODE: Literal["dense", "bm25", "hybrid"] = "hybrid"
-    RRF_K: int = Field(default=20, ge=1)  # hybrid fusion constant (A3 selection: C6)
+    # Default mode for `search` / `evaluate` without --mode. M2 A3 selected C6 (hybrid, BM25
+    # stopwords, RRF k=20) on the development set (docs/milestones/M2_A3_SELECTION.md); its
+    # gain did not generalize on the held-out set, so the operational default is dense again
+    # (docs/milestones/M2_RETRIEVAL_OPERATIONAL_DECISION.md). C6 stays selectable:
+    # `--mode hybrid` with the RRF_K / BM25_STOPWORDS values below is exactly C6.
+    RETRIEVAL_MODE: Literal["dense", "bm25", "hybrid"] = "dense"
+    RRF_K: int = Field(default=20, ge=1)  # hybrid fusion constant (C6: 20)
     RETRIEVAL_CANDIDATES: int = Field(default=50, ge=1, le=1000)  # per retriever, hybrid
     # BM25 tokenizer variant (M2 A3): False = plain v1; True = plain v1 + the registered
-    # Lucene English stopword list (removes "no"/"not"; docs/04). A3 selection C6: True.
+    # Lucene English stopword list (removes "no"/"not"; docs/04). C6: True. Also applies to
+    # `--mode bm25` (C2 rather than C1); set False for the plain tokenizer.
     BM25_STOPWORDS: bool = True
     # --- Tracing ---
     LANGSMITH_TRACING: bool = False

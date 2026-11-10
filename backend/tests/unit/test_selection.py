@@ -90,19 +90,28 @@ def test_tokenizer_default_is_plain_in_code() -> None:
     assert KeywordIndexManager(fake_session).stopwords is False  # type: ignore[arg-type]
 
 
-def test_default_settings_match_the_committed_a3_decision_record() -> None:
+def test_a3_record_is_preserved_and_hybrid_mode_is_exactly_c6() -> None:
+    # The A3 decision record still shows C6 selected on the development set.
     record = json.loads(
         (REPO_ROOT / "data" / "eval" / "m2_a3_selection.json").read_text(encoding="utf-8")
     )
-    s = get_settings()
-    chosen = record["selected"]["settings"]
-    assert (
-        chosen["RETRIEVAL_MODE"],
-        chosen["BM25_STOPWORDS"],
-        chosen["RRF_K"],
-    ) == (s.RETRIEVAL_MODE, s.BM25_STOPWORDS, s.RRF_K)
-    assert record["fixed_parameters"]["candidates_per_retriever"] == s.RETRIEVAL_CANDIDATES
     assert record["selected"]["id"] == "C6" and record["qualifiers"] == ["C6", "C4"]
+    chosen = record["selected"]["settings"]
+    s = get_settings()
+    # `--mode hybrid` with the configured fusion settings reproduces C6 exactly.
+    assert chosen["RETRIEVAL_MODE"] == "hybrid"
+    assert (chosen["BM25_STOPWORDS"], chosen["RRF_K"]) == (s.BM25_STOPWORDS, s.RRF_K)
+    assert record["fixed_parameters"]["candidates_per_retriever"] == s.RETRIEVAL_CANDIDATES
+
+
+def test_operational_default_is_dense_after_the_heldout_review() -> None:
+    # Post-held-out operational decision (docs/milestones/M2_RETRIEVAL_OPERATIONAL_DECISION.md).
+    assert get_settings().RETRIEVAL_MODE == "dense"
+    results = json.loads(
+        (REPO_ROOT / "data" / "eval" / "m2_heldout_results.json").read_text(encoding="utf-8")
+    )
+    by = {c["id"]: c for c in results["configurations"]}
+    assert by["C0"]["recall_at_5"]["exact"] == "9/10" and by["C6"]["recall_at_5"]["exact"] == "7/8"
 
 
 # --- the registered matrix ---------------------------------------------------------------------

@@ -37,8 +37,9 @@
 - **Exact-term subgroup** (m2h-06 UCIC, m2h-11 UNSCR 1718, m2h-12 shell bank): **1.000 / 1.000 / 1.000 for both** C0 and C6. Dense already finds all three at rank 1, so the expected lexical advantage of BM25 could not show.
 - **Development vs held-out:**
   - Dense scores *higher* on held-out (Recall@5 0.900 vs 0.825; MRR@5 0.850 vs 0.775), leaving less room to improve.
-  - C6 is lower on held-out Recall (0.875 vs 0.900 on dev), and its MRR advantage over dense *reverses sign* between the two sets.
-- **Latency:** comes from one pass per configuration, after a warm-up that used no held-out queries, so it is noisier than the A3 measurements (three timed passes). The hybrid costs about 12–19 ms per query because its two retrievers run sequentially.
+  - C6's own Recall@5 is lower on held-out than on development (0.875 vs 0.900).
+  - C6's MRR@5 difference from dense changes sign between the two sets: −0.040 on development, +0.017 on held-out.
+- **Latency:** comes from one pass per configuration, after a warm-up that used no held-out queries, so it is noisier than the A3 measurements (three timed passes). The hybrid costs +19.0 ms at p50 and +11.8 ms at p95 per query because its two retrievers run sequentially.
 
 ## What changed, query by query (from the recorded top-5 results)
 
@@ -76,6 +77,21 @@
 - **Latency:** one pass per configuration on a Windows laptop CPU with local Docker; indicative only.
 - **Negation:** the stopword variant removes "no" and "not" (registered limitation). No held-out query here depended on negation for its result.
 - **One-time:** this result cannot be re-run on the same held-out set without losing its value as an unbiased estimate. Any future comparison needs new labelled data.
+
+## Post-evaluation review note (2026-11-10)
+
+Every figure in this report was recomputed from `data/eval/m2_heldout_results.json`:
+- the exact fractions from the per-query rows;
+- the differences, percentages and paired bootstrap CI;
+- the per-query counts and the development comparison from `data/eval/m2_a3_selection.json`.
+
+All of them agree. **No arithmetic error was found and no number was changed.** Two sentences were reworded because they read ambiguously:
+- **C6 Recall comparison:** the line comparing C6's held-out Recall with "0.900 on dev" compared C6 with itself across sets, next to dense's identical 0.900 on held-out. It now says so explicitly.
+- **MRR wording:** "MRR advantage … reverses sign" was imprecise. On development, C6 had an MRR *deficit* (−0.040); the sentence now gives both signed differences.
+
+The latency range "12–19 ms" mixed p95 and p50 differences; it now states each.
+
+The generated report below is unchanged. The operational default decided after this review is recorded in `docs/milestones/M2_RETRIEVAL_OPERATIONAL_DECISION.md`.
 
 ---
 
