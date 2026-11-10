@@ -1,0 +1,759 @@
+{
+  "description": "M1 dense retrieval golden snapshot (M2 Stage 0). Dense BGE search, production filters (primary + supporting) plus each case's entity_terms, top 5. Used by M2 regression tests: dense mode must reproduce these ids and order.",
+  "dataset": "data/eval/m1_retrieval.jsonl",
+  "captured_at": "2026-11-10T06:24:30+00:00",
+  "embedding_model": "BAAI/bge-small-en-v1.5",
+  "embedding_revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+  "collection": "policy_chunks",
+  "qdrant_points": 429,
+  "postgres_embedding_eligible_chunks": 429,
+  "k": 5,
+  "metrics": {
+    "mean_recall": 0.825,
+    "hit_rate": 0.9,
+    "mrr": 0.775
+  },
+  "score_tolerance": 0.0001,
+  "queries": [
+    {
+      "id": "m1-01",
+      "query": "What documents does a sole proprietorship need to open an account in the name of the firm?",
+      "entity_terms": [],
+      "top5": [
+        {
+          "rank": 1,
+          "chunk_id": "da2f8351-9820-52d3-8e21-6497f997a74d",
+          "score": 0.79988,
+          "citation": "rbi_kyc_directions_2025, pp.37-38, para 34"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "cb123594-a7ec-5712-a28f-05ea51087bf8",
+          "score": 0.784449,
+          "citation": "rbi_kyc_directions_2025, p.37, para 33"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "b388105c-1c8a-5303-8757-fbca0eeb9d73",
+          "score": 0.779397,
+          "citation": "rbi_kyc_faqs, p.2, para Q5"
+        },
+        {
+          "rank": 4,
+          "chunk_id": "f894e5b1-f444-59aa-8a7b-c4d13e6f9146",
+          "score": 0.767445,
+          "citation": "rbi_kyc_directions_2025, p.36, para 30"
+        },
+        {
+          "rank": 5,
+          "chunk_id": "6ee6351b-166f-5ab1-be3d-759c54544348",
+          "score": 0.762748,
+          "citation": "hdfc_kyc_aml_faq, p.2, para Row 2.0"
+        }
+      ]
+    },
+    {
+      "id": "m1-02",
+      "query": "KYC documents for an unincorporated association or a body of individuals",
+      "entity_terms": [],
+      "top5": [
+        {
+          "rank": 1,
+          "chunk_id": "e3e0b7bb-1145-5195-8cc9-d47ea3374c6f",
+          "score": 0.817518,
+          "citation": "rbi_kyc_directions_2025, pp.38-39, para 36"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "a50d12d1-4afb-5910-8b8f-71514df83d19",
+          "score": 0.701403,
+          "citation": "hdfc_nri_rekyc, p.3"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "5bababed-0ae3-58e1-8dc2-4e6225cc8366",
+          "score": 0.700445,
+          "citation": "rbi_kyc_directions_2025, pp.7-8, para 5"
+        },
+        {
+          "rank": 4,
+          "chunk_id": "b1e04706-9182-5b8c-8644-a2c64f7a6fc3",
+          "score": 0.699624,
+          "citation": "rbi_kyc_directions_2025, p.8, para 5"
+        },
+        {
+          "rank": 5,
+          "chunk_id": "107ab95a-3702-513b-8c7b-bd36e3c35200",
+          "score": 0.692749,
+          "citation": "hdfc_kyc_aml_faq, p.3, para Row 4.0"
+        }
+      ]
+    },
+    {
+      "id": "m1-03",
+      "query": "Can a bank open an account for a politically exposed person, and who has to approve it?",
+      "entity_terms": [],
+      "top5": [
+        {
+          "rank": 1,
+          "chunk_id": "c5d86a96-315f-59dd-9318-3959ca3b8553",
+          "score": 0.815946,
+          "citation": "rbi_kyc_directions_2025, pp.46-47, para 45"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "43dea98b-403e-55f6-9b95-b00dd093aa1c",
+          "score": 0.751844,
+          "citation": "rbi_kyc_directions_2025, pp.39-40, para 38"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "693c3b8b-5c4c-5f65-88d6-e9b8461348b1",
+          "score": 0.710798,
+          "citation": "rbi_kyc_directions_2025, p.39, para 37"
+        },
+        {
+          "rank": 4,
+          "chunk_id": "039aa244-742d-5e82-aaa0-b9721ff0481c",
+          "score": 0.706503,
+          "citation": "rbi_kyc_directions_2025, pp.50-51, para 49"
+        },
+        {
+          "rank": 5,
+          "chunk_id": "726f715a-4e66-5743-be12-3b3d5637a3e1",
+          "score": 0.694372,
+          "citation": "hdfc_resident_to_nro_conversion, p.3"
+        }
+      ]
+    },
+    {
+      "id": "m1-04",
+      "query": "A customer has no PAN card. What must they submit instead?",
+      "entity_terms": [],
+      "top5": [
+        {
+          "rank": 1,
+          "chunk_id": "68afd1b4-89d3-5548-8dce-7327d8f83f55",
+          "score": 0.719019,
+          "citation": "rbi_kyc_directions_2025, pp.70-71, para 76"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "370c17bc-8291-5b99-9be4-722d8df64944",
+          "score": 0.686682,
+          "citation": "hdfc_resident_to_nro_conversion, p.2"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "f51508ae-d9ec-5594-bd70-c0cada97e60a",
+          "score": 0.68081,
+          "citation": "hdfc_non_individual_account_opening, p.2, right half"
+        },
+        {
+          "rank": 4,
+          "chunk_id": "3322b2d0-c699-5b02-88bd-59ce9a08b849",
+          "score": 0.680735,
+          "citation": "hdfc_nri_account_opening, p.2"
+        },
+        {
+          "rank": 5,
+          "chunk_id": "a50d12d1-4afb-5910-8b8f-71514df83d19",
+          "score": 0.680206,
+          "citation": "hdfc_nri_rekyc, p.3"
+        }
+      ]
+    },
+    {
+      "id": "m1-05",
+      "query": "Which documents are mandatory for a Category II foreign portfolio investor?",
+      "entity_terms": [],
+      "top5": [
+        {
+          "rank": 1,
+          "chunk_id": "0871c100-8676-51e2-9124-6639c460958c",
+          "score": 0.757228,
+          "citation": "rbi_kyc_directions_2025, p.49, para 49"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "9b04e1c1-28ed-5afd-bb58-4988e8124a54",
+          "score": 0.751584,
+          "citation": "rbi_kyc_directions_2025, p.49, para 49"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "efaf59f9-e09c-5f08-ac51-9f67b0fc7d83",
+          "score": 0.742803,
+          "citation": "rbi_kyc_directions_2025, p.49, para 49"
+        },
+        {
+          "rank": 4,
+          "chunk_id": "7a421650-87f4-55f6-afd6-12c2107abc96",
+          "score": 0.737493,
+          "citation": "rbi_kyc_directions_2025, p.49, para 49"
+        },
+        {
+          "rank": 5,
+          "chunk_id": "2242b652-8641-5369-83c4-72d7128beb13",
+          "score": 0.7231,
+          "citation": "rbi_kyc_directions_2025, p.51, para 49"
+        }
+      ]
+    },
+    {
+      "id": "m1-06",
+      "query": "Can someone who has no officially valid document still open a bank account?",
+      "entity_terms": [],
+      "top5": [
+        {
+          "rank": 1,
+          "chunk_id": "b388105c-1c8a-5303-8757-fbca0eeb9d73",
+          "score": 0.778338,
+          "citation": "rbi_kyc_faqs, p.2, para Q5"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "693c3b8b-5c4c-5f65-88d6-e9b8461348b1",
+          "score": 0.767557,
+          "citation": "rbi_kyc_directions_2025, p.39, para 37"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "087a5231-d0d5-5d11-99e1-b1774c6a3831",
+          "score": 0.748947,
+          "citation": "rbi_kyc_faqs, p.2, para Q6"
+        },
+        {
+          "rank": 4,
+          "chunk_id": "ab76dab8-ecd3-5746-9956-00823ea4ea19",
+          "score": 0.732202,
+          "citation": "hdfc_resident_to_nro_conversion, p.6"
+        },
+        {
+          "rank": 5,
+          "chunk_id": "9b3cf202-c120-5145-a694-28e99351941c",
+          "score": 0.731587,
+          "citation": "hdfc_nri_account_opening, p.6"
+        }
+      ]
+    },
+    {
+      "id": "m1-07",
+      "query": "How is KYC done through the bank's own application with a live photograph and the location captured?",
+      "entity_terms": [],
+      "top5": [
+        {
+          "rank": 1,
+          "chunk_id": "f8b944ec-4259-53cf-ad8b-631bf7504566",
+          "score": 0.823833,
+          "citation": "rbi_kyc_directions_2025, pp.27-28, para 24"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "219dbe81-4020-5e9a-8e4a-6b58b396b47b",
+          "score": 0.740289,
+          "citation": "rbi_kyc_directions_2025, p.28, para 24"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "ad988262-7377-5b4e-8cac-26927f27daea",
+          "score": 0.731245,
+          "citation": "rbi_kyc_directions_2025, p.29, para 24"
+        },
+        {
+          "rank": 4,
+          "chunk_id": "baa4252c-7f56-59a9-a8a3-2d719739925f",
+          "score": 0.701187,
+          "citation": "rbi_kyc_directions_2025, pp.28-29, para 24"
+        },
+        {
+          "rank": 5,
+          "chunk_id": "5262f4d4-0b24-528d-a9ba-8c99c3d23128",
+          "score": 0.691133,
+          "citation": "rbi_kyc_directions_2025, p.16, para 6"
+        }
+      ]
+    },
+    {
+      "id": "m1-08",
+      "query": "How does a bank upload customer KYC records to, and download them from, the central registry?",
+      "entity_terms": [],
+      "top5": [
+        {
+          "rank": 1,
+          "chunk_id": "ed765729-7acd-5894-bb12-882c2e819699",
+          "score": 0.778255,
+          "citation": "rbi_kyc_directions_2025, pp.62-63, para 65"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "ce0faacb-b892-58b1-9729-d5a56225bfbc",
+          "score": 0.773973,
+          "citation": "rbi_kyc_directions_2025, pp.61-62, para 65"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "ee61f67d-14d7-548b-849e-ff105139f7cb",
+          "score": 0.753729,
+          "citation": "rbi_kyc_directions_2025, pp.60-61, para 65"
+        },
+        {
+          "rank": 4,
+          "chunk_id": "5262f4d4-0b24-528d-a9ba-8c99c3d23128",
+          "score": 0.718951,
+          "citation": "rbi_kyc_directions_2025, p.16, para 6"
+        },
+        {
+          "rank": 5,
+          "chunk_id": "1b4a28d9-e929-5ebc-9cd7-cbbbd925546e",
+          "score": 0.713847,
+          "citation": "rbi_kyc_directions_2025, pp.42-43, para 42"
+        }
+      ]
+    },
+    {
+      "id": "m1-09",
+      "query": "For how many years must a bank preserve records of customer transactions?",
+      "entity_terms": [],
+      "top5": [
+        {
+          "rank": 1,
+          "chunk_id": "ead0c349-3731-5334-b85b-b52f6a5f0193",
+          "score": 0.799184,
+          "citation": "rbi_kyc_directions_2025, pp.52-53, para 50"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "fe51bc1d-e308-56b8-ba23-24a8f82b16a6",
+          "score": 0.712027,
+          "citation": "rbi_kyc_faqs, p.6, para Q22"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "eb9cba88-93a2-5576-9337-1012253017d5",
+          "score": 0.699168,
+          "citation": "rbi_kyc_directions_2025, p.53, para 51"
+        },
+        {
+          "rank": 4,
+          "chunk_id": "991d9c04-bd0b-58dd-ab79-9edeb13ec780",
+          "score": 0.698272,
+          "citation": "rbi_kyc_directions_2025, p.40, para 39"
+        },
+        {
+          "rank": 5,
+          "chunk_id": "087a5231-d0d5-5d11-99e1-b1774c6a3831",
+          "score": 0.692852,
+          "citation": "rbi_kyc_faqs, p.2, para Q6"
+        }
+      ]
+    },
+    {
+      "id": "m1-10",
+      "query": "How should a bank detect and report suspicious transactions to FIU-IND?",
+      "entity_terms": [],
+      "top5": [
+        {
+          "rank": 1,
+          "chunk_id": "d31a6541-f6d7-5774-93c1-c4192f438aba",
+          "score": 0.762578,
+          "citation": "rbi_kyc_directions_2025, pp.54-55, para 55"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "02e9d416-6397-57c6-b2ce-d6fc2bd5add9",
+          "score": 0.759053,
+          "citation": "rbi_kyc_directions_2025, p.54, para 53"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "4e48f930-1913-5355-bc4d-ec5bb9e8556b",
+          "score": 0.759042,
+          "citation": "rbi_kyc_directions_2025, p.78, para Annex – I 5"
+        },
+        {
+          "rank": 4,
+          "chunk_id": "a4fb8623-db0a-51f8-a271-62e7272a5df2",
+          "score": 0.748425,
+          "citation": "rbi_kyc_directions_2025, p.21, para 19"
+        },
+        {
+          "rank": 5,
+          "chunk_id": "ec78fd57-b4d2-5b1c-8377-d683d8d9250c",
+          "score": 0.731233,
+          "citation": "rbi_kyc_directions_2025, p.64, para 68"
+        }
+      ]
+    },
+    {
+      "id": "m1-11",
+      "query": "What extra checks apply to customers onboarded online without meeting them in person?",
+      "entity_terms": [],
+      "top5": [
+        {
+          "rank": 1,
+          "chunk_id": "dcca4880-7917-5405-83f4-983ffaa2a694",
+          "score": 0.690417,
+          "citation": "rbi_kyc_faqs, p.4, para Q13"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "1ac3f695-d9de-5e04-9efe-1fd4271ba30e",
+          "score": 0.688013,
+          "citation": "rbi_kyc_directions_2025, pp.45-46, para 44"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "49ebd749-81fe-5aa1-aadc-73e3796c51e9",
+          "score": 0.679361,
+          "citation": "rbi_kyc_directions_2025, p.46, para 44"
+        },
+        {
+          "rank": 4,
+          "chunk_id": "44c7087a-b2f5-56a9-88be-c3c2f1ccd5c5",
+          "score": 0.659934,
+          "citation": "rbi_kyc_directions_2025, p.23, para 21"
+        },
+        {
+          "rank": 5,
+          "chunk_id": "5262f4d4-0b24-528d-a9ba-8c99c3d23128",
+          "score": 0.64834,
+          "citation": "rbi_kyc_directions_2025, p.16, para 6"
+        }
+      ]
+    },
+    {
+      "id": "m1-12",
+      "query": "My savings account has become inoperative. How do I get it activated again?",
+      "entity_terms": [],
+      "top5": [
+        {
+          "rank": 1,
+          "chunk_id": "0e8b83e9-93f9-5f7e-b26a-6ffd8f4e9355",
+          "score": 0.806723,
+          "citation": "rbi_kyc_faqs, pp.9-10, para Q36"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "4a85b608-adc2-5998-a0bc-d4c4a706a37e",
+          "score": 0.709743,
+          "citation": "rbi_kyc_faqs, p.10, para Q37"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "06d027cf-16ac-52a4-b245-6950a2904c88",
+          "score": 0.70604,
+          "citation": "hdfc_resident_rekyc_dormant, p.1"
+        },
+        {
+          "rank": 4,
+          "chunk_id": "e02275a8-23bf-587f-a6ef-cdf2da5c7f5f",
+          "score": 0.661824,
+          "citation": "hdfc_resident_to_nro_conversion, p.3"
+        },
+        {
+          "rank": 5,
+          "chunk_id": "bab254ef-246c-55dc-ac0c-9a891895882d",
+          "score": 0.646407,
+          "citation": "hdfc_nri_account_opening, p.4"
+        }
+      ]
+    },
+    {
+      "id": "m1-13",
+      "query": "Do all the holders of a joint account have to complete KYC?",
+      "entity_terms": [],
+      "top5": [
+        {
+          "rank": 1,
+          "chunk_id": "d9595d49-4db3-5b80-ac82-576a1e69fb0c",
+          "score": 0.862704,
+          "citation": "rbi_kyc_faqs, p.3, para Q12"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "ab85699e-fe95-515f-a806-c369d25a1c16",
+          "score": 0.732665,
+          "citation": "rbi_kyc_faqs, p.1, para Q4"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "e5698272-a46f-537c-afb6-6358b41210fe",
+          "score": 0.717526,
+          "citation": "rbi_kyc_directions_2025, p.36, para 29"
+        },
+        {
+          "rank": 4,
+          "chunk_id": "bab254ef-246c-55dc-ac0c-9a891895882d",
+          "score": 0.712428,
+          "citation": "hdfc_nri_account_opening, p.4"
+        },
+        {
+          "rank": 5,
+          "chunk_id": "44d147f6-c9d7-59e0-b987-e6c99ce6e1f1",
+          "score": 0.709065,
+          "citation": "rbi_kyc_faqs, p.1, para Q2"
+        }
+      ]
+    },
+    {
+      "id": "m1-14",
+      "query": "Can a customer who cannot sign give a thumb impression instead?",
+      "entity_terms": [],
+      "top5": [
+        {
+          "rank": 1,
+          "chunk_id": "7d07c0e8-f7f5-5e78-a39f-185f1f28289b",
+          "score": 0.813559,
+          "citation": "rbi_kyc_faqs, p.9, para Q35"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "97ca44f3-9764-5eac-be86-b1b4d1c133c2",
+          "score": 0.676856,
+          "citation": "hdfc_nri_account_opening, p.3"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "346df081-4fbc-559c-8751-e8f02746684a",
+          "score": 0.676856,
+          "citation": "hdfc_resident_to_nro_conversion, p.3"
+        },
+        {
+          "rank": 4,
+          "chunk_id": "9bfe6aec-fb92-512b-aed9-e37cccd6bcd0",
+          "score": 0.660086,
+          "citation": "rbi_kyc_directions_2025, p.21, para 18"
+        },
+        {
+          "rank": 5,
+          "chunk_id": "50bf1a99-c3f7-59bd-99f3-decc1f0c8878",
+          "score": 0.646691,
+          "citation": "rbi_kyc_faqs, p.9, para Q34"
+        }
+      ]
+    },
+    {
+      "id": "m1-15",
+      "query": "What is money laundering?",
+      "entity_terms": [],
+      "top5": [
+        {
+          "rank": 1,
+          "chunk_id": "1033e07d-f5cb-5f60-9b8e-968e8ea10560",
+          "score": 0.877943,
+          "citation": "hdfc_kyc_aml_faq, p.1"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "1e90ed7e-df45-5f0c-8b3a-85604e950868",
+          "score": 0.78712,
+          "citation": "hdfc_kyc_aml_faq, p.1"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "ec78fd57-b4d2-5b1c-8377-d683d8d9250c",
+          "score": 0.676671,
+          "citation": "rbi_kyc_directions_2025, p.64, para 68"
+        },
+        {
+          "rank": 4,
+          "chunk_id": "4ffb4784-d925-5084-9717-fd2f142a8f04",
+          "score": 0.671238,
+          "citation": "rbi_kyc_directions_2025, pp.9-10, para 5"
+        },
+        {
+          "rank": 5,
+          "chunk_id": "4944b798-54cb-54c5-b226-2cd14c211e9c",
+          "score": 0.658945,
+          "citation": "rbi_kyc_directions_2025, p.17, para 8"
+        }
+      ]
+    },
+    {
+      "id": "m1-16",
+      "query": "On what basis are customers put into low, medium or high risk categories?",
+      "entity_terms": [],
+      "top5": [
+        {
+          "rank": 1,
+          "chunk_id": "377440ee-a7f0-5677-92ad-fd3635a73544",
+          "score": 0.742618,
+          "citation": "rbi_kyc_faqs, p.6, para Q23"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "eefba9c2-bc0b-533a-9704-04728968af96",
+          "score": 0.740478,
+          "citation": "rbi_kyc_directions_2025, p.22, para 20"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "30a64dcd-37d5-5c19-8ce3-331ba7939952",
+          "score": 0.661632,
+          "citation": "rbi_kyc_directions_2025, pp.40-41, para 41"
+        },
+        {
+          "rank": 4,
+          "chunk_id": "60829934-6110-534c-a0b0-771972e9cc1c",
+          "score": 0.66074,
+          "citation": "hdfc_kyc_aml_faq, pp.1-2"
+        },
+        {
+          "rank": 5,
+          "chunk_id": "317e554f-c547-596c-88a1-2c8db93812fa",
+          "score": 0.61374,
+          "citation": "rbi_kyc_directions_2025, pp.10-11, para 5"
+        }
+      ]
+    },
+    {
+      "id": "m1-17",
+      "query": "I live in a different city from the address on my ID document. Can I still open an account where I live?",
+      "entity_terms": [],
+      "top5": [
+        {
+          "rank": 1,
+          "chunk_id": "cf83b5c8-be4d-5e57-a46c-780ccda60009",
+          "score": 0.706715,
+          "citation": "rbi_kyc_faqs, p.3, para Q8"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "e3ceaa0c-0c62-579e-bd26-dc3f0de34099",
+          "score": 0.694267,
+          "citation": "hdfc_resident_to_nro_conversion, p.1"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "2423c9e3-a6b6-519b-af3f-800b181958a1",
+          "score": 0.685349,
+          "citation": "hdfc_nri_account_opening, p.1"
+        },
+        {
+          "rank": 4,
+          "chunk_id": "9b3cf202-c120-5145-a694-28e99351941c",
+          "score": 0.68464,
+          "citation": "hdfc_nri_account_opening, p.6"
+        },
+        {
+          "rank": 5,
+          "chunk_id": "3963b55f-c85f-5b3d-85a2-6cf6b413a530",
+          "score": 0.683534,
+          "citation": "hdfc_nri_account_opening, p.4"
+        }
+      ]
+    },
+    {
+      "id": "m1-18",
+      "query": "What originator and beneficiary details must accompany a cross-border wire transfer?",
+      "entity_terms": [],
+      "top5": [
+        {
+          "rank": 1,
+          "chunk_id": "cdbc4c46-c906-5956-bedb-8b9305ef3af3",
+          "score": 0.860567,
+          "citation": "rbi_kyc_directions_2025, pp.66-67, para 74"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "fb4a381e-931a-574b-9bce-c8f33d32c740",
+          "score": 0.763725,
+          "citation": "rbi_kyc_directions_2025, p.67, para 74"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "49de5b1d-8629-5abe-ad4d-d360f5c04167",
+          "score": 0.762243,
+          "citation": "rbi_kyc_directions_2025, p.69, para 74"
+        },
+        {
+          "rank": 4,
+          "chunk_id": "ba77348b-f7a3-537d-ba78-8e94cba5a4cb",
+          "score": 0.730804,
+          "citation": "rbi_kyc_directions_2025, pp.69-70, para 74"
+        },
+        {
+          "rank": 5,
+          "chunk_id": "d38b117a-0874-59c8-a512-f332ae8956a9",
+          "score": 0.71668,
+          "citation": "rbi_kyc_directions_2025, p.15, para 5"
+        }
+      ]
+    },
+    {
+      "id": "m1-19",
+      "query": "Who is treated as the beneficial owner when the customer is a company?",
+      "entity_terms": [],
+      "top5": [
+        {
+          "rank": 1,
+          "chunk_id": "d82ab4df-6d91-53a5-b52e-3a184b4cbf5b",
+          "score": 0.814543,
+          "citation": "rbi_kyc_directions_2025, pp.5-6, para 5"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "60829934-6110-534c-a0b0-771972e9cc1c",
+          "score": 0.731298,
+          "citation": "hdfc_kyc_aml_faq, pp.1-2"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "43dea98b-403e-55f6-9b95-b00dd093aa1c",
+          "score": 0.712951,
+          "citation": "rbi_kyc_directions_2025, pp.39-40, para 38"
+        },
+        {
+          "rank": 4,
+          "chunk_id": "25498efd-ff9d-5618-9024-f6b6bdb5fe6e",
+          "score": 0.670578,
+          "citation": "rbi_kyc_directions_2025, pp.11-12, para 5"
+        },
+        {
+          "rank": 5,
+          "chunk_id": "c5d86a96-315f-59dd-9318-3959ca3b8553",
+          "score": 0.670161,
+          "citation": "rbi_kyc_directions_2025, pp.46-47, para 45"
+        }
+      ]
+    },
+    {
+      "id": "m1-20",
+      "query": "Which form do I use to convert my resident savings account into an NRO account after moving abroad?",
+      "entity_terms": [],
+      "top5": [
+        {
+          "rank": 1,
+          "chunk_id": "1a47e28b-707c-53af-80f6-fd245a50bae1",
+          "score": 0.893772,
+          "citation": "hdfc_resident_to_nro_conversion, p.1"
+        },
+        {
+          "rank": 2,
+          "chunk_id": "30d50046-6420-5142-888b-d8ec67c4fb29",
+          "score": 0.779581,
+          "citation": "hdfc_resident_to_nro_conversion, p.6"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "042dfa85-1b9b-548f-9b0b-32e4263d7055",
+          "score": 0.775994,
+          "citation": "hdfc_nri_account_opening, p.3"
+        },
+        {
+          "rank": 4,
+          "chunk_id": "e4559230-8598-5618-9e04-465aaf9bdc77",
+          "score": 0.759675,
+          "citation": "hdfc_resident_to_nro_conversion, p.6"
+        },
+        {
+          "rank": 5,
+          "chunk_id": "e32b40b7-e464-5a27-bb7d-65f4376fab1e",
+          "score": 0.758905,
+          "citation": "hdfc_resident_to_nro_conversion, p.6"
+        }
+      ]
+    }
+  ]
+}

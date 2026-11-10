@@ -114,7 +114,7 @@ make venv install                   # .venv + backend with dev tools
 
 # 2. Start Postgres (host port 5433), Redis and Qdrant, then create the schema
 make up
-make migrate                        # Alembic 0001 + 0002
+make migrate                        # Alembic 0001-0005 (M1 corpus, M2 form schemas + guards)
 make check-schema                   # ORM models == migrations (no drift)
 
 # 3. Add the source PDFs (not in Git; see docs/14-source-corpus.md) and check them
@@ -128,11 +128,32 @@ make ingest                         # all documents; or: make ingest DOC="rbi_ky
 make search Q="documents for opening an account of a partnership firm"
 make eval                           # Recall@5 on data/eval/m1_retrieval.jsonl
 
-# 5. Backend (M0 health endpoint; the compliance API arrives with M3)
+# 5. Form schemas (M2). Deterministic, from the stored chunks; no API key:
+make forms                          # 6 schemas; a second run reports "unchanged"
+#    Optional Gemini extraction of the 5 approved public BLANK forms only
+#    (data/raw_pdfs/forms_approved.yaml). Live calls are off unless you opt in:
+#    set GEMINI_API_KEY, GEMINI_LIVE_ENABLED=true, GEMINI_DATA_TERMS_VERIFIED_ON=<date you
+#    reviewed the Gemini API terms> and MULTIMODAL_FALLBACK_MODEL in .env (docs/02), then:
+#    cd backend && python -m app.ingestion.cli forms extract --provider gemini
+cd backend && python -m app.ingestion.cli forms versions && cd ..   # stored versions per form
+cd backend && python -m app.ingestion.cli forms show hdfc_nri_account_opening --method gemini_multimodal && cd ..   # read through the Redis cache ("cache: hit|miss")
+
+# 6. Backend (M0 health endpoint; the compliance API arrives with M3)
 make api                            # http://localhost:8000/docs, health at /api/v1/health
 ```
 
 Ingestion is idempotent: running `make ingest` again writes nothing and embeds nothing unless a source changed. If a document fails, it is reported with the failing stage and is never marked `completed`. Fix the cause, then `make retry`. See [Ingestion operations](#ingestion-operations-m1) below.
+
+### Form schemas (M2)
+
+| Command (`cd backend && python -m app.ingestion.cli …`) | What it does |
+|---|---|
+| `forms extract [--document KEY]…` (`make forms`) | Deterministic schemas from stored M1 chunks (default provider); idempotent, never overwrites |
+| `forms extract --provider gemini [--document KEY]…` | Gemini multimodal extraction of **approved public blank forms only**. Live-gated. 5 attempts with 2→4→8→16 s backoff, then the fallback model. RECITATION refusals → local OCR for human review. A stored version makes zero calls |
+| `forms list` / `forms versions` | Stored schemas / per approved form, which (method, version) rows actually exist |
+| `forms show KEY [--method m1_chunks\|gemini_multimodal] [--version N] [--json]` | One stored schema with page and chunk citations, read through the Redis cache (Postgres is the source of truth) |
+
+Form fields show what a blank form **asks for** (`appears_on_form`). They are never policy obligations: `mandatory_under_policy` is always empty and the database rejects any other value. Full reference: [`docs/04`](docs/04-ingestion-pipelines.md), [`docs/milestones/M2_HANDOFF.md`](docs/milestones/M2_HANDOFF.md).
 
 Other targets: `make test` (unit), `make test-integration` (needs `make up`), `make lint`, `make fmt`, `make down`. `make` alone prints the list of targets. The Makefile works from PowerShell/CMD on Windows (GNU Make then runs recipes with `cmd.exe`), Git Bash, Linux and macOS; repo paths with spaces are fine. Without Make, run the command behind each target from `backend/`; for example, `make ingest` is `python -m app.ingestion.cli run` using the venv interpreter (`..\.venv\Scripts\python.exe` on Windows, `../.venv/bin/python` elsewhere).
 
@@ -152,8 +173,10 @@ Other targets: `make test` (unit), `make test-integration` (needs `make up`), `m
 | `make reconcile` | `reconcile` | Postgres ↔ Qdrant in both directions; read-only |
 | `make repair` | `reconcile --repair [--delete-unknown]` | Re-index inconsistent documents from Postgres |
 | `make runs` | `runs [--document KEY] [--failed]` | Ingestion history with the failing stage and error |
-| `make search Q=…` | `search QUERY [--top-k] [--entity] [--bank] [--mandatory-only] [--expand]` | Top-5 passages with document + page citations |
-| `make eval` | `evaluate [--dataset] [--report]` | Recall@5 / Hit@5 / MRR on the labelled queries |
+| `make search Q=… [MODE=…]` | `search QUERY [--top-k] [--entity] [--bank] [--mandatory-only] [--expand] [--mode dense\|bm25\|hybrid] [--rerank]` | Top-5 passages with document + page citations (M2: dense, BM25 and hybrid modes; default `dense`; `--mode hybrid` = the A3-selected C6, experimental; `--rerank` = optional cross-encoder reranking, off by default) |
+| `make eval [MODE=…]` | `evaluate [--dataset] [--report] [--mode …]` | Recall@5 / Hit@5 / MRR on the development set (the frozen held-out set is refused) |
+| `make eval-compare` | `evaluate --compare` | Dense vs BM25 vs hybrid on the development set, with latency (selects nothing) |
+| `make check-dense-golden` | — | M1 dense regression against the golden snapshot (fails, never skips) |
 | `make check-corpus` | `validate-manifest`, `check-ocr` | Manifest + PDF hashes; Tesseract smoke test |
 
 `index` without `--from-db` is the Stage D in-memory indexer (Stages A–C → Qdrant, no Postgres), kept for experiments. Exit codes: `0` ok, `1` a document failed or the stores are inconsistent, `2` invalid input or a service not ready (nothing written). Full reference: [`docs/04-ingestion-pipelines.md`](docs/04-ingestion-pipelines.md); M1 handoff: [`docs/milestones/M1_HANDOFF.md`](docs/milestones/M1_HANDOFF.md).
@@ -185,7 +208,7 @@ Quality is measured, not assumed. The plan includes a 50-case benchmark (expandi
 
 **Ablations:** plain RAG -> + metadata filtering -> + hybrid retrieval -> + claim-level NLI -> full pipeline. The full pipeline is not assumed to win; the benchmark decides.
 
-**M1 retrieval baseline (measured 2026-11-08):** dense BGE-small search with the default eligibility filters, on 20 hand-labelled queries (28 target passages, `data/eval/m1_retrieval.jsonl`): mean **Recall@5 0.825**, **Hit@5 0.90**, **MRR@5 0.775**. It is a small, single-annotator set. M2 measures hybrid retrieval against this baseline. Full results from the 50-case benchmark will be published when available.
+**M1 retrieval baseline (measured 2026-11-08):** dense BGE-small search with the default eligibility filters, on 20 hand-labelled queries (28 target passages, `data/eval/m1_retrieval.jsonl`): mean **Recall@5 0.825**, **Hit@5 0.90**, **MRR@5 0.775**. It is a small, single-annotator set. **M2:** BM25 and hybrid (RRF) retrieval were implemented and evaluated against this baseline (development and frozen held-out sets). Hybrid did not beat dense by the pre-registered margin, so **dense stays the default** and hybrid is selectable (`--mode hybrid`); see [`docs/10`](docs/10-evaluation-plan.md). Full results from the 50-case benchmark will be published when available.
 
 ## Security and privacy
 
@@ -198,10 +221,17 @@ Quality is measured, not assumed. The plan includes a 50-case benchmark (expandi
 
 This system does **not** approve or reject applications, verify identity against government databases, validate real PAN/Aadhaar records, make legal or regulatory decisions, guarantee compliance, or access any bank's internal systems. Output is decision support that requires human review.
 
+M2-specific limits:
+- Retrieval quality is measured on 20-query single-annotator sets only.
+- Gemini form extraction runs on the free tier, so it is restricted to public blank forms. Its field labels are corroborated against stored page text, not verified for accuracy.
+- Two forms have only v1 Gemini records.
+- The RECITATION→OCR fallback is tested but has not yet occurred live.
+- Details: [`docs/milestones/M2_HANDOFF.md`](docs/milestones/M2_HANDOFF.md).
+
 ## Roadmap
 
 - [x] Document ingestion and retrieval foundation (M1: see [`docs/milestones/M1_HANDOFF.md`](docs/milestones/M1_HANDOFF.md))
-- [ ] Hybrid retrieval and multimodal form extraction
+- [x] Hybrid retrieval and multimodal form extraction (M2: see [`docs/milestones/M2_HANDOFF.md`](docs/milestones/M2_HANDOFF.md))
 - [ ] End-to-end LangGraph workflow
 - [ ] Claim verification, security and human review
 - [ ] Dashboard frontend

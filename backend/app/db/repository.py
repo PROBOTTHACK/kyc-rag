@@ -8,17 +8,20 @@ LangGraph retrieval node (sync `Session`; async callers use `AsyncSession.run_sy
 - `evidence_context`: expand retrieved chunk ids to the text synthesis should see: a
   child expands to its complete parent paragraph, anything else to itself.
 - `family_integrity`: parent/child checks over stored rows.
+- `eligible_chunk_payloads` / `chunk_corpus_fingerprint`: the keyword (BM25) index corpus
+  and the fingerprint that tells when it must be rebuilt (M2 A1).
 """
 
 import uuid
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from app.db.corpus import chunk_record_from_rows
+from app.db.corpus import DOCUMENT_LEVEL_PAYLOAD_FIELDS, chunk_record_from_rows
 from app.db.models import Chunk, Document
 from app.ingestion.chunking import ChunkingResult, ChunkRecord
 from app.schemas.taxonomy import ChunkingProfile, ChunkRole
@@ -95,6 +98,82 @@ def children_of(session: Session, parent_id: str | uuid.UUID) -> list[ChunkRecor
         .order_by(Chunk.chunk_index)
     ).all()
     return [chunk_record_from_rows(c, d) for c, d in rows]
+
+
+def eligible_chunk_payloads(session: Session) -> list[dict[str, Any]]:
+    """Payloads (= Qdrant payload without `index`) of every embedding-eligible chunk.
+
+    The same rows, and the same row -> payload mapping, as the Qdrant index: single and
+    child chunks of every eligibility value; parents are never embedding-eligible.
+    """
+    rows = session.execute(
+        select(Chunk, Document)
+        .join(Document, Document.id == Chunk.document_id)
+        .where(Chunk.embedding_eligible.is_(True))
+        .order_by(Chunk.document_key, Chunk.chunk_index)
+    ).all()
+    return [chunk_record_from_rows(c, d).metadata.to_qdrant_payload() for c, d in rows]
+
+
+# Document columns that reach a chunk payload (citations: title, file, version, ...).
+_FINGERPRINT_DOCUMENT_COLUMNS = ("id", *sorted(set(DOCUMENT_LEVEL_PAYLOAD_FIELDS.values())))
+
+
+def chunk_corpus_fingerprint(session: Session) -> str:
+    """SHA-256 over every stored chunk row and the payload-relevant document columns.
+
+    Deliberately over-inclusive, so no field that affects the keyword index can change
+    unnoticed: indexed text (`content`, `metadata.context`), payloads and citations
+    (pages, section, paragraph, region, document title / file / version, ...),
+    filters (eligibility, bank, document, entity types, mandatory flag) and parent/child
+    links. All chunks are covered, parents included. Only the row timestamps are left
+    out. Over-inclusion merely costs an occasional, cheap rebuild.
+    """
+    return str(session.execute(_FINGERPRINT_SQL).scalar_one())
+
+
+def chunk_corpus_version(session: Session) -> str:
+    """Cheap runtime change detector for the keyword index (M2 A2; ~5 ms vs ~100 ms).
+
+    SHA-256 over the row count and the ordered `(id, xmin)` pairs of `chunks` and of
+    `documents`, read in ONE statement (so in one snapshot). Postgres gives every row
+    version written by INSERT or UPDATE the writing transaction's id (`xmin`), so any
+    committed insert, update (even one that writes identical values) or delete of a chunk
+    or document row changes this value. It therefore detects every change the content
+    fingerprint (`chunk_corpus_fingerprint`) detects, plus harmless no-op writes.
+
+    Limitations (docs/04): it identifies row VERSIONS, not content, so it is a runtime
+    freshness check only, never a persistent version identifier. `xmin` is a 32-bit
+    transaction id: in theory a row rewritten exactly ~2^32 transactions later, with
+    everything else unchanged, could repeat its pair; the counts narrow this further and
+    it is unreachable at this project's scale. Freezing (VACUUM) keeps the stored xmin
+    (PostgreSQL >= 9.4), and dump/restore or replication assigns new ones, which only
+    causes an extra rebuild. Do not cache or persist this value across databases.
+    """
+    return str(session.execute(_VERSION_SQL).scalar_one())
+
+
+_VERSION_SQL = text(
+    "SELECT encode(sha256(convert_to("
+    " 'chunks:' || (SELECT count(*) FROM chunks)::text || ':' ||"
+    " coalesce((SELECT string_agg(id::text || '@' || xmin::text, ',' ORDER BY id) FROM chunks),"
+    " '') || '|documents:' || (SELECT count(*) FROM documents)::text || ':' ||"
+    " coalesce((SELECT string_agg(id::text || '@' || xmin::text, ',' ORDER BY id)"
+    " FROM documents), ''), 'UTF8')), 'hex')"
+)
+
+
+# The document column list is written out literally (no string interpolation in SQL); a
+# unit test keeps it equal to `_FINGERPRINT_DOCUMENT_COLUMNS`.
+_FINGERPRINT_SQL = text(
+    "SELECT encode(sha256(convert_to(coalesce(string_agg(r.line, E'\\n' ORDER BY r.id), ''),"
+    " 'UTF8')), 'hex') FROM ("
+    "  SELECT c.id, ((to_jsonb(c) - 'created_at' - 'updated_at')::text || '|' ||"
+    "   to_jsonb(ROW(d.id, d.effective_from, d.effective_until, d.file, d.source_authority,"
+    "   d.title, d.version))::text) AS line"
+    "  FROM chunks c JOIN documents d ON d.id = c.document_id"
+    ") r"
+)
 
 
 @dataclass

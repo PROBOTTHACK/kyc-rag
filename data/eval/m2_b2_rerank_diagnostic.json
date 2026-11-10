@@ -1,0 +1,592 @@
+{
+  "stage": "M2 B2 reranker diagnostic (previously used dev set; not a validation)",
+  "dataset": "data/eval/m1_retrieval.jsonl",
+  "created_at": "2026-11-10T11:11:42+00:00",
+  "models": {
+    "embedding": "BAAI/bge-small-en-v1.5@5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+    "reranker": "cross-encoder/ms-marco-MiniLM-L6-v2@233902d25c440f23af6f7d6e94d2946bac0bee0a",
+    "device": "cpu"
+  },
+  "candidates": 20,
+  "top_k": 5,
+  "timed_passes": 3,
+  "reranker_load_ms": {
+    "measured_wall": 1674.6,
+    "model_reported": 1648.4
+  },
+  "R0": {
+    "recall_at_5": {
+      "exact": "33/40",
+      "value": 0.825
+    },
+    "hit_at_5": {
+      "exact": "9/10",
+      "value": 0.9
+    },
+    "mrr_at_5": {
+      "exact": "31/40",
+      "value": 0.775
+    },
+    "latency": {
+      "total": {
+        "p50": 42.94780000054743,
+        "p95": 52.95119999937015
+      },
+      "stages": {
+        "dense": {
+          "p50": 42.859799999860115,
+          "p95": 52.844999998342246
+        },
+        "embed": {
+          "p50": 33.07390000190935,
+          "p95": 37.47809999913443
+        },
+        "qdrant": {
+          "p50": 9.913500001857756,
+          "p95": 18.038700000033714
+        },
+        "total": {
+          "p50": 42.91139999986626,
+          "p95": 52.91209999995772
+        }
+      }
+    }
+  },
+  "R1": {
+    "recall_at_5": {
+      "exact": "19/20",
+      "value": 0.95
+    },
+    "hit_at_5": {
+      "exact": "1/1",
+      "value": 1.0
+    },
+    "mrr_at_5": {
+      "exact": "191/240",
+      "value": 0.7958333333333333
+    },
+    "latency": {
+      "total": {
+        "p50": 1131.2629999993078,
+        "p95": 1447.5552999974752
+      },
+      "stages": {
+        "dense": {
+          "p50": 51.33679999926244,
+          "p95": 81.9867999998678
+        },
+        "embed": {
+          "p50": 37.628699999913806,
+          "p95": 64.63350000194623
+        },
+        "qdrant": {
+          "p50": 13.688599996385165,
+          "p95": 21.034599998529302
+        },
+        "retrieval": {
+          "p50": 51.48399999961839,
+          "p95": 82.11129999835975
+        },
+        "rerank": {
+          "p50": 1072.9151000014099,
+          "p95": 1388.1250000013097
+        },
+        "total": {
+          "p50": 1131.1487999992096,
+          "p95": 1447.439100000338
+        }
+      }
+    }
+  },
+  "dense_recall_at_20": {
+    "exact": "1/1",
+    "value": 1.0
+  },
+  "per_query": [
+    {
+      "id": "m1-01",
+      "r0_recall": 0.0,
+      "r1_recall": 1.0,
+      "r0_first_rank": null,
+      "r1_first_rank": 3,
+      "recall_at_20": 1.0,
+      "change": "win",
+      "r1_first_match_pre_rerank_rank": null,
+      "r0_top5": [
+        "rbi_kyc_directions_2025, pp.37-38, para 34",
+        "rbi_kyc_directions_2025, p.37, para 33",
+        "rbi_kyc_faqs, p.2, para Q5",
+        "rbi_kyc_directions_2025, p.36, para 30",
+        "hdfc_kyc_aml_faq, p.2, para Row 2.0"
+      ],
+      "r1_top5": [
+        "rbi_kyc_directions_2025, p.36, para 30",
+        "rbi_kyc_directions_2025, pp.37-38, para 34",
+        "rbi_kyc_directions_2025, pp.36-37, para 31",
+        "rbi_kyc_directions_2025, p.37, para 33",
+        "rbi_kyc_faqs, p.2, para Q5"
+      ]
+    },
+    {
+      "id": "m1-02",
+      "r0_recall": 1.0,
+      "r1_recall": 1.0,
+      "r0_first_rank": 1,
+      "r1_first_rank": 1,
+      "recall_at_20": 1.0,
+      "change": "unchanged",
+      "r1_first_match_pre_rerank_rank": null,
+      "r0_top5": [
+        "rbi_kyc_directions_2025, pp.38-39, para 36",
+        "hdfc_nri_rekyc, p.3",
+        "rbi_kyc_directions_2025, pp.7-8, para 5",
+        "rbi_kyc_directions_2025, p.8, para 5",
+        "hdfc_kyc_aml_faq, p.3, para Row 4.0"
+      ],
+      "r1_top5": [
+        "rbi_kyc_directions_2025, pp.38-39, para 36",
+        "hdfc_nri_rekyc, p.3",
+        "hdfc_kyc_aml_faq, p.1",
+        "hdfc_kyc_aml_faq, pp.1-2",
+        "rbi_kyc_directions_2025, pp.7-8, para 5"
+      ]
+    },
+    {
+      "id": "m1-03",
+      "r0_recall": 1.0,
+      "r1_recall": 1.0,
+      "r0_first_rank": 1,
+      "r1_first_rank": 1,
+      "recall_at_20": 1.0,
+      "change": "unchanged",
+      "r1_first_match_pre_rerank_rank": null,
+      "r0_top5": [
+        "rbi_kyc_directions_2025, pp.46-47, para 45",
+        "rbi_kyc_directions_2025, pp.39-40, para 38",
+        "rbi_kyc_directions_2025, p.39, para 37",
+        "rbi_kyc_directions_2025, pp.50-51, para 49",
+        "hdfc_resident_to_nro_conversion, p.3"
+      ],
+      "r1_top5": [
+        "rbi_kyc_directions_2025, pp.46-47, para 45",
+        "hdfc_kyc_aml_faq, p.2",
+        "rbi_kyc_directions_2025, pp.39-40, para 38",
+        "rbi_kyc_directions_2025, p.39, para 37",
+        "rbi_kyc_directions_2025, p.35, para 28"
+      ]
+    },
+    {
+      "id": "m1-04",
+      "r0_recall": 1.0,
+      "r1_recall": 0.5,
+      "r0_first_rank": 1,
+      "r1_first_rank": 2,
+      "recall_at_20": 1.0,
+      "change": "loss",
+      "r1_first_match_pre_rerank_rank": null,
+      "r0_top5": [
+        "rbi_kyc_directions_2025, pp.70-71, para 76",
+        "hdfc_resident_to_nro_conversion, p.2",
+        "hdfc_non_individual_account_opening, p.2, right half",
+        "hdfc_nri_account_opening, p.2",
+        "hdfc_nri_rekyc, p.3"
+      ],
+      "r1_top5": [
+        "rbi_kyc_directions_2025, p.45, para 43",
+        "rbi_kyc_directions_2025, pp.70-71, para 76",
+        "rbi_kyc_directions_2025, p.20, para 17",
+        "rbi_kyc_faqs, p.1, para Q4",
+        "hdfc_non_individual_account_opening, p.2, right half"
+      ]
+    },
+    {
+      "id": "m1-05",
+      "r0_recall": 0.5,
+      "r1_recall": 1.0,
+      "r0_first_rank": 1,
+      "r1_first_rank": 1,
+      "recall_at_20": 1.0,
+      "change": "win",
+      "r1_first_match_pre_rerank_rank": null,
+      "r0_top5": [
+        "rbi_kyc_directions_2025, p.49, para 49",
+        "rbi_kyc_directions_2025, p.49, para 49",
+        "rbi_kyc_directions_2025, p.49, para 49",
+        "rbi_kyc_directions_2025, p.49, para 49",
+        "rbi_kyc_directions_2025, p.51, para 49"
+      ],
+      "r1_top5": [
+        "rbi_kyc_directions_2025, p.49, para 49",
+        "rbi_kyc_directions_2025, p.49, para 49",
+        "rbi_kyc_directions_2025, p.49, para 49",
+        "rbi_kyc_directions_2025, p.49, para 49",
+        "rbi_kyc_directions_2025, p.50, para 49"
+      ]
+    },
+    {
+      "id": "m1-06",
+      "r0_recall": 0.5,
+      "r1_recall": 1.0,
+      "r0_first_rank": 3,
+      "r1_first_rank": 2,
+      "recall_at_20": 1.0,
+      "change": "win",
+      "r1_first_match_pre_rerank_rank": null,
+      "r0_top5": [
+        "rbi_kyc_faqs, p.2, para Q5",
+        "rbi_kyc_directions_2025, p.39, para 37",
+        "rbi_kyc_faqs, p.2, para Q6",
+        "hdfc_resident_to_nro_conversion, p.6",
+        "hdfc_nri_account_opening, p.6"
+      ],
+      "r1_top5": [
+        "rbi_kyc_faqs, p.2, para Q5",
+        "rbi_kyc_faqs, p.2, para Q6",
+        "rbi_kyc_directions_2025, p.20, para 17",
+        "rbi_kyc_directions_2025, pp.35-36, para 28",
+        "rbi_kyc_directions_2025, p.35, para 28"
+      ]
+    },
+    {
+      "id": "m1-07",
+      "r0_recall": 1.0,
+      "r1_recall": 1.0,
+      "r0_first_rank": 1,
+      "r1_first_rank": 1,
+      "recall_at_20": 1.0,
+      "change": "unchanged",
+      "r1_first_match_pre_rerank_rank": null,
+      "r0_top5": [
+        "rbi_kyc_directions_2025, pp.27-28, para 24",
+        "rbi_kyc_directions_2025, p.28, para 24",
+        "rbi_kyc_directions_2025, p.29, para 24",
+        "rbi_kyc_directions_2025, pp.28-29, para 24",
+        "rbi_kyc_directions_2025, p.16, para 6"
+      ],
+      "r1_top5": [
+        "rbi_kyc_directions_2025, pp.27-28, para 24",
+        "rbi_kyc_directions_2025, pp.28-29, para 24",
+        "rbi_kyc_directions_2025, p.29, para 24",
+        "rbi_kyc_directions_2025, pp.7-8, para 5",
+        "rbi_kyc_directions_2025, p.28, para 24"
+      ]
+    },
+    {
+      "id": "m1-08",
+      "r0_recall": 1.0,
+      "r1_recall": 1.0,
+      "r0_first_rank": 3,
+      "r1_first_rank": 3,
+      "recall_at_20": 1.0,
+      "change": "unchanged",
+      "r1_first_match_pre_rerank_rank": null,
+      "r0_top5": [
+        "rbi_kyc_directions_2025, pp.62-63, para 65",
+        "rbi_kyc_directions_2025, pp.61-62, para 65",
+        "rbi_kyc_directions_2025, pp.60-61, para 65",
+        "rbi_kyc_directions_2025, p.16, para 6",
+        "rbi_kyc_directions_2025, pp.42-43, para 42"
+      ],
+      "r1_top5": [
+        "rbi_kyc_directions_2025, pp.61-62, para 65",
+        "rbi_kyc_directions_2025, pp.62-63, para 65",
+        "rbi_kyc_directions_2025, pp.60-61, para 65",
+        "rbi_kyc_faqs, p.4, para Q14",
+        "rbi_kyc_directions_2025, p.26, para 23"
+      ]
+    },
+    {
+      "id": "m1-09",
+      "r0_recall": 1.0,
+      "r1_recall": 1.0,
+      "r0_first_rank": 1,
+      "r1_first_rank": 1,
+      "recall_at_20": 1.0,
+      "change": "unchanged",
+      "r1_first_match_pre_rerank_rank": null,
+      "r0_top5": [
+        "rbi_kyc_directions_2025, pp.52-53, para 50",
+        "rbi_kyc_faqs, p.6, para Q22",
+        "rbi_kyc_directions_2025, p.53, para 51",
+        "rbi_kyc_directions_2025, p.40, para 39",
+        "rbi_kyc_faqs, p.2, para Q6"
+      ],
+      "r1_top5": [
+        "rbi_kyc_directions_2025, pp.52-53, para 50",
+        "rbi_kyc_directions_2025, p.53, para 51",
+        "rbi_kyc_faqs, p.6, para Q22",
+        "rbi_kyc_directions_2025, p.41, para 42",
+        "rbi_kyc_directions_2025, pp.23-24, para 22"
+      ]
+    },
+    {
+      "id": "m1-10",
+      "r0_recall": 1.0,
+      "r1_recall": 1.0,
+      "r0_first_rank": 1,
+      "r1_first_rank": 1,
+      "recall_at_20": 1.0,
+      "change": "unchanged",
+      "r1_first_match_pre_rerank_rank": null,
+      "r0_top5": [
+        "rbi_kyc_directions_2025, pp.54-55, para 55",
+        "rbi_kyc_directions_2025, p.54, para 53",
+        "rbi_kyc_directions_2025, p.78, para Annex \u2013 I 5",
+        "rbi_kyc_directions_2025, p.21, para 19",
+        "rbi_kyc_directions_2025, p.64, para 68"
+      ],
+      "r1_top5": [
+        "rbi_kyc_directions_2025, p.54, para 53",
+        "rbi_kyc_directions_2025, pp.54-55, para 55",
+        "rbi_kyc_directions_2025, p.64, para 68",
+        "rbi_kyc_directions_2025, p.54, para 52",
+        "rbi_kyc_directions_2025, p.78, para Annex \u2013 I 5"
+      ]
+    },
+    {
+      "id": "m1-11",
+      "r0_recall": 1.0,
+      "r1_recall": 1.0,
+      "r0_first_rank": 2,
+      "r1_first_rank": 2,
+      "recall_at_20": 1.0,
+      "change": "unchanged",
+      "r1_first_match_pre_rerank_rank": null,
+      "r0_top5": [
+        "rbi_kyc_faqs, p.4, para Q13",
+        "rbi_kyc_directions_2025, pp.45-46, para 44",
+        "rbi_kyc_directions_2025, p.46, para 44",
+        "rbi_kyc_directions_2025, p.23, para 21",
+        "rbi_kyc_directions_2025, p.16, para 6"
+      ],
+      "r1_top5": [
+        "rbi_kyc_directions_2025, p.46, para 44",
+        "rbi_kyc_directions_2025, pp.45-46, para 44",
+        "rbi_kyc_directions_2025, p.21, para 18",
+        "rbi_kyc_faqs, p.4, para Q13",
+        "rbi_kyc_faqs, p.9, para Q33"
+      ]
+    },
+    {
+      "id": "m1-12",
+      "r0_recall": 1.0,
+      "r1_recall": 1.0,
+      "r0_first_rank": 1,
+      "r1_first_rank": 1,
+      "recall_at_20": 1.0,
+      "change": "unchanged",
+      "r1_first_match_pre_rerank_rank": null,
+      "r0_top5": [
+        "rbi_kyc_faqs, pp.9-10, para Q36",
+        "rbi_kyc_faqs, p.10, para Q37",
+        "hdfc_resident_rekyc_dormant, p.1",
+        "hdfc_resident_to_nro_conversion, p.3",
+        "hdfc_nri_account_opening, p.4"
+      ],
+      "r1_top5": [
+        "rbi_kyc_faqs, pp.9-10, para Q36",
+        "rbi_kyc_faqs, p.10, para Q37",
+        "hdfc_resident_rekyc_dormant, p.1",
+        "hdfc_nri_account_opening, p.4",
+        "hdfc_nri_account_opening, p.3"
+      ]
+    },
+    {
+      "id": "m1-13",
+      "r0_recall": 1.0,
+      "r1_recall": 1.0,
+      "r0_first_rank": 1,
+      "r1_first_rank": 1,
+      "recall_at_20": 1.0,
+      "change": "unchanged",
+      "r1_first_match_pre_rerank_rank": null,
+      "r0_top5": [
+        "rbi_kyc_faqs, p.3, para Q12",
+        "rbi_kyc_faqs, p.1, para Q4",
+        "rbi_kyc_directions_2025, p.36, para 29",
+        "hdfc_nri_account_opening, p.4",
+        "rbi_kyc_faqs, p.1, para Q2"
+      ],
+      "r1_top5": [
+        "rbi_kyc_faqs, p.3, para Q12",
+        "hdfc_kyc_aml_faq, p.3",
+        "rbi_kyc_directions_2025, p.36, para 29",
+        "rbi_kyc_faqs, p.1, para Q4",
+        "rbi_kyc_directions_2025, p.20, para 17"
+      ]
+    },
+    {
+      "id": "m1-14",
+      "r0_recall": 1.0,
+      "r1_recall": 1.0,
+      "r0_first_rank": 1,
+      "r1_first_rank": 1,
+      "recall_at_20": 1.0,
+      "change": "unchanged",
+      "r1_first_match_pre_rerank_rank": null,
+      "r0_top5": [
+        "rbi_kyc_faqs, p.9, para Q35",
+        "hdfc_nri_account_opening, p.3",
+        "hdfc_resident_to_nro_conversion, p.3",
+        "rbi_kyc_directions_2025, p.21, para 18",
+        "rbi_kyc_faqs, p.9, para Q34"
+      ],
+      "r1_top5": [
+        "rbi_kyc_faqs, p.9, para Q35",
+        "rbi_kyc_faqs, p.2, para Q6",
+        "rbi_kyc_directions_2025, p.29, para 24",
+        "hdfc_nri_account_opening, p.3",
+        "hdfc_resident_to_nro_conversion, p.3"
+      ]
+    },
+    {
+      "id": "m1-15",
+      "r0_recall": 1.0,
+      "r1_recall": 1.0,
+      "r0_first_rank": 1,
+      "r1_first_rank": 1,
+      "recall_at_20": 1.0,
+      "change": "unchanged",
+      "r1_first_match_pre_rerank_rank": null,
+      "r0_top5": [
+        "hdfc_kyc_aml_faq, p.1",
+        "hdfc_kyc_aml_faq, p.1",
+        "rbi_kyc_directions_2025, p.64, para 68",
+        "rbi_kyc_directions_2025, pp.9-10, para 5",
+        "rbi_kyc_directions_2025, p.17, para 8"
+      ],
+      "r1_top5": [
+        "hdfc_kyc_aml_faq, p.1",
+        "hdfc_kyc_aml_faq, p.1",
+        "rbi_kyc_directions_2025, pp.17-18, para 10",
+        "rbi_kyc_directions_2025, p.21, para 19",
+        "hdfc_kyc_aml_faq, p.1"
+      ]
+    },
+    {
+      "id": "m1-16",
+      "r0_recall": 1.0,
+      "r1_recall": 1.0,
+      "r0_first_rank": 1,
+      "r1_first_rank": 1,
+      "recall_at_20": 1.0,
+      "change": "unchanged",
+      "r1_first_match_pre_rerank_rank": null,
+      "r0_top5": [
+        "rbi_kyc_faqs, p.6, para Q23",
+        "rbi_kyc_directions_2025, p.22, para 20",
+        "rbi_kyc_directions_2025, pp.40-41, para 41",
+        "hdfc_kyc_aml_faq, pp.1-2",
+        "rbi_kyc_directions_2025, pp.10-11, para 5"
+      ],
+      "r1_top5": [
+        "rbi_kyc_directions_2025, p.22, para 20",
+        "rbi_kyc_directions_2025, pp.40-41, para 41",
+        "rbi_kyc_faqs, p.6, para Q23",
+        "rbi_kyc_directions_2025, p.40, para 39",
+        "rbi_kyc_directions_2025, pp.54-55, para 55"
+      ]
+    },
+    {
+      "id": "m1-17",
+      "r0_recall": 1.0,
+      "r1_recall": 1.0,
+      "r0_first_rank": 1,
+      "r1_first_rank": 1,
+      "recall_at_20": 1.0,
+      "change": "unchanged",
+      "r1_first_match_pre_rerank_rank": null,
+      "r0_top5": [
+        "rbi_kyc_faqs, p.3, para Q8",
+        "hdfc_resident_to_nro_conversion, p.1",
+        "hdfc_nri_account_opening, p.1",
+        "hdfc_nri_account_opening, p.6",
+        "hdfc_nri_account_opening, p.4"
+      ],
+      "r1_top5": [
+        "rbi_kyc_faqs, p.3, para Q8",
+        "rbi_kyc_faqs, p.1, para Q4",
+        "hdfc_nri_account_opening, p.4",
+        "hdfc_nri_account_opening, p.6",
+        "hdfc_resident_to_nro_conversion, p.5"
+      ]
+    },
+    {
+      "id": "m1-18",
+      "r0_recall": 1.0,
+      "r1_recall": 1.0,
+      "r0_first_rank": 1,
+      "r1_first_rank": 1,
+      "recall_at_20": 1.0,
+      "change": "unchanged",
+      "r1_first_match_pre_rerank_rank": null,
+      "r0_top5": [
+        "rbi_kyc_directions_2025, pp.66-67, para 74",
+        "rbi_kyc_directions_2025, p.67, para 74",
+        "rbi_kyc_directions_2025, p.69, para 74",
+        "rbi_kyc_directions_2025, pp.69-70, para 74",
+        "rbi_kyc_directions_2025, p.15, para 5"
+      ],
+      "r1_top5": [
+        "rbi_kyc_directions_2025, pp.66-67, para 74",
+        "rbi_kyc_directions_2025, p.67, para 74",
+        "rbi_kyc_directions_2025, p.69, para 74",
+        "rbi_kyc_directions_2025, pp.68-69, para 74",
+        "rbi_kyc_directions_2025, pp.67-68, para 74"
+      ]
+    },
+    {
+      "id": "m1-19",
+      "r0_recall": 0.5,
+      "r1_recall": 0.5,
+      "r0_first_rank": 3,
+      "r1_first_rank": 4,
+      "recall_at_20": 1.0,
+      "change": "same recall, rank down",
+      "r1_first_match_pre_rerank_rank": null,
+      "r0_top5": [
+        "rbi_kyc_directions_2025, pp.5-6, para 5",
+        "hdfc_kyc_aml_faq, pp.1-2",
+        "rbi_kyc_directions_2025, pp.39-40, para 38",
+        "rbi_kyc_directions_2025, pp.11-12, para 5",
+        "rbi_kyc_directions_2025, pp.46-47, para 45"
+      ],
+      "r1_top5": [
+        "rbi_kyc_directions_2025, pp.5-6, para 5",
+        "hdfc_kyc_aml_faq, pp.1-2",
+        "rbi_kyc_directions_2025, pp.46-47, para 45",
+        "rbi_kyc_directions_2025, pp.39-40, para 38",
+        "rbi_kyc_directions_2025, pp.11-12, para 5"
+      ]
+    },
+    {
+      "id": "m1-20",
+      "r0_recall": 0.0,
+      "r1_recall": 1.0,
+      "r0_first_rank": null,
+      "r1_first_rank": 2,
+      "recall_at_20": 1.0,
+      "change": "win",
+      "r1_first_match_pre_rerank_rank": null,
+      "r0_top5": [
+        "hdfc_resident_to_nro_conversion, p.1",
+        "hdfc_resident_to_nro_conversion, p.6",
+        "hdfc_nri_account_opening, p.3",
+        "hdfc_resident_to_nro_conversion, p.6",
+        "hdfc_resident_to_nro_conversion, p.6"
+      ],
+      "r1_top5": [
+        "hdfc_resident_to_nro_conversion, p.1",
+        "hdfc_resident_to_nro_conversion, p.1",
+        "hdfc_nri_account_opening, p.4",
+        "hdfc_resident_to_nro_conversion, p.6",
+        "hdfc_resident_to_nro_conversion, p.6"
+      ]
+    }
+  ],
+  "summary": {
+    "wins": 4,
+    "losses": 1,
+    "unchanged_recall": 15
+  }
+}

@@ -1,0 +1,40 @@
+# Approved-forms allowlist for multimodal (Gemini) extraction (M2 Pipeline B; docs/04).
+# A document is sent to an external model ONLY if it is listed here with
+# `attestation: public_blank_form`, a SHA-256 equal to the manifest and the database,
+# and a named approver + date. Leave approved_by/approved_on unset to keep it blocked.
+# Blank public forms only: never filled forms, ID documents or any customer data.
+
+- document_key: hdfc_non_individual_account_opening
+  sha256: 647610f40ea7c0524de66d22f8bac0a9f0c745f0cd6d8d39ab048465a89b6a8f
+  attestation: public_blank_form
+  source: "HDFC Bank public blank form (forms/hdfc_non_individual_account_opening.pdf); download URL not recorded in the manifest"
+  approved_by: "project owner"
+  approved_on: 2026-11-10
+
+- document_key: hdfc_nri_account_opening
+  sha256: 189e57a3a24fa34e75613d1300d70fafbd0e8529bc9ec896c40d1a228dae5636
+  attestation: public_blank_form
+  source: "HDFC Bank public blank form (forms/hdfc_nri_nre_nro_account_opening.pdf); download URL not recorded in the manifest"
+  approved_by: "project owner"
+  approved_on: 2026-11-10
+
+- document_key: hdfc_nri_rekyc
+  sha256: fbf2abdcede6d44a23f4ad543d55be6d0a6586961bb49ab608d3d08670730e61
+  attestation: public_blank_form
+  source: "HDFC Bank public blank form (forms/hdfc_nri_rekyc.pdf); download URL not recorded in the manifest"
+  approved_by: "project owner"
+  approved_on: 2026-11-10
+
+- document_key: hdfc_resident_rekyc_dormant
+  sha256: d3927dabf8545830202be72e1d0cb6672e0de6c3430d12ab8332c7afa42f7906
+  attestation: public_blank_form
+  source: "HDFC Bank public blank form (forms/hdfc_resident_rekyc_dormant.pdf); download URL not recorded in the manifest"
+  approved_by: "project owner"
+  approved_on: 2026-11-10
+
+- document_key: hdfc_resident_to_nro_conversion
+  sha256: 682c52ddd25853701feb7d08878a6857b09612c5a4469acc8d7f424d2e3001a9
+  attestation: public_blank_form
+  source: "HDFC Bank public blank form (forms/hdfc_resident_to_nro_conversion.pdf); download URL not recorded in the manifest"
+  approved_by: "project owner"
+  approved_on: 2026-11-10

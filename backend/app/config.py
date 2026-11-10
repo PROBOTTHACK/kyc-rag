@@ -4,8 +4,10 @@ Precedence (highest first): process env vars, repo-root `.env`, `infra/.env.exam
 The example file supplies non-secret defaults; real keys belong only in `.env`.
 """
 
+import datetime as dt
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -40,6 +42,18 @@ class Settings(BaseSettings):
     PROMPT_GUARD_MODEL: str | None = None
     GEMINI_API_KEY: SecretStr | None = None
     MULTIMODAL_MODEL: str | None = None
+    # Gemini live calls are OFF unless explicitly enabled AND the data-use terms were
+    # verified (date recorded in docs/02). Only approved public blank forms are sent.
+    GEMINI_LIVE_ENABLED: bool = False
+    GEMINI_DATA_TERMS_VERIFIED_ON: dt.date | None = None
+    GEMINI_TIMEOUT_S: float = Field(default=60.0, gt=0, le=60)
+    # Owner-approved override of the project default of 2 (Gemini transport only):
+    # 5 attempts per model, waits 2 -> 4 -> 8 -> 16 s, each capped.
+    GEMINI_MAX_RETRIES: int = Field(default=4, ge=0, le=4)
+    GEMINI_BACKOFF_INITIAL_S: float = Field(default=2.0, gt=0, le=60)
+    GEMINI_BACKOFF_CAP_S: float = Field(default=32.0, gt=0, le=60)
+    # Used only after the primary model exhausts its retries on transient errors.
+    MULTIMODAL_FALLBACK_MODEL: str | None = None
     # --- Local models ---
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     # Hugging Face commit to load; None = latest. Pinned in .env.example for reproducibility.
@@ -61,6 +75,26 @@ class Settings(BaseSettings):
     OCR_RELIABLE_MIN_CONFIDENCE: float = Field(default=0.80, ge=0, le=1)
     # Embed uncertain OCR chunks (retrievable, flagged, never MANDATORY evidence)?
     OCR_EMBED_UNCERTAIN: bool = True
+    # --- Retrieval (M2) ---
+    # Default mode for `search` / `evaluate` without --mode. M2 A3 selected C6 (hybrid, BM25
+    # stopwords, RRF k=20) on the development set (docs/milestones/M2_A3_SELECTION.md); its
+    # gain did not generalize on the held-out set, so the operational default is dense again
+    # (docs/milestones/M2_RETRIEVAL_OPERATIONAL_DECISION.md). C6 stays selectable:
+    # `--mode hybrid` with the RRF_K / BM25_STOPWORDS values below is exactly C6.
+    RETRIEVAL_MODE: Literal["dense", "bm25", "hybrid"] = "dense"
+    RRF_K: int = Field(default=20, ge=1)  # hybrid fusion constant (C6: 20)
+    RETRIEVAL_CANDIDATES: int = Field(default=50, ge=1, le=1000)  # per retriever, hybrid
+    # BM25 tokenizer variant (M2 A3): False = plain v1; True = plain v1 + the registered
+    # Lucene English stopword list (removes "no"/"not"; docs/04). C6: True. Also applies to
+    # `--mode bm25` (C2 rather than C1); set False for the plain tokenizer.
+    BM25_STOPWORDS: bool = True
+    # Optional cross-encoder reranking (M2 B1; docs/04). Off by default: dense stays the
+    # default path. Scores are raw and uncalibrated (ordering only, never a confidence).
+    RERANK_ENABLED: bool = False
+    RERANK_MODEL: str = "cross-encoder/ms-marco-MiniLM-L6-v2"
+    # Hugging Face commit to load; None = latest. Pinned in .env.example for reproducibility.
+    RERANK_MODEL_REVISION: str | None = None
+    RERANK_CANDIDATES: int = Field(default=20, ge=1, le=100)  # retrieved, then reranked
     # --- Tracing ---
     LANGSMITH_TRACING: bool = False
     LANGSMITH_API_KEY: SecretStr | None = None
@@ -72,6 +106,10 @@ class Settings(BaseSettings):
     RATE_LIMIT_GEMINI_RPM: int = Field(default=10, gt=0)
     # --- Health checks ---
     HEALTH_CHECK_TIMEOUT_S: float = Field(default=2.0, gt=0)
+    # --- Form-schema cache (Redis; Postgres stays the source of truth) ---
+    FORM_CACHE_ENABLED: bool = True
+    FORM_CACHE_TTL_S: int = Field(default=604800, gt=0)  # 7 days
+    FORM_CACHE_TIMEOUT_S: float = Field(default=0.25, gt=0, le=5)
 
     @field_validator(
         "QDRANT_API_KEY",
@@ -82,8 +120,11 @@ class Settings(BaseSettings):
         "FALLBACK_LLM_MODEL",
         "PROMPT_GUARD_MODEL",
         "MULTIMODAL_MODEL",
+        "MULTIMODAL_FALLBACK_MODEL",
+        "GEMINI_DATA_TERMS_VERIFIED_ON",
         "NLI_MODEL",
         "EMBEDDING_MODEL_REVISION",
+        "RERANK_MODEL_REVISION",
         "TESSERACT_CMD",
         "TESSDATA_DIR",
         "OCR_CACHE_DIR",
