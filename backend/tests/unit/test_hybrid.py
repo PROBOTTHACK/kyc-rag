@@ -279,7 +279,9 @@ def test_cli_hybrid_shows_scores_and_provenance(
 ) -> None:
     assert search_cli() == 0
     out = capsys.readouterr().out
-    assert "; hybrid RRF k=60, 50 per retriever)" in out and "scores: rrf" in out
+    s = get_settings()
+    assert f"; hybrid RRF k={s.RRF_K}, {s.RETRIEVAL_CANDIDATES} per retriever)" in out
+    assert "scores: rrf" in out
     assert "via: dense #" in out or "via: bm25 #" in out
     assert "DEGRADED" not in out
 
@@ -306,11 +308,12 @@ def test_cli_total_failure_is_exit_2(
 def test_cli_mode_defaults_to_retrieval_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     seen: dict[str, Any] = {}
     monkeypatch.setattr(cli, "_search", lambda *a, **kw: seen.update(kw) or 0)
-    assert cli.main(["search", "q"]) == 0 and seen["mode"] == "dense"
-    monkeypatch.setenv("RETRIEVAL_MODE", "hybrid")
+    default = get_settings().RETRIEVAL_MODE  # the A3 selection (hybrid), from the settings
+    assert cli.main(["search", "q"]) == 0 and seen["mode"] == default
+    monkeypatch.setenv("RETRIEVAL_MODE", "dense")
     get_settings.cache_clear()
     try:
-        assert cli.main(["search", "q"]) == 0 and seen["mode"] == "hybrid"
+        assert cli.main(["search", "q"]) == 0 and seen["mode"] == "dense"
         assert cli.main(["search", "q", "--mode", "bm25"]) == 0 and seen["mode"] == "bm25"
     finally:
         get_settings.cache_clear()

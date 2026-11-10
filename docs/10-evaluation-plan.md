@@ -81,6 +81,26 @@ M2 retrieval choices follow `docs/milestones/M2_PLAN.md` §6.
   - **Exact-term subgroup:** m2h-06/11/12 are held-out cases, so they are reported **only** in the one-time held-out run, never during A3.
   - **Tests during A3:** `tests/unit/test_m2_heldout.py` and `tests/integration/test_m2_heldout_labels.py` are excluded (`--ignore`), and the held-out file is checked for changes through git metadata only. Both modules run again in the held-out verification stage.
   - **Negation limitation:** in the stopword variants, removing "no"/"not" changes lexical matching for negated queries. This is noted as a limitation of the experiment, not corrected after results.
+- **A3 result and decision (development set, one run of `make eval-select` on 2026-11-10 at code commit `86d337e`; full record in `docs/milestones/M2_A3_SELECTION.md` and `data/eval/m2_a3_selection.json`):**
+
+  | ID | Configuration | Recall@5 | Hit@5 | MRR@5 | ΔRecall@5 | p50 ms | Qualifies |
+  |---|---|---|---|---|---|---|---|
+  | C0 | dense | 0.825 | 0.900 | 0.775 | — | 34.3 | baseline |
+  | C1 | BM25 plain | 0.692 | 0.800 | 0.633 | −0.133 | 9.3 | no (Recall, Hit) |
+  | C2 | BM25 stopwords | 0.717 | 0.800 | 0.696 | −0.108 | 8.8 | no (Recall, Hit) |
+  | C3 | hybrid plain k=60 | 0.858 | 0.900 | 0.704 | +0.033 | 52.4 | no (Recall) |
+  | C4 | hybrid plain k=20 | 0.875 | 0.900 | 0.700 | +0.050 | 49.1 | yes (exactly 1/20) |
+  | C5 | hybrid stopwords k=60 | 0.833 | 0.900 | 0.723 | +0.008 | 49.9 | no (Recall) |
+  | C6 | hybrid stopwords k=20 | 0.900 | 0.950 | 0.735 | +0.075 | 49.2 | yes |
+
+  - **Selected: C6** (hybrid, BM25 stopwords, RRF k = 20). It ranks above the other qualifier, C4, on the first key, Recall@5.
+  - **Settings:** they now default to C6; `--mode dense` stays the M1 path.
+  - **Trade-off:** every hybrid has a higher Recall@5 but a lower MRR@5 than dense.
+    - RRF promotes passages both retrievers rank moderately (m1-01, m1-20), lifting Recall at ranks 3–4.
+    - It demotes correct dense #1 passages that BM25 ranks poorly (m1-17, m1-04).
+    - It loses m1-11 in every hybrid.
+  - **Uncertainty:** every bootstrap CI includes zero (C6: [−0.125, +0.275]). On 20 single-annotator queries, C6 is not statistically distinguishable from dense.
+  - **Held-out next:** a separate stage runs the held-out set once, for C6 with C0 as the fixed reference, including the exact-term subgroup.
 - **Limitations:**
   - **Single annotator:** all held-out labels were drafted by the implementing assistant and reviewed by the project owner. There was no independent annotation or inter-annotator validation, and no such claim is made.
   - **Resolution:** with 20 queries, one query moves mean Recall@5 by about 0.05, so confidence intervals are wide and "no measurable difference" is a valid outcome.

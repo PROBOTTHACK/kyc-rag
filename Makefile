@@ -135,7 +135,7 @@ fmt:
 # Retrieval benchmark on the development set (Recall@5 on data/eval/m1_retrieval.jsonl);
 # MODE=bm25|hybrid evaluates another mode. The frozen held-out set is refused (docs/10).
 eval:
-	$(CLI) evaluate $(MODE_ARG) --report data/processed/$(if $(filter-out dense,$(MODE)),m2_dev_$(MODE)_report.md,m1_retrieval_report.md)
+	$(CLI) evaluate $(MODE_ARG) --report data/processed/$(if $(MODE),$(if $(filter dense,$(MODE)),m1_retrieval_report.md,m2_dev_$(MODE)_report.md),dev_retrieval_report.md)
 
 # Dense vs BM25 vs hybrid on the development set at fixed A2 defaults (selects nothing).
 eval-compare:

@@ -1,0 +1,265 @@
+{
+  "stage": "M2 A3",
+  "dataset": "data/eval/m1_retrieval.jsonl",
+  "dataset_sha256": "fc5add26521e234ab8f356e024a45fb3bd76e10d9819a649b5367e2ef2ccedbb",
+  "code_commit": "86d337e30bf1891818bb0969d6a67d28e9dce242",
+  "created_at": "2026-11-10T09:23:56+00:00",
+  "heldout": "not read, loaded, queried, hashed or evaluated during A3",
+  "rule": "A non-dense configuration qualifies only if mean Recall@5 improves on dense by at least 0.05 and Hit@5 does not decrease. Qualifiers are ordered by highest Recall@5, then highest MRR@5, then simplicity, then lower p50 latency, then configuration id. If none qualifies, dense (C0) remains selected.",
+  "fixed_parameters": {
+    "candidates_per_retriever": 50,
+    "top_k": 5,
+    "bm25": "rank_bm25 BM25Okapi k1=1.5 b=0.75",
+    "embedding": "pinned EMBEDDING_MODEL @ EMBEDDING_MODEL_REVISION",
+    "filters": "production eligibility filters + each case's entity terms"
+  },
+  "selected": {
+    "id": "C6",
+    "label": "hybrid stopwords k=20",
+    "settings": {
+      "RETRIEVAL_MODE": "hybrid",
+      "BM25_STOPWORDS": true,
+      "RRF_K": 20
+    },
+    "dense_retained": false,
+    "parameters": {
+      "mode": "hybrid",
+      "bm25_stopwords": true,
+      "rrf_k": 20,
+      "simplicity": 4
+    }
+  },
+  "qualifiers": [
+    "C6",
+    "C4"
+  ],
+  "candidates": [
+    {
+      "id": "C0",
+      "label": "dense",
+      "recall_at_5": {
+        "exact": "33/40",
+        "value": 0.825
+      },
+      "hit_at_5": {
+        "exact": "9/10",
+        "value": 0.9
+      },
+      "mrr_at_5": {
+        "exact": "31/40",
+        "value": 0.775
+      },
+      "delta_recall_vs_dense": {
+        "exact": "0/1",
+        "value": 0.0
+      },
+      "p50_ms": 34.28,
+      "p95_ms": 43.96,
+      "qualifies": false,
+      "reasons": [
+        "baseline"
+      ],
+      "parameters": {
+        "mode": "dense",
+        "bm25_stopwords": null,
+        "rrf_k": null,
+        "simplicity": 0
+      }
+    },
+    {
+      "id": "C1",
+      "label": "bm25 plain",
+      "recall_at_5": {
+        "exact": "83/120",
+        "value": 0.6916666666666667
+      },
+      "hit_at_5": {
+        "exact": "4/5",
+        "value": 0.8
+      },
+      "mrr_at_5": {
+        "exact": "19/30",
+        "value": 0.6333333333333333
+      },
+      "delta_recall_vs_dense": {
+        "exact": "-2/15",
+        "value": -0.13333333333333333
+      },
+      "p50_ms": 9.27,
+      "p95_ms": 12.39,
+      "qualifies": false,
+      "reasons": [
+        "Recall@5 gain -0.1333 < 0.05",
+        "Hit@5 0.800 below dense 0.900"
+      ],
+      "parameters": {
+        "mode": "bm25",
+        "bm25_stopwords": false,
+        "rrf_k": null,
+        "simplicity": 1
+      }
+    },
+    {
+      "id": "C2",
+      "label": "bm25 stopwords",
+      "recall_at_5": {
+        "exact": "43/60",
+        "value": 0.7166666666666667
+      },
+      "hit_at_5": {
+        "exact": "4/5",
+        "value": 0.8
+      },
+      "mrr_at_5": {
+        "exact": "167/240",
+        "value": 0.6958333333333333
+      },
+      "delta_recall_vs_dense": {
+        "exact": "-13/120",
+        "value": -0.10833333333333334
+      },
+      "p50_ms": 8.78,
+      "p95_ms": 11.97,
+      "qualifies": false,
+      "reasons": [
+        "Recall@5 gain -0.1083 < 0.05",
+        "Hit@5 0.800 below dense 0.900"
+      ],
+      "parameters": {
+        "mode": "bm25",
+        "bm25_stopwords": true,
+        "rrf_k": null,
+        "simplicity": 2
+      }
+    },
+    {
+      "id": "C3",
+      "label": "hybrid plain k=60",
+      "recall_at_5": {
+        "exact": "103/120",
+        "value": 0.8583333333333333
+      },
+      "hit_at_5": {
+        "exact": "9/10",
+        "value": 0.9
+      },
+      "mrr_at_5": {
+        "exact": "169/240",
+        "value": 0.7041666666666667
+      },
+      "delta_recall_vs_dense": {
+        "exact": "1/30",
+        "value": 0.03333333333333333
+      },
+      "p50_ms": 52.44,
+      "p95_ms": 74.25,
+      "qualifies": false,
+      "reasons": [
+        "Recall@5 gain +0.0333 < 0.05"
+      ],
+      "parameters": {
+        "mode": "hybrid",
+        "bm25_stopwords": false,
+        "rrf_k": 60,
+        "simplicity": 3
+      }
+    },
+    {
+      "id": "C4",
+      "label": "hybrid plain k=20",
+      "recall_at_5": {
+        "exact": "7/8",
+        "value": 0.875
+      },
+      "hit_at_5": {
+        "exact": "9/10",
+        "value": 0.9
+      },
+      "mrr_at_5": {
+        "exact": "7/10",
+        "value": 0.7
+      },
+      "delta_recall_vs_dense": {
+        "exact": "1/20",
+        "value": 0.05
+      },
+      "p50_ms": 49.09,
+      "p95_ms": 56.44,
+      "qualifies": true,
+      "reasons": [
+        "qualifies"
+      ],
+      "parameters": {
+        "mode": "hybrid",
+        "bm25_stopwords": false,
+        "rrf_k": 20,
+        "simplicity": 3
+      }
+    },
+    {
+      "id": "C5",
+      "label": "hybrid stopwords k=60",
+      "recall_at_5": {
+        "exact": "5/6",
+        "value": 0.8333333333333334
+      },
+      "hit_at_5": {
+        "exact": "9/10",
+        "value": 0.9
+      },
+      "mrr_at_5": {
+        "exact": "289/400",
+        "value": 0.7225
+      },
+      "delta_recall_vs_dense": {
+        "exact": "1/120",
+        "value": 0.008333333333333333
+      },
+      "p50_ms": 49.92,
+      "p95_ms": 70.92,
+      "qualifies": false,
+      "reasons": [
+        "Recall@5 gain +0.0083 < 0.05"
+      ],
+      "parameters": {
+        "mode": "hybrid",
+        "bm25_stopwords": true,
+        "rrf_k": 60,
+        "simplicity": 4
+      }
+    },
+    {
+      "id": "C6",
+      "label": "hybrid stopwords k=20",
+      "recall_at_5": {
+        "exact": "9/10",
+        "value": 0.9
+      },
+      "hit_at_5": {
+        "exact": "19/20",
+        "value": 0.95
+      },
+      "mrr_at_5": {
+        "exact": "147/200",
+        "value": 0.735
+      },
+      "delta_recall_vs_dense": {
+        "exact": "3/40",
+        "value": 0.075
+      },
+      "p50_ms": 49.17,
+      "p95_ms": 57.8,
+      "qualifies": true,
+      "reasons": [
+        "qualifies"
+      ],
+      "parameters": {
+        "mode": "hybrid",
+        "bm25_stopwords": true,
+        "rrf_k": 20,
+        "simplicity": 4
+      }
+    }
+  ],
+  "candidate_parameters_source": "added after the run from the registered app.retrieval.selection.CANDIDATES at code_commit (static registry; no result field changed)"
+}

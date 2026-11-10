@@ -153,7 +153,7 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
 - **Not changed:** no migration. A trigger-maintained version counter (≈1–2 ms; needs a table and triggers via Alembic) remains a possible later optimisation. `max(updated_at)` was rejected, because raw-SQL updates don't touch it.
 
 **Hybrid retrieval: dense + BM25 with Reciprocal Rank Fusion (M2 A2; `app/retrieval/{fusion,retrieve}.py`):**
-- **Modes** (`RetrievalMode`): `dense` (M1 `search()`, unchanged), `bm25` (A1 keyword index, unchanged), `hybrid`. The default comes from `RETRIEVAL_MODE` (default **`dense`** until M2 A3 selects on the development set); `--mode` overrides it.
+- **Modes** (`RetrievalMode`): `dense` (M1 `search()`, unchanged), `bm25` (A1 keyword index, unchanged), `hybrid`. The default comes from `RETRIEVAL_MODE`. **Since M2 A3 it is the selected configuration C6: `hybrid` with `BM25_STOPWORDS=true` and `RRF_K=20`** (docs/milestones/M2_A3_SELECTION.md). `--mode` overrides it; `--mode dense` is the unchanged M1 path.
 - **Hybrid:**
   - both retrievers run **sequentially**, each returning `RETRIEVAL_CANDIDATES` (50) hits under the same `SearchFilters`;
   - the two rankings are fused with RRF, `score = Σ 1/(RRF_K + rank)` with `RRF_K` = 60, using ranks only (dense cosine and BM25 scores are not comparable);

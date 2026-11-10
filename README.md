@@ -152,7 +152,7 @@ Other targets: `make test` (unit), `make test-integration` (needs `make up`), `m
 | `make reconcile` | `reconcile` | Postgres ↔ Qdrant in both directions; read-only |
 | `make repair` | `reconcile --repair [--delete-unknown]` | Re-index inconsistent documents from Postgres |
 | `make runs` | `runs [--document KEY] [--failed]` | Ingestion history with the failing stage and error |
-| `make search Q=… [MODE=…]` | `search QUERY [--top-k] [--entity] [--bank] [--mandatory-only] [--expand] [--mode dense\|bm25\|hybrid]` | Top-5 passages with document + page citations (M2: BM25 and hybrid modes; default `dense`) |
+| `make search Q=… [MODE=…]` | `search QUERY [--top-k] [--entity] [--bank] [--mandatory-only] [--expand] [--mode dense\|bm25\|hybrid]` | Top-5 passages with document + page citations (M2: dense, BM25 and hybrid modes; default since A3: hybrid, BM25 stopwords, RRF k = 20) |
 | `make eval [MODE=…]` | `evaluate [--dataset] [--report] [--mode …]` | Recall@5 / Hit@5 / MRR on the development set (the frozen held-out set is refused) |
 | `make eval-compare` | `evaluate --compare` | Dense vs BM25 vs hybrid on the development set, with latency (selects nothing) |
 | `make check-dense-golden` | — | M1 dense regression against the golden snapshot (fails, never skips) |

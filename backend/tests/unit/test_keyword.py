@@ -335,10 +335,11 @@ def test_dense_report_text_is_unchanged() -> None:
 # --- CLI ---------------------------------------------------------------------------------------
 
 
-def test_mode_flags_parse_and_default_to_dense() -> None:
-    # Since M2 A2, an omitted --mode falls back to RETRIEVAL_MODE, whose default is dense.
+def test_mode_flags_parse_and_default_to_the_configured_mode() -> None:
+    # Since M2 A2, an omitted --mode falls back to RETRIEVAL_MODE (since A3: the selected
+    # configuration; tests/unit/test_selection.py checks it against the decision record).
     settings = get_settings()
-    assert settings.RETRIEVAL_MODE == "dense"
+    assert settings.RETRIEVAL_MODE in ("dense", "bm25", "hybrid")
     p = cli.build_parser(settings)
     assert p.parse_args(["search", "q"]).mode is None
     assert p.parse_args(["evaluate"]).mode is None

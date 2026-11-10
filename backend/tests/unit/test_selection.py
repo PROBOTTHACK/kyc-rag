@@ -84,8 +84,25 @@ def test_manager_fingerprint_names_the_variant_and_plain_is_unchanged(
     assert stop.fingerprint == "t1s:x:V" and stop.stopwords
 
 
-def test_bm25_stopwords_setting_defaults_to_plain() -> None:
-    assert get_settings().BM25_STOPWORDS is False
+def test_tokenizer_default_is_plain_in_code() -> None:
+    # The library defaults stay plain; the deployed choice comes from the settings.
+    assert KeywordIndex.build(corpus()).stopwords is False
+    assert KeywordIndexManager(fake_session).stopwords is False  # type: ignore[arg-type]
+
+
+def test_default_settings_match_the_committed_a3_decision_record() -> None:
+    record = json.loads(
+        (REPO_ROOT / "data" / "eval" / "m2_a3_selection.json").read_text(encoding="utf-8")
+    )
+    s = get_settings()
+    chosen = record["selected"]["settings"]
+    assert (
+        chosen["RETRIEVAL_MODE"],
+        chosen["BM25_STOPWORDS"],
+        chosen["RRF_K"],
+    ) == (s.RETRIEVAL_MODE, s.BM25_STOPWORDS, s.RRF_K)
+    assert record["fixed_parameters"]["candidates_per_retriever"] == s.RETRIEVAL_CANDIDATES
+    assert record["selected"]["id"] == "C6" and record["qualifiers"] == ["C6", "C4"]
 
 
 # --- the registered matrix ---------------------------------------------------------------------
