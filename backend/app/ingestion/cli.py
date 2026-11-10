@@ -17,6 +17,7 @@ Recovery and inspection:
 Retrieval:
   search   QUERY [--top-k N] [--entity T]... [--bank B]... [--document KEY]...
            [--include-context-only] [--mandatory-only] [--expand] [--mode dense|bm25|hybrid]
+           [--rerank|--no-rerank]   (optional cross-encoder reranking; default RERANK_ENABLED)
   evaluate [--dataset PATH] [--top-k N] [--report PATH] [--mode dense|bm25|hybrid]
            [--compare]   (--mode defaults to RETRIEVAL_MODE, i.e. dense)
   evaluate --select [--report PATH] [--record PATH]   M2 A3 selection: the 7 registered
@@ -86,7 +87,14 @@ from app.retrieval.indexing import find_orphans, index_document, prune_orphans
 from app.retrieval.keyword import TOKENIZER_VERSION, KeywordIndexManager, KeywordIndexUnavailable
 from app.retrieval.qdrant_store import ChunkStore, store_from_settings
 from app.retrieval.reconcile import ReconcileReport, reconcile, repair
-from app.retrieval.retrieve import RetrievalError, RetrievalMode, RetrievalResult, Retriever
+from app.retrieval.rerank import reranker_from_settings
+from app.retrieval.retrieve import (
+    HitProvenance,
+    RetrievalError,
+    RetrievalMode,
+    RetrievalResult,
+    Retriever,
+)
 from app.retrieval.search import SearchFilters, SearchHit, search
 from app.retrieval.selection import (
     CANDIDATES,
@@ -674,6 +682,7 @@ def _search(
     filters: SearchFilters,
     expand: bool,
     mode: str = "dense",
+    rerank: bool = False,
     embedder: Embedder | None = None,
     store: ChunkStore | None = None,
     sessions: sessionmaker[Session] | None = None,
@@ -681,11 +690,18 @@ def _search(
     """Top-k passages with document + page citations (docs/04).
 
     `dense`: BGE + Qdrant (M1). `bm25`: keyword index built from Postgres (M2 A1); it
-    loads no embedding model and does not contact Qdrant."""
+    loads no embedding model and does not contact Qdrant. `rerank` (M2 B1, default off):
+    retrieve `RERANK_CANDIDATES`, reorder them with the cross-encoder, keep top-k."""
     hits: list[SearchHit]
     result: RetrievalResult | None = None
     try:
-        if mode == "hybrid":
+        if rerank:
+            sessions = sessions or _sessions(settings)
+            result = _retriever(settings, embedder, store, sessions).retrieve(
+                query, mode=mode, top_k=top_k, filters=filters, rerank=True
+            )
+            hits = result.hits
+        elif mode == "hybrid":
             sessions = sessions or _sessions(settings)
             result = _retriever(settings, embedder, store, sessions).retrieve(
                 query, mode=mode, top_k=top_k, filters=filters
@@ -718,12 +734,21 @@ def _search(
         scope += f"; hybrid RRF k={settings.RRF_K}, {settings.RETRIEVAL_CANDIDATES} per retriever"
     elif mode != "dense":
         scope += f"; {mode}"
+    if rerank:
+        scope += f"; reranked from {settings.RERANK_CANDIDATES} candidates"
     print(f"query: {query!r}  (top {top_k}; {scope})")
     if result is not None:
         for f in result.failures:
-            print(f"DEGRADED: {f.retriever} retrieval failed ({f.error}); "
-                  f"showing {result.score_kind.value} results only")  # fmt: skip
-        print(f"scores: {result.score_kind.value}")
+            if f.retriever == "rerank":
+                print(f"DEGRADED: reranking failed ({f.error}); "
+                      f"showing the original {result.score_kind.value} ranking")  # fmt: skip
+            else:
+                print(f"DEGRADED: {f.retriever} retrieval failed ({f.error}); "
+                      f"showing {result.score_kind.value} results only")  # fmt: skip
+        kind = result.score_kind.value
+        if result.reranked:
+            kind += " (raw, uncalibrated: an ordering score, not a confidence)"
+        print(f"scores: {kind}")
     contexts = {}
     if expand and hits:
         try:
@@ -751,14 +776,18 @@ def _search(
     return 0
 
 
-def _via(p: object) -> str:
+def _via(p: HitProvenance) -> str:
     """`dense #3 (0.812) · bm25 #1 (14.200)`: original ranks and scores behind a hit."""
     parts = []
     for name in ("dense", "bm25"):
         rank, score = getattr(p, f"{name}_rank"), getattr(p, f"{name}_score")
         if rank is not None:
             parts.append(f"{name} #{rank} ({score:.3f})")
-    return " · ".join(parts) or "-"
+    out = " · ".join(parts) or "-"
+    if p.pre_rerank_rank is not None:
+        out += (f" → retrieval rank #{p.pre_rerank_rank} ({p.pre_rerank_score or 0:.3f})"
+                f" · cross-encoder {p.rerank_score or 0:.3f}")  # fmt: skip
+    return out
 
 
 def _retriever(
@@ -774,6 +803,8 @@ def _retriever(
         keyword=lambda: KeywordIndexManager(sessions, stopwords=settings.BM25_STOPWORDS),
         rrf_k=settings.RRF_K,
         candidates=settings.RETRIEVAL_CANDIDATES,
+        reranker=lambda: reranker_from_settings(settings),  # loaded only if reranking
+        rerank_candidates=settings.RERANK_CANDIDATES,
     )
 
 
@@ -808,6 +839,7 @@ def _evaluate_modes(
     embedder: Embedder | None,
     store: ChunkStore | None,
     sessions: sessionmaker[Session],
+    rerank: bool = False,
 ) -> list[EvalReport]:
     """Evaluate modes through one `Retriever` (uniform timing; degraded runs refused)."""
     retriever = _retriever(settings, embedder, store, sessions)
@@ -815,11 +847,18 @@ def _evaluate_modes(
     for mode in modes:
 
         def run(q: str, f: SearchFilters, k: int, m: str = mode) -> RetrievalResult:
-            return retriever.retrieve(q, mode=m, top_k=k, filters=f)
+            return retriever.retrieve(q, mode=m, top_k=k, filters=f, rerank=rerank)
 
+        description = _describe_mode(settings, mode)
+        if rerank:
+            description += (
+                f"; reranked by `{settings.RERANK_MODEL}` @ `{settings.RERANK_MODEL_REVISION}` "
+                f"from {settings.RERANK_CANDIDATES} candidates (raw cross-encoder scores)"
+            )
         reports.append(
-            evaluate_retrieval(cases, run, mode=mode, description=_describe_mode(settings, mode),
-                               k=top_k, dataset=str(dataset), timed_passes=TIMED_PASSES)
+            evaluate_retrieval(cases, run, mode=mode + ("+rerank" if rerank else ""),
+                               description=description, k=top_k, dataset=str(dataset),
+                               timed_passes=TIMED_PASSES)
         )  # fmt: skip
     return reports
 
@@ -832,6 +871,7 @@ def _evaluate(
     report_path: Path | None,
     mode: str = "dense",
     compare: bool = False,
+    rerank: bool = False,
     embedder: Embedder | None = None,
     store: ChunkStore | None = None,
     sessions: sessionmaker[Session] | None = None,
@@ -852,7 +892,7 @@ def _evaluate(
     except (OSError, ValueError) as exc:
         print(f"invalid dataset: {exc}")
         return 2
-    if compare or mode == "hybrid":
+    if compare or mode == "hybrid" or rerank:
         modes = [m.value for m in RetrievalMode] if compare else [mode]
         try:
             reports = _evaluate_modes(
@@ -864,6 +904,7 @@ def _evaluate(
                 embedder=embedder,
                 store=store,
                 sessions=sessions or _sessions(settings),
+                rerank=rerank,
             )
         except (DegradedRunError, RetrievalError) as exc:
             print(f"evaluation refused: {type(exc).__name__}: {exc}")
@@ -1176,6 +1217,8 @@ def build_parser(settings: Settings) -> argparse.ArgumentParser:
                     help="show the complete parent paragraph of child hits (Postgres)")  # fmt: skip
     se.add_argument("--mode", choices=MODES, default=None,
                     help="dense, bm25 or hybrid (default: RETRIEVAL_MODE)")  # fmt: skip
+    se.add_argument("--rerank", action=argparse.BooleanOptionalAction, default=None,
+                    help="cross-encoder reranking (default: RERANK_ENABLED, i.e. off)")  # fmt: skip
 
     ev = sub.add_parser("evaluate", help="Recall@k on the labelled retrieval benchmark")
     ev.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
@@ -1190,6 +1233,8 @@ def build_parser(settings: Settings) -> argparse.ArgumentParser:
     ev.add_argument("--record", type=Path, help="with --select: write the decision record here")
     ev.add_argument("--final-heldout", action="store_true",
                     help="ONE-TIME held-out run: C0 + the A3 selection")  # fmt: skip
+    ev.add_argument("--rerank", action=argparse.BooleanOptionalAction, default=None,
+                    help="with cross-encoder reranking (default: RERANK_ENABLED)")  # fmt: skip
     return parser
 
 
@@ -1197,6 +1242,8 @@ def main(argv: list[str] | None = None) -> int:
     settings = get_settings()
     parser = build_parser(settings)
     args = parser.parse_args(argv)
+    rerank = bool(settings.RERANK_ENABLED if getattr(args, "rerank", None) is None
+                  else args.rerank)  # fmt: skip
     commands: dict[str, Callable[[], int]] = {
         "validate-manifest": lambda: _validate_manifest(args.manifest, args.corpus_dir),
         "check-ocr": lambda: _check_ocr(settings),
@@ -1209,7 +1256,7 @@ def main(argv: list[str] | None = None) -> int:
         "evaluate": lambda: _evaluate(settings, args.dataset, top_k=args.top_k,
                                       report_path=args.report,
                                       mode=args.mode or settings.RETRIEVAL_MODE,
-                                      compare=args.compare),
+                                      compare=args.compare, rerank=rerank),
     }  # fmt: skip
     commands["ingest"] = commands["run"]
     if args.command == "index":
@@ -1220,6 +1267,10 @@ def main(argv: list[str] | None = None) -> int:
                                   dry_run=args.dry_run)  # fmt: skip
         return _index(settings, args.document, dry_run=args.dry_run, force=args.force,
                       prune=args.prune)  # fmt: skip
+    if args.command == "evaluate" and args.rerank and (args.select or args.final_heldout
+                                                        or args.compare):  # fmt: skip
+        parser.error("--rerank is not part of the frozen --select / --final-heldout / "
+                     "--compare protocols")  # fmt: skip
     if args.command == "evaluate" and args.final_heldout:
         if args.mode or args.compare or args.select or args.dataset != DEFAULT_DATASET:
             parser.error("--final-heldout runs the frozen protocol; it takes no other options")
@@ -1248,7 +1299,8 @@ def main(argv: list[str] | None = None) -> int:
             entity_terms=tuple(args.entity),
         )
         return _search(settings, args.query, top_k=args.top_k, filters=filters,
-                       expand=args.expand, mode=args.mode or settings.RETRIEVAL_MODE)  # fmt: skip
+                       expand=args.expand, mode=args.mode or settings.RETRIEVAL_MODE,
+                       rerank=rerank)  # fmt: skip
     return commands[args.command]()
 
 

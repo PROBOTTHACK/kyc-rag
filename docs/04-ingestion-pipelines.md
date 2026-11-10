@@ -191,5 +191,26 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
 - **Selection harness:** `evaluate --select` / `make eval-select` evaluates the seven registered configurations on the development set and applies the pre-registered rule (`app/retrieval/selection.py`, docs/10).
 - **Measured on the development set:** see docs/10 (A2 comparison).
 
+**Optional cross-encoder reranking (M2 B1; `app/retrieval/rerank.py`, `Retriever.retrieve(..., rerank=True)`; disabled by default):**
+- **Model:** `cross-encoder/ms-marco-MiniLM-L6-v2`, pinned at commit `233902d25c440f23af6f7d6e94d2946bac0bee0a`.
+  - `cross-encoder/ms-marco-MiniLM-L-6-v2` redirects to the same repository.
+  - Apache-2.0, 22.7M parameters, CPU, `max_length` 512, ~88 MB download. No new Python package.
+  - Settings: `RERANK_ENABLED=false`, `RERANK_MODEL`, `RERANK_MODEL_REVISION`, `RERANK_CANDIDATES=20`.
+- **Pipeline:**
+  1. The selected mode (dense by default) returns `RERANK_CANDIDATES` (20) hits through the normal filtered retrieval.
+  2. The cross-encoder scores each (query, chunk text) pair. The text is the retrieved chunk's `embedding_input` (child `context` + `content`), never the parent.
+  3. The hits are reordered and the top-k (5) kept.
+- **Only reorders:** no candidate is added, dropped or edited, so filters and eligibility hold by construction. Payloads, citations and page references are passed through unchanged, and parent expansion (`--expand`) runs afterwards as before.
+- **Scores:**
+  - when reranked, `SearchHit.score` is the **raw cross-encoder score** (`score_kind=cross_encoder`; the activation is fixed to identity, so these are raw logits);
+  - they are **uncalibrated, never a confidence or probability, never thresholded, and never an evidence-quality signal**; they only order the candidates;
+  - provenance keeps the original retrieval rank and score (`pre_rerank_rank`, `pre_rerank_score`, and the dense/BM25/fused fields) separately from `rerank_score`.
+- **Loading:** the model loads lazily, on the first rerank. It is never loaded while reranking is off.
+- **Failures:** a load or inference failure keeps the original retrieval order, labelled `degraded=("rerank",)` with the error. The CLI prints `DEGRADED: reranking failed (...)` and exits 0. Evaluations refuse degraded runs.
+- **Latency:** `timings_ms` reports `retrieval_ms`, `rerank_ms` and `rerank_load_ms` (first use) separately.
+- **CLI:** `search` / `evaluate --rerank|--no-rerank` (default `RERANK_ENABLED`). The frozen `--select`, `--final-heldout` and `--compare` protocols refuse `--rerank`.
+- **Default unchanged:** with the flag off, the code path is unchanged (`make check-dense-golden`).
+- **Usefulness:** not yet measured. The single B2 diagnostic is a separate, approved step.
+
 ## Milestone-1 minimal slice
 Accept PDFs -> extract w/ page refs -> embed -> index in Qdrant -> query returns top-5 passages with citations. Measure Recall@5 on a small hand-labeled set. **Done (M1 Stage F):** `make ingest`, `make search`, `make eval` (Recall@5 0.825 on 20 queries; docs/10).

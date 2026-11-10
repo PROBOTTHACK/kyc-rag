@@ -65,6 +65,7 @@ flowchart LR
 | `app/retrieval/{embeddings,qdrant_store,indexing,search}.py` | Stage D: BGE, Qdrant with bounded backoff, idempotent indexing, filtered dense search |
 | `app/retrieval/{reconcile,evaluation}.py` | Postgres ↔ Qdrant reconciliation; Recall@k benchmark (any retriever, with latency) |
 | `app/retrieval/keyword.py` | M2 A1: BM25 keyword index built in-process from Postgres rows, filter-before-scoring, version-checked freshness (A2: `xmin`) |
+| `app/retrieval/rerank.py` | M2 B1: optional cross-encoder reranking (MiniLM, pinned, CPU, lazy; off by default); raw scores for ordering only |
 | `app/retrieval/{fusion,retrieve}.py` | M2 A2: RRF fusion; `dense` / `bm25` / `hybrid` modes with provenance, score kinds and degraded results |
 | `app/ingestion/{pipeline,cli}.py` | Stage F: per-document orchestration (full / persist / index), dry run, retry, CLI |
 

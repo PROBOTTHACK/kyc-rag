@@ -75,6 +75,13 @@ class Settings(BaseSettings):
     # Lucene English stopword list (removes "no"/"not"; docs/04). C6: True. Also applies to
     # `--mode bm25` (C2 rather than C1); set False for the plain tokenizer.
     BM25_STOPWORDS: bool = True
+    # Optional cross-encoder reranking (M2 B1; docs/04). Off by default: dense stays the
+    # default path. Scores are raw and uncalibrated (ordering only, never a confidence).
+    RERANK_ENABLED: bool = False
+    RERANK_MODEL: str = "cross-encoder/ms-marco-MiniLM-L6-v2"
+    # Hugging Face commit to load; None = latest. Pinned in .env.example for reproducibility.
+    RERANK_MODEL_REVISION: str | None = None
+    RERANK_CANDIDATES: int = Field(default=20, ge=1, le=100)  # retrieved, then reranked
     # --- Tracing ---
     LANGSMITH_TRACING: bool = False
     LANGSMITH_API_KEY: SecretStr | None = None
@@ -98,6 +105,7 @@ class Settings(BaseSettings):
         "MULTIMODAL_MODEL",
         "NLI_MODEL",
         "EMBEDDING_MODEL_REVISION",
+        "RERANK_MODEL_REVISION",
         "TESSERACT_CMD",
         "TESSDATA_DIR",
         "OCR_CACHE_DIR",

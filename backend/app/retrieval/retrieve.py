@@ -23,11 +23,25 @@ Score semantics (never mix them up downstream; `RetrievalResult.score_kind` says
   chunk) and, for fused results, the fused score.
 
 An empty query is an input error (`ValueError`), never a degradation.
+
+Optional reranking (M2 B1; `retrieve(..., rerank=True)`, default off): the selected mode
+first returns `rerank_candidates` (20) hits exactly as above; a cross-encoder
+(`app/retrieval/rerank.py`) then reorders them and the top-k are kept.
+- `SearchHit.score` becomes the RAW cross-encoder score (`score_kind == cross_encoder`):
+  uncalibrated, never a confidence, never thresholded. Payloads and citations are the
+  retrieval's own, unchanged.
+- Provenance keeps the original retrieval rank and score (`pre_rerank_rank`,
+  `pre_rerank_score`, plus the dense / BM25 / fused fields) separately from
+  `rerank_score`.
+- A reranker load or inference failure keeps the original retrieval order (top-k) and is
+  labelled: `"rerank"` in `degraded`, the error in `failures`.
+- `timings_ms` reports `retrieval_ms` and `rerank_ms` separately (`rerank_load_ms` on the
+  call that loads the model).
 """
 
 import time
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from typing import Any
 
@@ -35,9 +49,11 @@ from app.retrieval.embeddings import Embedder
 from app.retrieval.fusion import DEFAULT_RRF_K, rrf_fuse
 from app.retrieval.keyword import KeywordIndexManager, payload_without_index
 from app.retrieval.qdrant_store import ChunkStore
+from app.retrieval.rerank import Reranker, RerankError, rerank
 from app.retrieval.search import DEFAULT_TOP_K, SearchFilters, SearchHit, search
 
 DEFAULT_CANDIDATES = 50  # per retriever, before fusion (M2_PLAN section 6; not tuned)
+DEFAULT_RERANK_CANDIDATES = 20  # retrieved before reranking (M2_REMAINING_PLAN B1)
 
 
 class RetrievalMode(StrEnum):
@@ -50,6 +66,7 @@ class ScoreKind(StrEnum):
     DENSE = "dense_cosine"
     BM25 = "bm25"
     RRF = "rrf"
+    CROSS_ENCODER = "cross_encoder"  # raw, uncalibrated reranker score
 
 
 @dataclass(frozen=True)
@@ -59,6 +76,11 @@ class HitProvenance:
     bm25_rank: int | None = None
     bm25_score: float | None = None
     fused_score: float | None = None
+    # Reranked results only: the retrieval rank/score before reranking, and the raw
+    # cross-encoder score (uncalibrated; ordering only, never a confidence).
+    pre_rerank_rank: int | None = None
+    pre_rerank_score: float | None = None
+    rerank_score: float | None = None
 
     @property
     def retrievers(self) -> tuple[str, ...]:
@@ -68,7 +90,7 @@ class HitProvenance:
 
 @dataclass(frozen=True)
 class RetrieverFailure:
-    retriever: str  # "dense" | "bm25"
+    retriever: str  # "dense" | "bm25" | "rerank"
     error: str
 
 
@@ -85,10 +107,11 @@ class RetrievalResult:
     mode: RetrievalMode
     hits: list[SearchHit]
     provenance: dict[str, HitProvenance]
-    degraded: tuple[str, ...] = ()  # retrievers that failed (hybrid mode only)
+    degraded: tuple[str, ...] = ()  # failed components: "dense"/"bm25" (hybrid), "rerank"
     failures: tuple[RetrieverFailure, ...] = ()
     timings_ms: dict[str, float] = field(default_factory=dict)
     dropped: tuple[str, ...] = ()  # dense chunk ids with no Postgres row (not cited)
+    reranked: bool = False  # True when hits are ordered by the cross-encoder
 
     @property
     def is_degraded(self) -> bool:
@@ -96,9 +119,12 @@ class RetrievalResult:
 
     @property
     def score_kind(self) -> ScoreKind:
-        if self.mode is RetrievalMode.DENSE or self.degraded == ("bm25",):
+        if self.reranked:
+            return ScoreKind.CROSS_ENCODER
+        retrieval = tuple(d for d in self.degraded if d != "rerank")
+        if self.mode is RetrievalMode.DENSE or retrieval == ("bm25",):
             return ScoreKind.DENSE
-        if self.mode is RetrievalMode.BM25 or self.degraded == ("dense",):
+        if self.mode is RetrievalMode.BM25 or retrieval == ("dense",):
             return ScoreKind.BM25
         return ScoreKind.RRF
 
@@ -143,8 +169,10 @@ class Retriever:
         keyword: Callable[[], KeywordIndexManager],
         rrf_k: int = DEFAULT_RRF_K,
         candidates: int = DEFAULT_CANDIDATES,
+        reranker: Callable[[], Reranker] | None = None,
+        rerank_candidates: int = DEFAULT_RERANK_CANDIDATES,
     ) -> None:
-        if candidates < 1:
+        if candidates < 1 or rerank_candidates < 1:
             raise ValueError("candidates must be >= 1")
         self._embedder_factory, self._store_factory = embedder, store
         self._keyword_factory = keyword
@@ -153,6 +181,9 @@ class Retriever:
         self._keyword: KeywordIndexManager | None = None
         self.rrf_k = rrf_k
         self.candidates = candidates
+        self._reranker_factory = reranker  # called only when reranking is requested
+        self._reranker: Reranker | None = None
+        self.rerank_candidates = rerank_candidates
 
     # --- the two retrievers --------------------------------------------------------------
 
@@ -201,11 +232,14 @@ class Retriever:
         mode: RetrievalMode | str,
         top_k: int = DEFAULT_TOP_K,
         filters: SearchFilters | None = None,
+        rerank: bool = False,
     ) -> RetrievalResult:
         mode = RetrievalMode(mode)
         if not query.strip():
             raise ValueError("query is empty")
         flt = filters or SearchFilters()
+        if rerank:
+            return self._reranked(query, mode, top_k, flt)
         t: dict[str, float] = {}
         started = time.perf_counter()
         try:
@@ -298,3 +332,51 @@ class Retriever:
             )
         t["fusion_ms"] = (time.perf_counter() - fusing) * 1000
         return RetrievalResult(mode, hits, provenance, timings_ms=t, dropped=dropped)
+
+    # --- optional reranking --------------------------------------------------------------
+
+    def _reranked(
+        self, query: str, mode: RetrievalMode, top_k: int, flt: SearchFilters
+    ) -> RetrievalResult:
+        started = time.perf_counter()
+        # Retrieval failures behave exactly as without reranking (error or labelled
+        # degradation of the base mode); only the reranking step can add "rerank".
+        base = self.retrieve(query, mode=mode, top_k=max(top_k, self.rerank_candidates),
+                             filters=flt)  # fmt: skip
+        t = {k: v for k, v in base.timings_ms.items() if k != "total_ms"}
+        t["retrieval_ms"] = base.timings_ms.get("total_ms", 0.0)
+        ranking = time.perf_counter()
+        load_ms = 0.0
+        try:
+            if self._reranker is None:
+                if self._reranker_factory is None:
+                    raise RerankError("reranking requested but no reranker is configured")
+                self._reranker = self._reranker_factory()
+            was_loaded = bool(getattr(self._reranker, "loaded", True))
+            pairs = rerank(query, base.hits, self._reranker, top_k)
+            if not was_loaded:
+                load_ms = float(getattr(self._reranker, "load_ms", 0.0))
+        except Exception as exc:
+            t["rerank_ms"] = (time.perf_counter() - ranking) * 1000
+            t["total_ms"] = (time.perf_counter() - started) * 1000
+            hits = base.hits[:top_k]  # the original retrieval order, labelled degraded
+            return RetrievalResult(
+                base.mode, hits, {h.chunk_id: base.provenance[h.chunk_id] for h in hits},
+                base.degraded + ("rerank",),
+                base.failures + (RetrieverFailure("rerank", _describe(exc)),), t, base.dropped,
+            )  # fmt: skip
+        if load_ms:
+            t["rerank_load_ms"] = load_ms
+        t["rerank_ms"] = (time.perf_counter() - ranking) * 1000 - load_ms
+        provenance = {
+            new.chunk_id: replace(
+                base.provenance[old.chunk_id],
+                pre_rerank_rank=old.rank,
+                pre_rerank_score=old.score,
+                rerank_score=new.score,
+            )
+            for new, old in pairs
+        }
+        t["total_ms"] = (time.perf_counter() - started) * 1000
+        return RetrievalResult(base.mode, [new for new, _ in pairs], provenance, base.degraded,
+                               base.failures, t, base.dropped, reranked=True)  # fmt: skip
