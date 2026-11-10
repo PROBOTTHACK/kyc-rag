@@ -1,6 +1,14 @@
 # M2 Remaining Plan: Reranker Flag → Form Schemas → Evidence Workflow → Handoff
 
-> Status: **approved in principle by the project owner (2026-11-10), with the clarifications below incorporated.** Implementation waits for review of this document.
+> Status: **COMPLETE (2026-11-11), superseded in two places by later owner decisions.** M2 now follows the roadmap (`docs/12-claude-code-playbook.md`).
+>
+> **1. C3 removed from M2.** The evidence-pack workflow (C3) is not an M2 roadmap item. Its retrieval-plus-forms role belongs to M3's retrieval and form nodes. It was never built.
+>
+> **2. Gemini and Redis delivered.** The deferred Gemini path and Redis cache were un-deferred and built as G1–G4, per the roadmap's "Pipeline B with MultimodalProvider (Gemini) … Redis cache".
+>
+> **Final order:** B1 → B2 → C1 → C2 (+0004) → G1 → G2 → G3 (+ backoff/fallback, RECITATION→OCR, extractor v2) → G4 → D.
+>
+> Final status, evidence and limitations: `docs/milestones/M2_HANDOFF.md`. The sections below are kept as the historical plan.
 
 ## Context
 Retrieval research (M2 A1–A3 and the held-out review) is complete. **Dense is the operational default** and C6 is an optional experimental mode (`5855be4`, `docs/milestones/M2_RETRIEVAL_OPERATIONAL_DECISION.md`).
@@ -123,7 +131,7 @@ This document replaces the earlier, larger M2 B draft, which was never committed
   - Make target `forms`.
 - **Tests:** migration up/down/up on a throwaway database, idempotent re-extraction, and a version bump producing a new row. `make check-schema` stays clean.
 
-### C3: Integrated evidence workflow (no LLM)
+### C3: Integrated evidence workflow (no LLM): **REMOVED FROM M2 (2026-11-11); not built.** Not in the roadmap; its role moves to M3's retrieval and form nodes.
 - **`app/evidence.py`, `build_evidence_pack(query, *, entity_terms, residency=None, mode, rerank, top_k=5)`:**
   - **Retrieval:** existing filtered retrieval (`Retriever`), then parent expansion (`evidence_context`).
   - **Mandatory-capable evidence:** comes **only** from chunks with `can_support_mandatory=True`, that is, primary, active RBI regulatory text that is not uncertain OCR. Supporting evidence (HDFC policy, forms, FAQs) is listed separately and labelled as such.
@@ -147,8 +155,8 @@ This document replaces the earlier, larger M2 B draft, which was never committed
 - **B1** needs the one approved model download (MiniLM).
 - **C2** needs an Alembic migration.
 - **No new Python packages.**
-- **Order:** B1 → B2 → C1 → C2 → C3 → D. C3 depends on C2 and may use B1's flag.
-- **Gemini** is deferred. It is not a blocker: deterministic extraction works without it.
+- **Order (as delivered):** B1 → B2 → C1 → C2 → G1–G4 → D. C3 was removed.
+- **Gemini** (superseded): delivered in G1–G3 with `google-genai==2.33.0`, the only new package, owner-approved.
 
 ## Risks
 - **Extraction quality:** noisy merged labels, and no field structure for the scanned forms. Both are flagged, not tuned.
@@ -157,7 +165,7 @@ This document replaces the earlier, larger M2 B draft, which was never committed
 
 ## Verification at the end of D
 1. `make up migrate check-schema ingest forms`
-2. `make kyc Q="documents needed to open a trust account" ENTITY=TRUST`
+2. ~~`make kyc …`~~ (C3 removed); instead `forms versions`, `forms show` (Redis cache), and the Gemini path with the scripted provider in the tests
 3. `make search Q=… ` with `--rerank`
 4. `make test`, `make test-integration`, `make lint`, `make check-dense-golden`, `make reconcile`
 

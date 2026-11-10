@@ -44,6 +44,7 @@ search (one retriever failed) is a valid, labelled result: exit 0 + a DEGRADED b
 
 import argparse
 import asyncio
+import json
 import sys
 import time
 from collections.abc import Callable
@@ -133,7 +134,7 @@ from app.retrieval.selection import (
     selection_record,
 )
 from app.schemas.corpus import DocumentMetadata
-from app.schemas.forms import EXTRACTION_METHOD, MULTIMODAL_METHOD
+from app.schemas.forms import EXTRACTION_METHOD, MULTIMODAL_METHOD, FormSchema
 
 MAX_LISTED = 10  # issue ids printed per category
 DEFAULT_DATASET = Path("data/eval/m1_retrieval.jsonl")
@@ -1423,7 +1424,7 @@ def _forms_show(
         print(f"no stored {method} form schema for {key!r}; run `forms extract --document {key}`")
         return 2
     if as_json:
-        print(schema.model_dump_json(indent=2))
+        print(schema_json_text(schema))
         return 0
     print(f"{schema.form_key}: {schema.title}")
     if cache is not None:
@@ -1575,7 +1576,24 @@ def build_parser(settings: Settings) -> argparse.ArgumentParser:
     return parser
 
 
+def safe_console() -> None:
+    """Presentation only: never crash on characters the console cannot encode (e.g. "₹"
+    on a Windows cp1252 console). Unencodable characters print as "?"; stored data and
+    `--json` output are unaffected (JSON is ASCII-escaped, so it stays lossless)."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(errors="replace")
+
+
+def schema_json_text(schema: FormSchema) -> str:
+    """`forms show --json`: every non-ASCII character as a JSON unicode escape, so any console
+    prints it exactly and `json.loads` restores the original Unicode."""
+    return json.dumps(schema.model_dump(mode="json"), indent=2, ensure_ascii=True)
+
+
 def main(argv: list[str] | None = None) -> int:
+    safe_console()
     settings = get_settings()
     parser = build_parser(settings)
     args = parser.parse_args(argv)

@@ -154,7 +154,14 @@ M2 retrieval choices follow `docs/milestones/M2_PLAN.md` §6.
   - **Single annotator:** all held-out labels were drafted by the implementing assistant and reviewed by the project owner. There was no independent annotation or inter-annotator validation, and no such claim is made.
   - **Resolution:** with 20 queries, one query moves mean Recall@5 by about 0.05, so confidence intervals are wide and "no measurable difference" is a valid outcome.
 
-## Metrics
+## M2 outcome (close-out, 2026-11-11)
+- **Retrieval decision:**
+  - **What ships:** dense BGE-small stays the operational default. BM25 and hybrid (RRF) are implemented and selectable (`--mode bm25|hybrid`).
+  - **Why:** on the frozen held-out set the dev-selected hybrid C6 did not beat dense by the pre-registered margin, and every difference was inside the uncertainty of a 20-query single-annotator set (`docs/milestones/M2_HELDOUT_EVALUATION.md`, `M2_RETRIEVAL_OPERATIONAL_DECISION.md`). This meets the roadmap criterion "hybrid ≥ dense baseline (or documented why not)" by the second branch.
+- **Reranker:** an optional MiniLM cross-encoder (`--rerank`), off by default. One diagnostic on the reused dev set only (above); it is not a validation.
+- **Form extraction:** the roadmap's "form-extraction accuracy" metric is **not** measured. There is no labelled field set. What is reported is per-form corroboration of model labels against the stored M1 page text (docs/04 live tables). That shows a label appears on the form; it does not show correctness or completeness.
+- **Regression gates:** `make check-dense-golden` stays green for every M2 change; the M1 dense results are unchanged.
+
 Retrieval **Recall@5**, **citation precision**, **unsupported-claim rate**, claim-verification precision/recall, evidence coverage, false-rejection rate, entity-classification accuracy, form-extraction accuracy, **security attack success rate**, end-to-end latency, token usage.
 
 ## Ablations

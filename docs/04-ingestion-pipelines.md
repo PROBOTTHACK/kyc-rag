@@ -140,6 +140,7 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
   - `forms show KEY --method m1_chunks|gemini_multimodal`: the default and every existing caller use `m1_chunks`; the methods are never mixed.
   - `forms list` shows the method.
   - `forms show` reads through the Redis form-schema cache (G4; docs/02) and prints `cache: hit|miss|bypassed`. The result is always the Postgres row.
+  - **Console safety (M2 D):** the CLI replaces characters the console cannot encode instead of crashing (e.g. `₹` prints as `?` on a Windows cp1252 console). `forms show --json` is ASCII-escaped (`₹`), so it stays lossless. Stored data is never altered.
 - **Live runs (2026-11-10; five approved forms, 19 pages; gates and fallback enabled for those processes only, `.env` unchanged):**
   - **Run 1 (old policy: 3 attempts, no fallback):** failed. Four forms got `503 UNAVAILABLE` and one got `429 RESOURCE_EXHAUSTED`, 15 attempts in all, and nothing was stored.
   - **Rerun (5 attempts per model, 2→4→8→16 s, fallback `gemini-3.5-flash-lite`):** results in the table below. 3 of 5 forms were stored, 412 fields in total, and the rerun of the stored form made **zero provider calls**. AI Studio's per-project limits could not be checked from this environment, so the 10 RPM limiter was kept.
