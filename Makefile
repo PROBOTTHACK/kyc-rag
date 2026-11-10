@@ -25,7 +25,7 @@ DOCS = $(foreach d,$(DOC),--document $(d))
 
 .DEFAULT_GOAL := help
 .PHONY: help venv install install-locked lock up down migrate check-schema ingest ingest-dry
-.PHONY: persist index retry reconcile repair runs search check-corpus eval eval-compare eval-select check-dense-golden
+.PHONY: persist index retry reconcile repair runs search check-corpus eval eval-compare eval-select eval-heldout check-dense-golden
 .PHONY: api test test-integration lint fmt web
 
 # Printed by make itself ($(info)), so it needs no shell and looks the same everywhere.
@@ -145,6 +145,11 @@ eval-compare:
 # Writes the decision record committed before the one-time held-out evaluation (docs/10).
 eval-select:
 	$(CLI) evaluate --select --report data/processed/m2_a3_selection_report.md --record data/eval/m2_a3_selection.json
+
+# ONE-TIME held-out evaluation of C0 + the A3-selected configuration (docs/10). Refuses
+# to run again once data/eval/m2_heldout_results.json exists.
+eval-heldout:
+	$(CLI) evaluate --final-heldout --report data/processed/m2_heldout_report.md --record data/eval/m2_heldout_results.json
 
 # M1 dense golden regression: real model + dev collection; fails (never skips) if missing.
 check-dense-golden:

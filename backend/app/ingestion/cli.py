@@ -21,6 +21,8 @@ Retrieval:
            [--compare]   (--mode defaults to RETRIEVAL_MODE, i.e. dense)
   evaluate --select [--report PATH] [--record PATH]   M2 A3 selection: the 7 registered
            configurations on the development set only; applies the pre-registered rule
+  evaluate --final-heldout [--report PATH] [--record PATH]   the ONE-TIME held-out run of
+           C0 and the A3-selected configuration (refuses to run twice; docs/10)
            Recall@k benchmark (the frozen held-out set is refused; docs/10)
 Checks:
   validate-manifest [--manifest PATH] [--corpus-dir PATH]
@@ -71,6 +73,15 @@ from app.retrieval.evaluation import (
     render_comparison,
     render_markdown,
 )
+from app.retrieval.heldout import (
+    FROZEN_HELDOUT_SHA256,
+    HeldoutProtocolError,
+    configurations,
+    normalized_sha256,
+    render_report,
+    results_record,
+    run_once,
+)
 from app.retrieval.indexing import find_orphans, index_document, prune_orphans
 from app.retrieval.keyword import TOKENIZER_VERSION, KeywordIndexManager, KeywordIndexUnavailable
 from app.retrieval.qdrant_store import ChunkStore, store_from_settings
@@ -94,6 +105,8 @@ MODES = tuple(m.value for m in RetrievalMode)
 # The frozen M2 held-out set is used only to report an already-selected configuration
 # (docs/10, M2_PLAN section 6); `evaluate` refuses it until that explicit final run.
 HELDOUT_DATASET_NAME = "m2_heldout.jsonl"
+HELDOUT_DATASET = Path("data/eval/m2_heldout.jsonl")
+A3_DECISION_RECORD = Path("data/eval/m2_a3_selection.json")
 BM25_TIMED_PASSES = 3
 TIMED_PASSES = 3  # evaluation latency: 1 scored warm-up pass + 3 timed passes
 
@@ -983,6 +996,101 @@ def _select(
     return 0
 
 
+def _final_heldout(
+    settings: Settings,
+    *,
+    report_path: Path | None,
+    record_path: Path,
+    dataset: Path = HELDOUT_DATASET,
+    decision: Path = A3_DECISION_RECORD,
+    expected_sha256: str = FROZEN_HELDOUT_SHA256,
+    embedder: Embedder | None = None,
+    store: ChunkStore | None = None,
+    sessions: sessionmaker[Session] | None = None,
+) -> int:
+    """The ONE-TIME held-out evaluation (app/retrieval/heldout.py): C0 and the configuration
+    selected by the committed A3 decision record, one scored pass each. Refuses to run if
+    results already exist, if the decision record is inconsistent, or if the held-out file
+    does not match its frozen hash. A failed run records nothing and is not retried."""
+    import json
+    import subprocess
+    from datetime import UTC, datetime
+
+    from app.config import REPO_ROOT
+
+    def resolve(p: Path) -> Path:
+        return p if p.is_absolute() else REPO_ROOT / p
+
+    out = resolve(record_path)
+    if out.exists():
+        print(f"refused: {out} exists; the held-out evaluation is one-time (docs/10)")
+        return 2
+    try:
+        record = json.loads(resolve(decision).read_text(encoding="utf-8"))
+        configs = configurations(record)
+    except (OSError, ValueError, KeyError, HeldoutProtocolError) as exc:
+        print(f"refused: decision record unusable: {type(exc).__name__}: {exc}")
+        return 2
+    path = resolve(dataset)
+    sha = normalized_sha256(path)
+    if sha != expected_sha256:
+        print(f"refused: {path.name} SHA-256 {sha} does not match the frozen {expected_sha256}")
+        return 2
+    cases = load_cases(path)
+    sessions = sessions or _sessions(settings)
+    managers = {flag: KeywordIndexManager(sessions, stopwords=flag) for flag in (False, True)}
+    model = embedder or embedder_from_settings(settings)
+    chunk_store = store or store_from_settings(settings)
+    # Warm the services WITHOUT any held-out query, so the single timed pass measures
+    # retrieval rather than model loading or the first index build.
+    _ = model.dimension
+    model.embed_query("warm-up query for model initialisation")
+    for flag in {bool(c.stopwords) for c in configs}:
+        managers[flag].get()
+
+    def runner(c: Candidate) -> Callable[[str, SearchFilters, int], RetrievalResult]:
+        r = Retriever(
+            embedder=lambda: model,
+            store=lambda: chunk_store,
+            keyword=lambda: managers[bool(c.stopwords)],
+            rrf_k=c.rrf_k or settings.RRF_K,
+            candidates=settings.RETRIEVAL_CANDIDATES,
+        )
+
+        def run(q: str, f: SearchFilters, k: int) -> RetrievalResult:
+            return r.retrieve(q, mode=c.mode, top_k=k, filters=f)
+
+        return run
+
+    rel = path.relative_to(REPO_ROOT).as_posix() if path.is_relative_to(REPO_ROOT) else str(path)
+    try:
+        runs = run_once(cases, {c: runner(c) for c in configs}, k=DEFAULT_K, dataset=rel)
+    except (DegradedRunError, RetrievalError, HeldoutProtocolError) as exc:
+        print(f"held-out run FAILED ({type(exc).__name__}: {exc}); nothing recorded. "
+              "Do not re-run without the project owner's decision.")  # fmt: skip
+        return 2
+    created = datetime.now(UTC).isoformat(timespec="seconds")
+    try:
+        commit = subprocess.run(  # noqa: S603
+            ["git", "rev-parse", "HEAD"],  # noqa: S607
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=10,
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        commit = "unknown"
+    text = render_report(runs, record=record, dataset=rel, sha256=sha, created_at=created)
+    _emit(text, report_path, REPO_ROOT)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    result = results_record(runs, record=record, dataset=rel, sha256=sha, code_commit=commit,
+                            created_at=created)  # fmt: skip
+    out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    print(f"held-out results record written to {out}")
+    return 0
+
+
 def _emit(text: str, report_path: Path | None, root: Path) -> int:
     print(text)
     if report_path is not None:
@@ -1080,6 +1188,8 @@ def build_parser(settings: Settings) -> argparse.ArgumentParser:
     ev.add_argument("--select", action="store_true",
                     help="M2 A3: registered configurations on the dev set")  # fmt: skip
     ev.add_argument("--record", type=Path, help="with --select: write the decision record here")
+    ev.add_argument("--final-heldout", action="store_true",
+                    help="ONE-TIME held-out run: C0 + the A3 selection")  # fmt: skip
     return parser
 
 
@@ -1110,6 +1220,12 @@ def main(argv: list[str] | None = None) -> int:
                                   dry_run=args.dry_run)  # fmt: skip
         return _index(settings, args.document, dry_run=args.dry_run, force=args.force,
                       prune=args.prune)  # fmt: skip
+    if args.command == "evaluate" and args.final_heldout:
+        if args.mode or args.compare or args.select or args.dataset != DEFAULT_DATASET:
+            parser.error("--final-heldout runs the frozen protocol; it takes no other options")
+        if args.record is None:
+            parser.error("--final-heldout requires --record")
+        return _final_heldout(settings, report_path=args.report, record_path=args.record)
     if args.command == "evaluate" and args.select:
         if args.mode or args.compare or args.dataset != DEFAULT_DATASET:
             parser.error("--select uses the registered configurations on the development set; "
