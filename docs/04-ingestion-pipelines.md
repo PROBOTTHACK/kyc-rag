@@ -88,7 +88,7 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
   - M1 sometimes merges option groups into one label ("*Gender Married Unmarried …") and lists form furniture as labels ("Page 1 of 6", "DDMMYYYY"). These are kept as printed, never filtered by guesswork.
   - No checkbox, signature or layout understanding in the deterministic path; that is the multimodal path below.
 
-**Multimodal form path (M2 Pipeline B, in progress; G1 = contract only, no live calls yet):**
+**Multimodal form path (M2 Pipeline B, in progress; G1 contract + G2 provider, no live calls yet):**
 - `app/llm/multimodal.py`: the provider-agnostic `MultimodalProvider` contract (`PageImage`, `MultimodalRequest`, `MultimodalResult`, `ProviderUnavailable/RateLimited/Refused/Timeout`), plus `parse_structured`, which validates model text against a Pydantic schema. `app/llm/fake.py` is a scripted provider for tests.
 - `app/forms/render.py`: re-hashes the PDF and refuses it if the hash differs, then renders the pages to PNG (150 dpi), recording each image's SHA-256.
 - `app/forms/approval.py` + tracked `data/raw_pdfs/forms_approved.yaml`. A document may be sent to an external model only if it is:
@@ -99,6 +99,11 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
 
   The five HDFC forms are listed and **all are blocked until the owner approves them**. The NetBanking reference is not a form, so it is never sent.
 - **Output schema:** `FormExtraction` (`app/schemas/forms.py`) is deliberately small: sections, and fields with printed label, `field_type`, options and page. It has no `mandatory_under_policy` and no applicability. `extraction_errors` rejects pages that were not sent, blank labels and duplicates.
+- **Provider (G2):** `app/llm/gemini.py` `GeminiProvider` implements the contract.
+  - **Request:** the page PNGs plus the task instruction; a fixed system instruction (images are untrusted data; extraction only; no legal, mandatory or applicability judgments); JSON output constrained by `FormExtraction`'s JSON schema at temperature 0.
+  - **Validation:** every response is validated again with Pydantic. Invalid or truncated output comes back as `parsed=None` with the errors. A refusal or block raises `ProviderRefused`.
+  - **Limits:** 60 s timeout per attempt, at most 2 retries with bounded backoff on 429/5xx/timeouts/transport errors (the SDK's own retries are disabled), and an in-process RPM limiter.
+  - **Off by default:** live calls are gated (docs/02).
 - **Stored schema:** results are stored as a `FormSchema` with `extraction_method="gemini_multimodal"`. The extension keys `field_type`, `options` and `provenance` are omitted when unset, so the stored `m1_chunks` hashes are unchanged.
 
 **Embeddings and Qdrant indexing (implemented, M1 Stage D; `app/retrieval/{embeddings,qdrant_store,indexing,search}.py`):**

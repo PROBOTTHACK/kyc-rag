@@ -26,6 +26,21 @@
 - Other new M1 dependencies: sentence-transformers (Apache-2.0), torch (Apache-2.0 + BSD components per its metadata; CPU build on Windows), PyYAML (MIT), onnxruntime (MIT; pulled in by pymupdf 2.1). Tesseract (Apache-2.0) is a system binary, not a Python dependency.
 - M2 A1: `rank_bm25==0.2.2` (Apache-2.0: verified from the bundled LICENSE file, whose metadata field reads "Apache2.0"). It is pure Python, its only runtime dependency is numpy (already locked), and its last release was in 2022. It is used only behind `app/retrieval/keyword.py`, so a small in-house BM25Okapi could replace it if needed.
 
+- M2 G2: `google-genai==2.33.0` (Apache-2.0, from the PyPI `License-Expression`; released 2026-10-23, Python ≥ 3.11). This is the newest release at least two weeks old on 2026-11-10. 2.34.0 (2026-10-29) and the new major 3.0.0 (2026-11-06, which switches to an `httpx2` dependency) were too recent. It is imported only inside `app/llm/gemini.py`, and lazily, so the app imports without it being loaded.
+
+## Gemini API verification (2026-11-10, before any live call)
+Sources read on 2026-11-10. The `ai.google.dev` URLs now redirect permanently to `aistudio.google.com/docs/...`.
+- **Model ID:** `gemini-3.8-flash` is listed as the stable ID ("Stable: `gemini-3.8-flash`"; the model page says "Latest update: September 2026"; the What's-new page says it is GA).
+  - Inputs: text, image, video, audio, PDF. Output: text.
+  - Limits: 1,048,576 input tokens, 65,536 output tokens.
+  - Structured outputs are supported.
+  - Sources: https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash, https://ai.google.dev/gemini-api/docs/whats-new-gemini-3.8.
+- **Pricing tier:** Gemini 3.8 Flash has a free tier (input and output "Free of charge"). The "Used to improve our products" row reads **Yes for the free tier, No for the paid tier**. Source: https://ai.google.dev/gemini-api/docs/pricing.
+- **Data use (terms effective March 23, 2026):** for Unpaid Services, Google uses submitted content and responses "to provide, improve, and develop Google products and services and machine learning technologies", and "human reviewers may read, annotate, and process your API input and output". The terms also say: "Do not submit sensitive, confidential, or personal information to the Unpaid Services." Source: https://ai.google.dev/gemini-api/terms.
+- **Rate limits:** applied per project, not per API key. RPD resets at midnight Pacific time. The page publishes **no numeric free-tier RPM/TPM/RPD** for this model; the actual values are shown only in AI Studio. The in-process limiter therefore keeps the conservative configured `RATE_LIMIT_GEMINI_RPM=10`; check the project's real limit in AI Studio before relying on more. Source: https://ai.google.dev/gemini-api/docs/rate-limits.
+- **Suitability decision:** the free tier is acceptable **only** for the five approved public blank HDFC forms (`data/raw_pdfs/forms_approved.yaml`). These contain no personal or confidential data, and they may be used for product improvement and human review. Nothing else may be sent: no customer documents, filled forms, ID images or PII. Sending such data would need the paid tier and a separate decision.
+- **Enforcement in code:** live calls stay off unless `GEMINI_LIVE_ENABLED=true` and `GEMINI_DATA_TERMS_VERIFIED_ON` (this review date) are set, along with the key and the model ID. The provider also enforces a 60 s timeout, at most 2 retries on 429/5xx/timeouts, and the RPM limiter. The key is a `SecretStr` and is never logged, chained into exceptions or stored.
+
 ## Where Postgres is used
 - **LangGraph checkpointer** (replaces SQLite) -> pause/resume for clarification & human review.
 - Sessions, documents, reports, claims, review cases, form schemas, rules, evaluation runs (see `08-data-model.md`).

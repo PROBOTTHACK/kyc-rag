@@ -4,6 +4,7 @@ Precedence (highest first): process env vars, repo-root `.env`, `infra/.env.exam
 The example file supplies non-secret defaults; real keys belong only in `.env`.
 """
 
+import datetime as dt
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -41,6 +42,12 @@ class Settings(BaseSettings):
     PROMPT_GUARD_MODEL: str | None = None
     GEMINI_API_KEY: SecretStr | None = None
     MULTIMODAL_MODEL: str | None = None
+    # Gemini live calls are OFF unless explicitly enabled AND the data-use terms were
+    # verified (date recorded in docs/02). Only approved public blank forms are sent.
+    GEMINI_LIVE_ENABLED: bool = False
+    GEMINI_DATA_TERMS_VERIFIED_ON: dt.date | None = None
+    GEMINI_TIMEOUT_S: float = Field(default=60.0, gt=0, le=60)
+    GEMINI_MAX_RETRIES: int = Field(default=2, ge=0, le=2)
     # --- Local models ---
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     # Hugging Face commit to load; None = latest. Pinned in .env.example for reproducibility.
@@ -103,6 +110,7 @@ class Settings(BaseSettings):
         "FALLBACK_LLM_MODEL",
         "PROMPT_GUARD_MODEL",
         "MULTIMODAL_MODEL",
+        "GEMINI_DATA_TERMS_VERIFIED_ON",
         "NLI_MODEL",
         "EMBEDDING_MODEL_REVISION",
         "RERANK_MODEL_REVISION",
