@@ -23,6 +23,8 @@ from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SerializerFunctionWrapHandler, model_serializer
 
+from app.llm.multimodal import RecitationDiagnostics
+
 EXTRACTOR_VERSION = 1
 EXTRACTION_METHOD: Literal["m1_chunks"] = "m1_chunks"
 MULTIMODAL_METHOD: Literal["gemini_multimodal"] = "gemini_multimodal"
@@ -110,12 +112,53 @@ class ParseIssue(_Frozen):
     detail: str
 
 
+PageOutcomeKind = Literal["extracted", "invalid_output", "recitation_refused"]
+
+
 class PageProvenance(_Frozen):
-    _omit_when_unset = ("model_id",)
+    _omit_when_unset = ("model_id", "outcome")
 
     page_number: int = Field(ge=1)
     png_sha256: str
     model_id: str | None = None  # the model that answered this page (primary or fallback)
+    outcome: PageOutcomeKind | None = None  # unset in rows stored before it existed
+
+
+# --- Local OCR fallback for pages the model refused with RECITATION -------------------
+# Verbatim Tesseract output (M1's OCR, same cache), kept SEPARATE from `sections`: it is
+# never parsed into FormField objects, carries no `mandatory_under_policy`, and always
+# requires human review.
+
+
+class OcrFallbackRegion(_Frozen):
+    label: str  # "full", or "left"/"right" for fold-out halves (never mixed)
+    printed_page: int | None
+    mean_confidence: float  # mean word confidence, 0-100
+    word_count: int = Field(ge=0)
+    from_cache: bool
+
+
+class OcrFallbackLine(_Frozen):
+    region: str
+    text: str  # exactly as Tesseract returned it
+    confidence: float  # mean word confidence of the line, 0-100
+    low_confidence: bool
+
+
+class OcrFallbackPage(_Frozen):
+    page_number: int = Field(ge=1)
+    source: Literal["local_tesseract_ocr"] = "local_tesseract_ocr"
+    reason: Literal["recitation_refused"] = "recitation_refused"
+    verification_status: Literal["unverified_ocr"] = "unverified_ocr"
+    review_status: Literal["requires_human_review"] = "requires_human_review"
+    engine: str  # e.g. "tesseract 5.x"
+    dpi: int
+    psm: int
+    language: str
+    regions: list[OcrFallbackRegion] = Field(default_factory=list)
+    lines: list[OcrFallbackLine] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)  # OCR problems, never hidden
+    recitation: RecitationDiagnostics
 
 
 class ExtractionProvenance(_Frozen):
@@ -135,7 +178,7 @@ class ExtractionProvenance(_Frozen):
 
 
 class FormSchema(_Frozen):
-    _omit_when_unset = ("provenance",)
+    _omit_when_unset = ("provenance", "ocr_fallback")
 
     form_key: str  # = documents.document_key
     document_id: str
@@ -156,6 +199,8 @@ class FormSchema(_Frozen):
     required_as_shown_count: int
     text_block_count: int
     provenance: ExtractionProvenance | None = None  # multimodal only
+    # Pages the model refused (RECITATION): local OCR text for human review, never fields.
+    ocr_fallback: list[OcrFallbackPage] = Field(default_factory=list)
 
 
 # --- Multimodal structured output (what the model returns; validated before use) -------

@@ -32,14 +32,17 @@ from pydantic import SecretStr
 
 from app.config import Settings
 from app.llm.multimodal import (
+    Citation,
     MultimodalProvider,
     MultimodalRequest,
     MultimodalResult,
     ProviderError,
     ProviderRateLimited,
+    ProviderRecitation,
     ProviderRefused,
     ProviderTimeout,
     ProviderUnavailable,
+    RecitationDiagnostics,
     T,
     TokenUsage,
     parse_structured,
@@ -56,6 +59,8 @@ RETRYABLE_STATUS = frozenset({408, 429, 500, 502, 503, 504})
 REFUSAL_REASONS = frozenset(
     {"SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII", "RECITATION", "IMAGE_SAFETY"}
 )
+RECITATION_REASONS = frozenset({"RECITATION", "IMAGE_RECITATION"})
+MAX_FINISH_MESSAGE = 500
 
 SYSTEM_INSTRUCTION = """\
 You extract the visible structure of a BLANK, publicly available bank form from page \
@@ -241,6 +246,9 @@ class GeminiProvider:
             raise ProviderRefused(f"Gemini blocked the prompt: {_enum_name(block)}")
         candidates = getattr(response, "candidates", None) or []
         finish = _enum_name(getattr(candidates[0], "finish_reason", None)) if candidates else None
+        if finish in RECITATION_REASONS:
+            diag = self._recitation(candidates[0], finish)
+            raise ProviderRecitation(f"Gemini stopped generation: {finish}", diag)
         if finish in REFUSAL_REASONS:
             raise ProviderRefused(f"Gemini stopped generation: {finish}")
         raw = getattr(response, "text", None) or ""
@@ -267,6 +275,35 @@ class GeminiProvider:
             usage=usage,
             latency_ms=max(0, round(latency_s * 1000)),
             finish_reason=finish,
+        )
+
+    def _recitation(self, candidate: Any, finish: str) -> RecitationDiagnostics:
+        """Diagnostics of a RECITATION stop; the partial text is hashed, never kept."""
+        content = getattr(candidate, "content", None)
+        parts = getattr(content, "parts", None) or []
+        partial = "".join(str(getattr(p, "text", None) or "") for p in parts)
+        cites = getattr(getattr(candidate, "citation_metadata", None), "citations", None) or []
+        message = getattr(candidate, "finish_message", None)
+        return RecitationDiagnostics(
+            provider=self.name,
+            model_id=self.model_id,
+            finish_reason=finish,
+            finish_message=self._redact(str(message))[:MAX_FINISH_MESSAGE] if message else None,
+            citations=[
+                Citation(
+                    uri=getattr(c, "uri", None),
+                    title=getattr(c, "title", None),
+                    license=getattr(c, "license", None),
+                    publication_date=(
+                        str(c.publication_date) if getattr(c, "publication_date", None) else None
+                    ),
+                    start_index=getattr(c, "start_index", None),
+                    end_index=getattr(c, "end_index", None),
+                )
+                for c in cites
+            ],
+            partial_output_chars=len(partial),
+            partial_output_sha256=text_sha256(partial) if partial else None,
         )
 
     async def _live_generate(

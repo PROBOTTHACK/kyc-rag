@@ -21,7 +21,14 @@ from app.forms.approval import load_approvals
 from app.ingestion import cli
 from app.llm.fake import FakeMultimodalProvider, scripted
 from app.llm.fallback import FallbackMultimodalProvider
-from app.llm.multimodal import ProviderRateLimited, ProviderTimeout
+from app.llm.multimodal import (
+    Citation,
+    ProviderRateLimited,
+    ProviderRecitation,
+    ProviderRefused,
+    ProviderTimeout,
+    RecitationDiagnostics,
+)
 from app.retrieval.qdrant_store import ChunkStore
 from app.schemas.forms import ExtractedField, ExtractedSection, FormExtraction
 
@@ -211,7 +218,7 @@ def test_fallback_model_answers_and_is_recorded_per_page(
         [ex("Customer Name", page=2).model_dump_json()], model_id="fallback-model"
     )
     assert extract(db, [KEY], FallbackMultimodalProvider(primary, fallback)) == 0
-    assert "(fallback pages 1)" in capsys.readouterr().out
+    assert "(fallback pages 1, recitation-refused pages 0" in capsys.readouterr().out
     with db() as s:
         schema = load_form_schema(s, KEY, extraction_method=GEMINI)
     assert schema is not None and schema.provenance is not None
@@ -225,4 +232,84 @@ def test_both_models_exhausted_store_nothing(db: sessionmaker[Session]) -> None:
     primary = scripted(_exhausted())
     fallback = scripted(_exhausted())
     assert extract(db, [KEY], FallbackMultimodalProvider(primary, fallback)) == 1
+    assert rows(db, GEMINI) == []
+
+
+SCANNED = "hdfc_non_individual_account_opening"  # 2 scanned fold-out pages
+
+
+def _recitation(model: str = "fake-multimodal-1") -> ProviderRecitation:
+    return ProviderRecitation(
+        "Gemini stopped generation: RECITATION",
+        RecitationDiagnostics(
+            provider="gemini",
+            model_id=model,
+            finish_reason="RECITATION",
+            citations=[Citation(uri="https://example.org/source", start_index=0, end_index=9)],
+            partial_output_chars=12,
+            partial_output_sha256="a" * 64,
+        ),
+    )
+
+
+def test_all_pages_refused_is_persisted_with_local_ocr_for_review(
+    db: sessionmaker[Session], capsys: pytest.CaptureFixture[str]
+) -> None:
+    m1_before = rows(db, "m1_chunks")
+    fake = scripted(_recitation(), _recitation())
+    assert extract(db, [SCANNED], fake) == 0
+    out = capsys.readouterr().out
+    assert "inserted" in out and "recitation-refused pages 2" in out
+    assert len(fake.calls) == 2  # one request per page, never re-asked
+    with db() as s:
+        schema = load_form_schema(s, SCANNED, extraction_method=GEMINI)
+        row = s.scalar(
+            sa.select(FormSchemaRow).where(
+                FormSchemaRow.form_key == SCANNED, FormSchemaRow.extraction_method == GEMINI
+            )
+        )
+    assert schema is not None and row is not None
+    assert schema.sections == [] and schema.field_count == 0 and row.field_count == 0
+    expected_flags = {
+        "gemini_extraction_refused",
+        "no_field_structure",
+        "partial_extraction",
+        "recitation_refused",
+        "ocr_fallback_requires_review",
+        "scanned_document",
+        "recitation_refused_page_1",
+        "recitation_refused_page_2",
+    }
+    assert expected_flags <= set(schema.flags)
+    assert schema.provenance is not None
+    assert [p.outcome for p in schema.provenance.pages] == ["recitation_refused"] * 2
+    assert [fb.page_number for fb in schema.ocr_fallback] == [1, 2]
+    for fb in schema.ocr_fallback:  # real local Tesseract (M1's cache), verbatim
+        assert fb.source == "local_tesseract_ocr" and fb.review_status == "requires_human_review"
+        assert fb.engine.startswith("tesseract ") and not fb.errors
+        assert {r.label for r in fb.regions} == {"left", "right"}  # fold-out halves apart
+        assert all(r.from_cache for r in fb.regions)  # identical to M1's OCR
+        assert fb.lines and all(0 <= ln.confidence <= 100 for ln in fb.lines)
+        assert fb.recitation.citations[0].uri == "https://example.org/source"
+    assert rows(db, "m1_chunks") == m1_before
+
+    empty = FakeMultimodalProvider([])
+    assert extract(db, [SCANNED], empty) == 0  # stored: no provider call on rerun
+    assert empty.calls == [] and "(stored; no provider call)" in capsys.readouterr().out
+
+
+def test_mixed_refused_and_extracted_pages(db: sessionmaker[Session]) -> None:
+    fake = scripted(_recitation(), ex("Customer Name", page=2))
+    assert extract(db, [KEY], fake) == 0
+    with db() as s:
+        schema = load_form_schema(s, KEY, extraction_method=GEMINI)
+    assert schema is not None and schema.field_count == 1
+    assert [fb.page_number for fb in schema.ocr_fallback] == [1]
+    assert "gemini_extraction_refused" not in schema.flags
+    assert schema.provenance is not None
+    assert [p.outcome for p in schema.provenance.pages] == ["recitation_refused", "extracted"]
+
+
+def test_safety_refusal_still_stores_nothing(db: sessionmaker[Session]) -> None:
+    assert extract(db, [KEY], scripted(ProviderRefused("Gemini stopped generation: SAFETY"))) == 1
     assert rows(db, GEMINI) == []

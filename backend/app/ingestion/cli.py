@@ -65,6 +65,7 @@ from app.db.runs import recent_runs
 from app.db.session import create_sync_engine, create_sync_sessionmaker
 from app.forms.approval import ApprovedForm, NotApproved, load_approvals
 from app.forms.extract import NotAFormError, extractable_document_keys
+from app.forms.ocr_fallback import ocr_fallback_from_settings
 from app.forms.pipeline import (
     GEMINI_EXTRACTOR_VERSION,
     GeminiRun,
@@ -1218,9 +1219,15 @@ def _gemini_line(key: str, run: GeminiRun) -> str:
     fields = [f for sec in run.schema.sections for f in sec.fields]
     corr = sum(f.verification_status == "corroborated" for f in fields)
     primary = run.schema.provenance.model_id if run.schema.provenance else None
-    fallback = sum(p.model_id is not None and p.model_id != primary for p in pages)
+    fallback = sum(
+        p.model_id is not None and p.model_id != primary and p.outcome != "recitation_refused"
+        for p in pages
+    )
+    refused = sum(p.outcome == "recitation_refused" for p in pages)
     return (
-        f"{head}\n      pages ok {ok}/{len(pages)} (fallback pages {fallback}); "
+        f"{head}\n      pages ok {ok}/{len(pages)} (fallback pages {fallback}, "
+        f"recitation-refused pages {refused}, "
+        f"local OCR fallback for review {refused}); "
         f"fields {len(fields)} (corroborated {corr}, "
         f"uncorroborated {len(fields) - corr}, required-as-shown "
         f"{run.schema.required_as_shown_count}); flags {', '.join(run.schema.flags)}\n"
@@ -1300,7 +1307,9 @@ async def _gemini_documents(
                     print(f"  {key:<38} unchanged v{GEMINI_EXTRACTOR_VERSION} schema "
                           f"{stored.schema_sha256[:12]}  (stored; no provider call)")  # type: ignore[union-attr]  # fmt: skip
                     continue
-                run = await extract_with_provider(s, prepared, provider)
+                run = await extract_with_provider(
+                    s, prepared, provider, ocr_fallback=ocr_fallback_from_settings(settings)
+                )
             except ProviderUnavailable as exc:
                 if "disabled" in str(exc):
                     print(f"forms: {exc}; nothing was sent")

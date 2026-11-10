@@ -74,6 +74,39 @@ class ProviderRefused(ProviderError):
     """The model refused or a safety filter blocked the response."""
 
 
+class Citation(_Frozen):
+    """One source the provider says its output recited (public citation metadata)."""
+
+    uri: str | None = None
+    title: str | None = None
+    license: str | None = None
+    publication_date: str | None = None
+    start_index: int | None = None
+    end_index: int | None = None
+
+
+class RecitationDiagnostics(_Frozen):
+    """What a RECITATION stop looked like. The partial generated text itself is never
+    kept: only its length and SHA-256."""
+
+    provider: str
+    model_id: str
+    finish_reason: str  # RECITATION | IMAGE_RECITATION
+    finish_message: str | None = None
+    citations: list[Citation] = Field(default_factory=list)
+    partial_output_chars: int = Field(ge=0)
+    partial_output_sha256: str | None = None  # None when there was no partial output
+
+
+class ProviderRecitation(ProviderRefused):
+    """The provider stopped because its output would recite source material. A refusal:
+    never retried and never sent to another model (`transient` stays False)."""
+
+    def __init__(self, message: str, diagnostics: RecitationDiagnostics) -> None:
+        super().__init__(message)
+        self.diagnostics = diagnostics
+
+
 class ProviderTimeout(ProviderError):
     """The call exceeded its timeout after retries."""
 

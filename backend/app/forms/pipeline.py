@@ -15,8 +15,14 @@ Guarantees:
   leading `*` (same rule as the deterministic path).
 - Invalid output after the single re-ask is never repaired or stored: that page
   contributes nothing and the schema is flagged `partial_extraction` and
-  `invalid_output_page_N`. A provider error (refusal, rate limit, timeout, outage)
-  aborts the document: nothing is stored.
+  `invalid_output_page_N`. A provider error (safety refusal, rate limit, timeout,
+  outage) aborts the document: nothing is stored.
+- A RECITATION stop is the one per-page exception: that page is never re-asked and never
+  sent to another model. Its outcome is `recitation_refused`, and local Tesseract OCR of
+  the page (M1's OCR, same cache) is attached as a separate `ocr_fallback` record:
+  verbatim lines with confidences, `requires_human_review`, never turned into fields.
+  The schema is stored even when every page was refused (zero fields, flagged
+  `gemini_extraction_refused`), so a rerun does not call the model again.
 - The deterministic `m1_chunks` schemas are a separate extraction method and untouched.
 """
 
@@ -32,9 +38,10 @@ from app.db.forms import SaveOutcome, save_form_schema, stored_form_schema_row
 from app.db.models import Chunk, Document
 from app.forms.approval import ApprovedForm, check_approved
 from app.forms.extract import ROLES, parse_label
+from app.forms.ocr_fallback import OcrFallbackFn
 from app.forms.render import RENDER_DPI, render_pages
 from app.ingestion.manifest import load_manifest
-from app.llm.multimodal import MultimodalProvider, MultimodalRequest
+from app.llm.multimodal import MultimodalProvider, MultimodalRequest, ProviderRecitation
 from app.schemas.forms import (
     MULTIMODAL_METHOD,
     ExtractionProvenance,
@@ -42,6 +49,8 @@ from app.schemas.forms import (
     FormField,
     FormSchema,
     FormSection,
+    OcrFallbackPage,
+    PageOutcomeKind,
     PageProvenance,
     extraction_errors,
 )
@@ -115,6 +124,13 @@ class PageOutcome:
     output_tokens: int = 0
     errors: list[str] = field(default_factory=list)
     model_id: str | None = None  # model of the last response (fallback shows here)
+    ocr_fallback: OcrFallbackPage | None = None  # set only for a RECITATION refusal
+
+    @property
+    def outcome(self) -> PageOutcomeKind:
+        if self.ocr_fallback is not None:
+            return "recitation_refused"
+        return "extracted" if self.extraction is not None else "invalid_output"
 
 
 def prepare(
@@ -153,9 +169,15 @@ def prepare(
 
 
 async def extract_pages(
-    prepared: Prepared, provider: MultimodalProvider, *, dpi: int = RENDER_DPI
+    prepared: Prepared,
+    provider: MultimodalProvider,
+    *,
+    dpi: int = RENDER_DPI,
+    ocr_fallback: OcrFallbackFn | None = None,
 ) -> list[PageOutcome]:
-    """One request per page; one re-ask on invalid output. Provider errors propagate."""
+    """One request per page; one re-ask on invalid output. A RECITATION refusal ends that
+    page (OCR fallback attached; re-raised if no fallback is given). Other provider
+    errors propagate."""
     pages = render_pages(
         prepared.pdf_path,
         document_key=prepared.document.document_key,
@@ -176,7 +198,18 @@ async def extract_pages(
                 instruction=prompt,
                 pages=[page.image],
             )
-            result = await provider.analyze_pages([page.png], req, FormExtraction)
+            try:
+                result = await provider.analyze_pages([page.png], req, FormExtraction)
+            except ProviderRecitation as exc:
+                if ocr_fallback is None:
+                    raise
+                diag = exc.diagnostics
+                out.model_id = diag.model_id
+                out.errors.append(f"p{n} attempt {out.attempts}: refused ({diag.finish_reason})")
+                out.ocr_fallback = ocr_fallback(
+                    prepared.pdf_path, n, diag, prepared.approval.sha256
+                )
+                break
             out.latency_ms += result.latency_ms
             out.model_id = result.model_id
             if result.usage is not None:
@@ -245,10 +278,16 @@ def build_schema(
             )
     all_fields = [f for s in sections for f in s.fields]
     flags = {"multimodal_model_output"}
-    failed = [o.page_number for o in outcomes if o.extraction is None]
-    if failed:
+    invalid = [o.page_number for o in outcomes if o.outcome == "invalid_output"]
+    refused = [o.page_number for o in outcomes if o.outcome == "recitation_refused"]
+    if invalid or refused:
         flags.add("partial_extraction")
-        flags.update(f"invalid_output_page_{n}" for n in failed)
+        flags.update(f"invalid_output_page_{n}" for n in invalid)
+    if refused:
+        flags.update({"recitation_refused", "ocr_fallback_requires_review"})
+        flags.update(f"recitation_refused_page_{n}" for n in refused)
+        if len(refused) == len(outcomes):
+            flags.add("gemini_extraction_refused")  # no page was extracted by the model
     if doc.quality == "scanned":
         flags.add("scanned_document")
     if any(f.verification_status == "uncorroborated" for f in all_fields):
@@ -264,7 +303,12 @@ def build_schema(
         prompt_version=PROMPT_VERSION,
         render_dpi=dpi,
         pages=[
-            PageProvenance(page_number=o.page_number, png_sha256=o.png_sha256, model_id=o.model_id)
+            PageProvenance(
+                page_number=o.page_number,
+                png_sha256=o.png_sha256,
+                model_id=o.model_id,
+                outcome=o.outcome,
+            )
             for o in outcomes
         ],
         input_tokens=sum(o.input_tokens for o in outcomes),
@@ -292,12 +336,13 @@ def build_schema(
         required_as_shown_count=sum(f.required_as_shown is True for f in all_fields),
         text_block_count=0,
         provenance=provenance,
+        ocr_fallback=[o.ocr_fallback for o in outcomes if o.ocr_fallback is not None],
     )
 
 
 @dataclass(frozen=True)
 class GeminiRun:
-    outcome: SaveOutcome | None  # None = nothing stored (no valid page output)
+    outcome: SaveOutcome | None  # None = nothing stored (no valid or refused page)
     schema: FormSchema | None
     pages: list[PageOutcome]
     provider_calls: int
@@ -309,6 +354,7 @@ async def extract_with_provider(
     provider: MultimodalProvider,
     *,
     extractor_version: int = GEMINI_EXTRACTOR_VERSION,
+    ocr_fallback: OcrFallbackFn | None = None,
 ) -> GeminiRun:
     """Skip if stored; otherwise extract, build and save (the caller commits)."""
     doc = prepared.document
@@ -319,9 +365,9 @@ async def extract_with_provider(
         )
         return GeminiRun(outcome, None, [], provider_calls=0)
     before = getattr(provider, "attempts_made", 0)
-    pages = await extract_pages(prepared, provider)
+    pages = await extract_pages(prepared, provider, ocr_fallback=ocr_fallback)
     calls = getattr(provider, "attempts_made", 0) - before
-    if all(p.extraction is None for p in pages):
+    if all(p.outcome == "invalid_output" for p in pages):  # refused pages are recorded
         return GeminiRun(None, None, pages, provider_calls=calls)
     schema = build_schema(prepared, pages, provider=provider, extractor_version=extractor_version)
     return GeminiRun(save_form_schema(session, schema), schema, pages, provider_calls=calls)

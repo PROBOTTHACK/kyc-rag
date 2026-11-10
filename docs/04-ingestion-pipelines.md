@@ -119,6 +119,17 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
   - **Field rules:** `required_as_shown` uses the same printed-`*` rule as the deterministic path. `mandatory_under_policy` is never set; the 0004 guards enforce this on Gemini rows too.
   - **Identity:** (document, `gemini_multimodal`, `GEMINI_EXTRACTOR_VERSION=1`). A stored row means the CLI makes **zero provider calls** and reports `unchanged`. A new prompt, schema or model needs a version bump, because the model output is not deterministic.
   - **Provenance:** provider, model id, prompt id/version, render dpi, per-page PNG SHA-256, token usage, latency, request count and the validation errors of failed attempts. No key and no timestamps.
+- **RECITATION refusals (G3 follow-up):** a `RECITATION`/`IMAGE_RECITATION` stop raises `ProviderRecitation`, a refusal.
+  - **Never retried:** it is not retried, not re-asked and never sent to another model. `SAFETY`/`SPII` and other refusals are unchanged and still abort the document. 503s and timeouts keep the 5-attempt and fallback path.
+  - **Diagnostics recorded:** finish reason, finish message, citation metadata (uri, title, license, indices, date), and the partial output's **length and SHA-256 only**. The partial text is never stored or logged.
+  - **The refused page:**
+    - its provenance outcome is `recitation_refused`;
+    - `app/forms/ocr_fallback.py` OCRs it locally with M1's `ocr_page` (same DPI, PSM, language and fold-out regions; M1's OCR cache, so already-OCR'd pages are identical);
+    - the result is stored as a separate `FormSchema.ocr_fallback` record: verbatim lines with confidences, regions, printed page, engine, `unverified_ocr`, `requires_human_review`, and the diagnostics. OCR setup or run problems are recorded in `errors`.
+  - **OCR text never becomes `FormField`s.** It sits outside `sections`, has no `mandatory_under_policy`, and `extra="forbid"` rejects one.
+  - **Flags:** `recitation_refused`, `recitation_refused_page_N`, `ocr_fallback_requires_review`, `partial_extraction`, plus `gemini_extraction_refused` when every page was refused.
+  - **A form refused on every page is still stored** (zero fields, `no_field_structure`), following the same insert/unchanged/conflict rules, so a rerun makes no provider call.
+  - **What does not change:** the extractor version, migrations and existing rows. The new keys are omitted when unset, so all stored rows hash identically (verified on the dev database).
 - **CLI:**
   - `forms extract --provider gemini [--document KEY]...`: the default is `--provider deterministic`, and the default Gemini document set is the approved list. Every requested key is checked first; any refusal sends nothing (exit 2), so the NetBanking reference, any unlisted document and any hash mismatch are rejected.
   - `forms show KEY --method m1_chunks|gemini_multimodal`: the default and every existing caller use `m1_chunks`; the methods are never mixed.
