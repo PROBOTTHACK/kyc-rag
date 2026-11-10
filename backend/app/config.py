@@ -6,6 +6,7 @@ The example file supplies non-secret defaults; real keys belong only in `.env`.
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -61,6 +62,12 @@ class Settings(BaseSettings):
     OCR_RELIABLE_MIN_CONFIDENCE: float = Field(default=0.80, ge=0, le=1)
     # Embed uncertain OCR chunks (retrievable, flagged, never MANDATORY evidence)?
     OCR_EMBED_UNCERTAIN: bool = True
+    # --- Retrieval (M2) ---
+    # Default mode for `search` / `evaluate` without --mode. `dense` (M1) stays the default
+    # until the M2 A3 selection on the development set (docs/10).
+    RETRIEVAL_MODE: Literal["dense", "bm25", "hybrid"] = "dense"
+    RRF_K: int = Field(default=60, ge=1)  # hybrid fusion constant (fixed in A2)
+    RETRIEVAL_CANDIDATES: int = Field(default=50, ge=1, le=1000)  # per retriever, hybrid
     # --- Tracing ---
     LANGSMITH_TRACING: bool = False
     LANGSMITH_API_KEY: SecretStr | None = None

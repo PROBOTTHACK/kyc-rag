@@ -13,38 +13,34 @@ development database and collection are never touched. Covers:
   every filter (2 x 2 x 4 x 4 x 4 = 256 combinations, so every pairwise and higher-order
   interaction of these values is exercised), on the Qdrant server itself;
 - freshness: citation-, payload-, text-, filter- and parent-related row changes rebuild
-  the index without any change of chunk id or content hash; an unreachable database is
-  reported and never answered from a stale index;
+  the index without any change of chunk id or content hash; INSERT, UPDATE (including a
+  no-op UPDATE) and DELETE of chunk and document rows rebuild it (M2 A2 xmin version); an
+  unreachable database is reported and never answered from a stale index;
 - the `search --mode bm25 --expand` CLI with citations and parent expansion.
 """
 
+import hashlib
 import itertools
 import uuid
-from collections.abc import Iterator
 from typing import Any
 
-import psycopg
 import pytest
 import sqlalchemy as sa
 from qdrant_client import models as qm
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 
-from alembic import command
 from app.config import REPO_ROOT, get_settings
 from app.db.models import Chunk, Document
 from app.db.repository import chunk_corpus_fingerprint, eligible_chunk_payloads
 from app.ingestion import cli
-from app.ingestion.manifest import load_manifest
 from app.retrieval.keyword import (
     KeywordIndexManager,
     KeywordIndexUnavailable,
     payload_without_index,
 )
-from app.retrieval.qdrant_store import ChunkStore, store_from_settings
+from app.retrieval.qdrant_store import ChunkStore
 from app.retrieval.search import SearchFilters, build_filter
-from tests.integration.conftest import alembic_cfg, sync_engine
-from tests.unit.test_indexing import FakeEmbedder
 
 pytestmark = [
     pytest.mark.integration,
@@ -73,49 +69,14 @@ ENTITY_TERMS: tuple[tuple[str, ...], ...] = (
 )
 
 
-@pytest.fixture(scope="module")
-def corpus_db() -> Iterator[sessionmaker[Session]]:
-    """A migrated throwaway database holding the full ingested corpus, and its store."""
-    base = make_url(get_settings().DATABASE_URL.get_secret_value())
-    name = f"kyc_test_{uuid.uuid4().hex[:12]}"
-    admin = base.set(drivername="postgresql").render_as_string(hide_password=False)
-    with psycopg.connect(admin, autocommit=True) as conn:
-        conn.execute(f'CREATE DATABASE "{name}"')
-    url = base.set(database=name).render_as_string(hide_password=False)
-    mp = pytest.MonkeyPatch()
-    mp.setenv("DATABASE_URL", url)
-    get_settings.cache_clear()
-    engine = sync_engine(url)
-    try:
-        command.upgrade(alembic_cfg(), "head")
-        yield sessionmaker(engine, expire_on_commit=False)
-    finally:
-        engine.dispose()
-        mp.undo()
-        get_settings.cache_clear()
-        with psycopg.connect(admin, autocommit=True) as conn:
-            conn.execute(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)')
-
-
-@pytest.fixture(scope="module")
-def store(corpus_db: sessionmaker[Session]) -> Iterator[ChunkStore]:
-    base = store_from_settings(get_settings())
-    s = ChunkStore(base.client, f"test_{uuid.uuid4().hex[:12]}")
-    try:
-        keys = [e.document_key for e in load_manifest(get_settings().CORPUS_MANIFEST)]
-        assert (
-            cli._run(get_settings(), keys, embedder=FakeEmbedder(), store=s, sessions=corpus_db)
-            == 0
-        )
-        yield s
-    finally:
-        if s.client.collection_exists(s.collection):
-            s.client.delete_collection(s.collection)
+@pytest.fixture
+def store(corpus_store: ChunkStore) -> ChunkStore:
+    return corpus_store
 
 
 @pytest.fixture
-def sessions(corpus_db: sessionmaker[Session], store: ChunkStore) -> sessionmaker[Session]:
-    return corpus_db  # requesting `store` guarantees the corpus is ingested
+def sessions(corpus_db: sessionmaker[Session], corpus_store: ChunkStore) -> sessionmaker[Session]:
+    return corpus_db  # requesting `corpus_store` guarantees the corpus is ingested
 
 
 def qdrant_payloads(store: ChunkStore) -> dict[str, dict[str, Any]]:
@@ -270,7 +231,7 @@ def test_index_rebuilds_when_a_relevant_field_changes(
     sessions: sessionmaker[Session], change: str
 ) -> None:
     m = KeywordIndexManager(sessions)
-    m.get()
+    before = m.get()
     with sessions() as s:
         before_fp = chunk_corpus_fingerprint(s)
         role = "child" if change in ("context", "parent_content") else "single"
@@ -323,7 +284,7 @@ def test_index_rebuilds_when_a_relevant_field_changes(
         }.get(change)
         if expected:
             assert p[expected[0]] == expected[1]
-        assert after.fingerprint != f"t1:{before_fp}"
+        assert after.fingerprint != before.fingerprint
     finally:
         with sessions() as s:
             back = s.get(Chunk, cid)
@@ -358,3 +319,113 @@ def test_unreachable_database_never_serves_a_stale_index(sessions: sessionmaker[
     m._sessions = sessions
     m.get()
     assert m.rebuilds == 2  # rebuilt after recovery, the old index was dropped
+
+
+# --- freshness (M2 A2): the xmin version detects INSERT, UPDATE and DELETE ---------------------
+
+
+def _copy(row: Any, model: Any, **changes: Any) -> Any:
+    cols = {a.key: getattr(row, a.key) for a in sa.inspect(model).column_attrs}
+    return model(**(cols | changes))
+
+
+def test_chunk_insert_and_delete_rebuild(sessions: sessionmaker[Session]) -> None:
+    m = KeywordIndexManager(sessions)
+    size = len(m.get())
+    marker = "zzqxfreshnessmarker"
+    with sessions() as s:
+        src = _first_eligible(s)
+        top = s.scalar(
+            sa.select(sa.func.max(Chunk.chunk_index)).where(Chunk.document_id == src.document_id)
+        )
+        new_id = uuid.uuid4()
+        text = f"{marker} inserted test chunk"
+        s.add(
+            _copy(
+                src,
+                Chunk,
+                id=new_id,
+                chunk_index=(top or 0) + 1,
+                content=text,
+                content_sha256=hashlib.sha256(text.encode()).hexdigest(),
+            )
+        )
+        s.commit()
+    try:
+        assert len(m.get()) == size + 1 and m.rebuilds == 2  # INSERT
+        assert [h.chunk_id for h in m.search(marker)] == [str(new_id)]
+    finally:
+        with sessions() as s:
+            s.execute(sa.delete(Chunk).where(Chunk.id == new_id))
+            s.commit()
+    assert len(m.get()) == size and m.rebuilds == 3  # DELETE
+    assert m.search(marker) == []
+
+
+def test_existing_chunk_delete_and_restore_rebuild(sessions: sessionmaker[Session]) -> None:
+    m = KeywordIndexManager(sessions)
+    size = len(m.get())
+    with sessions() as s:
+        before_fp = chunk_corpus_fingerprint(s)
+        row = _first_eligible(s)
+        saved = _copy(row, Chunk)
+        s.execute(sa.delete(Chunk).where(Chunk.id == row.id))
+        s.commit()
+    assert len(m.get()) == size - 1 and m.rebuilds == 2  # DELETE of a stored chunk
+    with sessions() as s:
+        s.add(saved)
+        s.commit()
+        assert chunk_corpus_fingerprint(s) == before_fp  # identical content restored ...
+    assert len(m.get()) == size and m.rebuilds == 3  # ... but a new row version: rebuilt
+
+
+def test_document_insert_update_and_delete_rebuild(sessions: sessionmaker[Session]) -> None:
+    m = KeywordIndexManager(sessions)
+    m.get()
+    key = f"test_doc_{uuid.uuid4().hex[:8]}"
+    sha = hashlib.sha256(key.encode()).hexdigest()
+    with sessions() as s:
+        src = s.scalars(sa.select(Document).order_by(Document.document_key).limit(1)).one()
+        doc = _copy(
+            src,
+            Document,
+            id=uuid.uuid4(),
+            document_key=key,
+            sha256=sha,
+            supersedes_document_id=None,
+        )
+        s.add(doc)
+        s.commit()
+        doc_id = doc.id
+    try:
+        m.get()
+        assert m.rebuilds == 2  # INSERT of a document row (no chunks)
+        with sessions() as s:
+            s.execute(sa.update(Document).where(Document.id == doc_id).values(title="Changed"))
+            s.commit()
+        m.get()
+        assert m.rebuilds == 3  # UPDATE of a document row
+    finally:
+        with sessions() as s:
+            s.execute(sa.delete(Document).where(Document.id == doc_id))
+            s.commit()
+    m.get()
+    assert m.rebuilds == 4  # DELETE of a document row
+
+
+@pytest.mark.parametrize("table", ["chunks", "documents"])
+def test_noop_update_rebuilds(sessions: sessionmaker[Session], table: str) -> None:
+    m = KeywordIndexManager(sessions)
+    m.get()
+    with sessions() as s:
+        before_fp = chunk_corpus_fingerprint(s)
+        if table == "chunks":
+            cid = _first_eligible(s).id
+            s.execute(sa.update(Chunk).where(Chunk.id == cid).values(content=Chunk.content))
+        else:
+            did = s.scalar(sa.select(Document.id).limit(1))
+            s.execute(sa.update(Document).where(Document.id == did).values(title=Document.title))
+        s.commit()
+        assert chunk_corpus_fingerprint(s) == before_fp  # no content changed at all
+    m.get()
+    assert m.rebuilds == 2  # a new row version is still detected (safe direction)

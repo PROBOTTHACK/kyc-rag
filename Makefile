@@ -25,17 +25,17 @@ DOCS = $(foreach d,$(DOC),--document $(d))
 
 .DEFAULT_GOAL := help
 .PHONY: help venv install install-locked lock up down migrate check-schema ingest ingest-dry
-.PHONY: persist index retry reconcile repair runs search check-corpus eval check-dense-golden
+.PHONY: persist index retry reconcile repair runs search check-corpus eval eval-compare check-dense-golden
 .PHONY: api test test-integration lint fmt web
 
 # Printed by make itself ($(info)), so it needs no shell and looks the same everywhere.
 help:
-	$(info Usage: make <target> [DOC="key ..."] [Q="query"] [MODE=dense|bm25])
+	$(info Usage: make <target> [DOC="key ..."] [Q="query"] [MODE=dense|bm25|hybrid])
 	$(info )
 	$(info Setup:     venv install install-locked lock)
 	$(info Services:  up down migrate check-schema)
 	$(info Ingestion: ingest ingest-dry persist index retry reconcile repair runs check-corpus)
-	$(info Retrieval: search Q="..."  eval  check-dense-golden)
+	$(info Retrieval: search Q="..."  eval  eval-compare  check-dense-golden)
 	$(info Dev:       api test test-integration lint fmt)
 	$(info )
 	$(info Typical first run: make up migrate check-corpus ingest)
@@ -104,10 +104,12 @@ repair:
 runs:
 	$(CLI) runs --limit 30
 
-# make search Q="documents for opening a company account" [MODE=bm25]   (MODE: dense | bm25)
-MODE ?= dense
+# make search Q="documents for opening a company account" [MODE=bm25|hybrid]
+# MODE empty = RETRIEVAL_MODE from the settings (dense by default).
+MODE ?=
+MODE_ARG = $(if $(MODE),--mode $(MODE),)
 search:
-	$(CLI) search "$(Q)" --expand --mode $(MODE)
+	$(CLI) search "$(Q)" --expand $(MODE_ARG)
 
 # Manifest + PDF hashes, and a real Tesseract smoke test.
 check-corpus:
@@ -131,9 +133,13 @@ fmt:
 	cd $(BACKEND) && $(PY) -m ruff check --fix . && $(PY) -m black .
 
 # Retrieval benchmark on the development set (Recall@5 on data/eval/m1_retrieval.jsonl);
-# MODE=bm25 evaluates the keyword index. The frozen held-out set is refused (docs/10).
+# MODE=bm25|hybrid evaluates another mode. The frozen held-out set is refused (docs/10).
 eval:
-	$(CLI) evaluate --mode $(MODE) --report data/processed/$(if $(filter dense,$(MODE)),m1_retrieval_report.md,m2_dev_$(MODE)_report.md)
+	$(CLI) evaluate $(MODE_ARG) --report data/processed/$(if $(filter-out dense,$(MODE)),m2_dev_$(MODE)_report.md,m1_retrieval_report.md)
+
+# Dense vs BM25 vs hybrid on the development set at fixed A2 defaults (selects nothing).
+eval-compare:
+	$(CLI) evaluate --compare --report data/processed/m2_dev_compare_report.md
 
 # M1 dense golden regression: real model + dev collection; fails (never skips) if missing.
 check-dense-golden:

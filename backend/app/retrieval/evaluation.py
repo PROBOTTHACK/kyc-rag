@@ -27,6 +27,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.retrieval.embeddings import Embedder
 from app.retrieval.qdrant_store import ChunkStore
+from app.retrieval.retrieve import RetrievalResult
 from app.retrieval.search import SearchFilters, SearchHit, search
 
 DEFAULT_K = 5
@@ -88,6 +89,8 @@ class Timing(BaseModel):
     p95_ms: float
     mean_ms: float
     index_build_s: float | None = None
+    # Per-stage latency over the timed passes: stage -> {"p50": ms, "p95": ms}.
+    stages: dict[str, dict[str, float]] = Field(default_factory=dict)
 
 
 class EvalReport(BaseModel):
@@ -219,6 +222,142 @@ def evaluate_with(
         retriever=description,
         timing=timing,
     )
+
+
+class DegradedRunError(RuntimeError):
+    """A retrieval in an evaluation run was degraded; partial runs are never scored."""
+
+
+def evaluate_retrieval(
+    cases: list[RetrievalCase],
+    run: Callable[[str, SearchFilters, int], RetrievalResult],
+    *,
+    mode: str,
+    description: str,
+    k: int = DEFAULT_K,
+    dataset: str = "",
+    timed_passes: int = 0,
+) -> EvalReport:
+    """Like `evaluate_with`, for `Retriever.retrieve` results (M2 A2).
+
+    Any degraded result (in the scored pass or a timed pass) raises `DegradedRunError`,
+    and a total failure propagates `RetrievalError`: metrics are only ever computed from
+    complete retrievals. Per-stage timings come from `RetrievalResult.timings_ms`.
+    """
+    filters = [SearchFilters(entity_terms=tuple(c.entity_terms)) for c in cases]
+
+    def checked(c: RetrievalCase, f: SearchFilters) -> RetrievalResult:
+        result = run(c.query, f, k)
+        if result.is_degraded:
+            raise DegradedRunError(
+                f"{c.id}: degraded retrieval ({', '.join(result.degraded)} failed: "
+                + "; ".join(x.error for x in result.failures)
+                + ")"
+            )
+        return result
+
+    results = [score_case(c, checked(c, f).hits, k) for c, f in zip(cases, filters, strict=True)]
+    timing = None
+    if timed_passes > 0:
+        totals: list[float] = []
+        stages: dict[str, list[float]] = {}
+        for _ in range(timed_passes):
+            for c, f in zip(cases, filters, strict=True):
+                started = time.perf_counter()
+                result = checked(c, f)
+                totals.append((time.perf_counter() - started) * 1000)
+                for name, ms in result.timings_ms.items():
+                    stages.setdefault(name.removesuffix("_ms"), []).append(ms)
+        timing = Timing(
+            passes=timed_passes,
+            p50_ms=_percentile(totals, 0.50),
+            p95_ms=_percentile(totals, 0.95),
+            mean_ms=statistics.fmean(totals),
+            stages={
+                n: {"p50": _percentile(v, 0.50), "p95": _percentile(v, 0.95)}
+                for n, v in stages.items()
+            },
+        )
+    return EvalReport(
+        dataset=dataset,
+        k=k,
+        embedding_model=None,
+        embedding_revision=None,
+        collection=None,
+        created_at=datetime.now(UTC).isoformat(timespec="seconds"),
+        results=results,
+        mode=mode,
+        retriever=description,
+        timing=timing,
+    )
+
+
+STAGE_ORDER = ("total", "dense", "embed", "qdrant", "bm25", "freshness", "keyword_build",
+               "bm25_scoring", "fusion")  # fmt: skip
+
+
+def render_comparison(reports: list[EvalReport], *, note: str = "") -> str:
+    """Side-by-side development-set comparison of retrieval modes (M2 A2).
+
+    Reports metrics, latency and per-stage timings, plus per-query outcomes. It selects
+    nothing: mode selection happens only in M2 A3 under the pre-registered rule.
+    """
+    k = reports[0].k
+    modes = [r.mode for r in reports]
+    lines = [
+        f"# Retrieval comparison on the development set: Recall@{k}",
+        "",
+        f"- Dataset: `{reports[0].dataset}` ({len(reports[0].results)} queries)",
+        f"- Run: {reports[0].created_at}",
+        *(f"- {r.mode}: {r.retriever}" for r in reports),
+    ]
+    if note:
+        lines.append(f"- {note}")
+    lines += [
+        "",
+        f"| Mode | Recall@{k} | Hit@{k} | MRR@{k} | p50 ms | p95 ms |",
+        "|---|---|---|---|---|---|",
+    ]
+    for r in reports:
+        t = r.timing
+        lat = f"{t.p50_ms:.1f} | {t.p95_ms:.1f}" if t else "- | -"
+        lines.append(f"| {r.mode} | {r.mean_recall:.3f} | {r.hit_rate:.3f} | {r.mrr:.3f} | {lat} |")
+    stage_names = [
+        s for s in STAGE_ORDER if any(r.timing and s in r.timing.stages for r in reports)
+    ]
+    if stage_names:
+        lines += [
+            "",
+            "Per-stage latency, p50 / p95 ms (timed passes; `-` = stage not run):",
+            "",
+            "| Stage | " + " | ".join(modes) + " |",
+            "|---|" + "---|" * len(modes),
+        ]
+        for s in stage_names:
+            cells = []
+            for r in reports:
+                st = r.timing.stages.get(s) if r.timing else None
+                cells.append(f"{st['p50']:.1f} / {st['p95']:.1f}" if st else "-")
+            lines.append(f"| {s} | " + " | ".join(cells) + " |")
+    lines += ["", f"Per query: Recall@{k} (first matching rank)", "",
+              "| id | " + " | ".join(modes) + " |", "|---|" + "---|" * len(modes)]  # fmt: skip
+    for i, base in enumerate(reports[0].results):
+        cells = []
+        for r in reports:
+            res = r.results[i]
+            rank = f"{1 / res.reciprocal_rank:.0f}" if res.reciprocal_rank else "-"
+            cells.append(f"{res.recall:.2f} ({rank})")
+        lines.append(f"| {base.case.id} | " + " | ".join(cells) + " |")
+    ref = reports[0]
+    for r in reports[1:]:
+        pairs = list(zip(r.results, ref.results, strict=True))
+        better = sum(a.recall > b.recall for a, b in pairs)
+        worse = sum(a.recall < b.recall for a, b in pairs)
+        lines.append(
+            f"\n{r.mode} vs {ref.mode} on Recall@{k}: {better} queries better, {worse} worse, "
+            f"{len(pairs) - better - worse} equal."
+        )
+    return "\n".join(lines) + "\n"
 
 
 def render_markdown(report: EvalReport) -> str:

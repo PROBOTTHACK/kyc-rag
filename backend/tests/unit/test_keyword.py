@@ -61,6 +61,16 @@ def test_fingerprint_sql_covers_every_document_level_payload_column() -> None:
     assert "to_jsonb(c) - 'created_at' - 'updated_at'" in sql  # every other chunk column
 
 
+def test_version_sql_is_one_statement_over_both_tables_with_counts_and_order() -> None:
+    from app.db import repository
+
+    sql = " ".join(str(repository._VERSION_SQL).split())
+    assert sql.count("SELECT") == 5 and ";" not in sql  # one statement = one snapshot
+    for table in ("chunks", "documents"):
+        assert f"(SELECT count(*) FROM {table})" in sql  # noqa: S608 - expected text
+        assert f"string_agg(id::text || '@' || xmin::text, ',' ORDER BY id) FROM {table}" in sql
+
+
 def test_index_text_is_the_dense_embedding_input() -> None:
     d = doc()
     for rec in (chunk(d, 1, "(1) First part.", context="7. Lead"), chunk(d, 2, "8. Text.")):
@@ -231,7 +241,7 @@ def db(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
             raise ConnectionError("postgres down")
         return str(state["fp"])
 
-    monkeypatch.setattr(keyword, "chunk_corpus_fingerprint", fingerprint)
+    monkeypatch.setattr(keyword, "chunk_corpus_version", fingerprint)
     monkeypatch.setattr(keyword, "eligible_chunk_payloads", lambda _: list(state["payloads"]))
     return state
 
@@ -326,16 +336,21 @@ def test_dense_report_text_is_unchanged() -> None:
 
 
 def test_mode_flags_parse_and_default_to_dense() -> None:
-    p = cli.build_parser(get_settings())
-    assert p.parse_args(["search", "q"]).mode == "dense"
-    assert p.parse_args(["search", "q", "--mode", "bm25"]).mode == "bm25"
-    assert p.parse_args(["evaluate"]).mode == "dense"
-    assert p.parse_args(["evaluate", "--mode", "bm25"]).mode == "bm25"
+    # Since M2 A2, an omitted --mode falls back to RETRIEVAL_MODE, whose default is dense.
+    settings = get_settings()
+    assert settings.RETRIEVAL_MODE == "dense"
+    p = cli.build_parser(settings)
+    assert p.parse_args(["search", "q"]).mode is None
+    assert p.parse_args(["evaluate"]).mode is None
+    for mode in ("dense", "bm25", "hybrid"):
+        assert p.parse_args(["search", "q", "--mode", mode]).mode == mode
+        assert p.parse_args(["evaluate", "--mode", mode]).mode == mode
+    assert p.parse_args(["evaluate", "--compare"]).compare is True
     with pytest.raises(SystemExit):
-        p.parse_args(["search", "q", "--mode", "hybrid"])  # A2, not A1
+        p.parse_args(["search", "q", "--mode", "sparse"])
 
 
-@pytest.mark.parametrize("mode", ["dense", "bm25"])
+@pytest.mark.parametrize("mode", ["dense", "bm25", "hybrid"])
 @pytest.mark.parametrize(
     "dataset", [Path("data/eval/m2_heldout.jsonl"), Path("/elsewhere/m2_heldout.jsonl")]
 )

@@ -55,6 +55,21 @@ M2 retrieval choices follow `docs/milestones/M2_PLAN.md` §6.
     - both miss m1-01 para 31 and m1-05 p.50.
   - **No decision taken:** this is reported, not acted on. Nothing was tuned, and mode selection happens only in A3 under the pre-registered rule.
   - **Latency:** p50 ~110 ms per query, almost all of it the per-query freshness check; BM25 scoring itself is ~4 ms (docs/04).
+- **A2 comparison on the development set** (2026-11-10, `make eval-compare`; real BGE model, dev collection; fixed A2 defaults: RRF k = 60, 50 candidates per retriever, plain tokenizer; 1 scored warm-up pass + 3 timed passes; Windows laptop CPU, indicative):
+
+  | Mode | Recall@5 | Hit@5 | MRR@5 | p50 / p95 ms |
+  |---|---|---|---|---|
+  | dense | 0.825 | 0.900 | 0.775 | 43.0 / 53.7 |
+  | bm25 | 0.692 | 0.800 | 0.633 | 13.2 / 16.2 |
+  | hybrid | 0.858 | 0.900 | 0.704 | 63.2 / 73.3 |
+
+  - **Hybrid vs dense:** 4 queries better on Recall@5 (m1-01, m1-06, m1-17 and m1-19 now complete, since BM25 lifts dense's misses), 3 worse (m1-04 PAN/Form 60 and m1-11 lose their only target; m1-12 drops to 0.67), 13 equal.
+    - MRR@5 falls, from 0.775 to 0.704, because fused first-match ranks are often lower.
+    - The Recall@5 gain (+0.033) is **below one query-equivalent (0.05)**, so on the pre-registered rule (M2_PLAN §6) it would not qualify. That decision belongs to A3 and isn't taken here.
+  - **Regressions:** dense run through the new retriever reproduces M1 exactly (0.825 / 0.90 / 0.775), and BM25 reproduces A1 (0.692 / 0.80 / 0.633).
+  - **Per-stage p50 latency in hybrid:** dense 48 ms (query embedding 33 ms, Qdrant 15 ms) + BM25 13 ms (freshness check 6 ms, scoring 6 ms) + fusion 0.6 ms. The stages run sequentially, so the latencies add.
+  - **Freshness check:** about 6 ms per query, down from ~104 ms in A1, after the A2 switch to the `xmin` version check (docs/04).
+  - **No configuration was selected or tuned, and the held-out set was not read.**
 - **Limitations:**
   - **Single annotator:** all held-out labels were drafted by the implementing assistant and reviewed by the project owner. There was no independent annotation or inter-annotator validation, and no such claim is made.
   - **Resolution:** with 20 queries, one query moves mean Recall@5 by about 0.05, so confidence intervals are wide and "no measurable difference" is a valid outcome.

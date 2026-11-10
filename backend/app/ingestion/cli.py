@@ -16,15 +16,17 @@ Recovery and inspection:
   runs     [--document KEY] [--failed] [--limit N]
 Retrieval:
   search   QUERY [--top-k N] [--entity T]... [--bank B]... [--document KEY]...
-           [--include-context-only] [--mandatory-only] [--expand] [--mode dense|bm25]
-  evaluate [--dataset PATH] [--top-k N] [--report PATH] [--mode dense|bm25]
+           [--include-context-only] [--mandatory-only] [--expand] [--mode dense|bm25|hybrid]
+  evaluate [--dataset PATH] [--top-k N] [--report PATH] [--mode dense|bm25|hybrid]
+           [--compare]   (--mode defaults to RETRIEVAL_MODE, i.e. dense)
            Recall@k benchmark (the frozen held-out set is refused; docs/10)
 Checks:
   validate-manifest [--manifest PATH] [--corpus-dir PATH]
   check-ocr
 
 Exit codes: 0 ok; 1 a document failed or Postgres/Qdrant are inconsistent;
-2 invalid input or a service is not ready (nothing was written).
+2 invalid input or a service is not ready (nothing was written). A degraded hybrid
+search (one retriever failed) is a valid, labelled result: exit 0 + a DEGRADED banner.
 """
 
 import argparse
@@ -38,6 +40,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import Settings, get_settings
 from app.db.migrations import current_revision, head_revision
+from app.db.models import Chunk
 from app.db.repository import evidence_context, family_integrity
 from app.db.runs import recent_runs
 from app.db.session import create_sync_engine, create_sync_sessionmaker
@@ -56,26 +59,33 @@ from app.ingestion.prepare import ocr_setup, prepare_document
 from app.retrieval.embeddings import Embedder, embedder_from_settings
 from app.retrieval.evaluation import (
     DEFAULT_K,
+    DegradedRunError,
+    EvalReport,
+    RetrievalCase,
     evaluate,
+    evaluate_retrieval,
     evaluate_with,
     load_cases,
+    render_comparison,
     render_markdown,
 )
 from app.retrieval.indexing import find_orphans, index_document, prune_orphans
 from app.retrieval.keyword import TOKENIZER_VERSION, KeywordIndexManager, KeywordIndexUnavailable
 from app.retrieval.qdrant_store import ChunkStore, store_from_settings
 from app.retrieval.reconcile import ReconcileReport, reconcile, repair
+from app.retrieval.retrieve import RetrievalError, RetrievalMode, RetrievalResult, Retriever
 from app.retrieval.search import SearchFilters, SearchHit, search
 from app.schemas.corpus import DocumentMetadata
 
 MAX_LISTED = 10  # issue ids printed per category
 DEFAULT_DATASET = Path("data/eval/m1_retrieval.jsonl")
-# Retrieval modes. `dense` is the M1 path and the default; hybrid arrives in M2 A2.
-MODES = ("dense", "bm25")
+# Retrieval modes (M2). `dense` is the M1 path and, via RETRIEVAL_MODE, the default.
+MODES = tuple(m.value for m in RetrievalMode)
 # The frozen M2 held-out set is used only to report an already-selected configuration
 # (docs/10, M2_PLAN section 6); `evaluate` refuses it until that explicit final run.
 HELDOUT_DATASET_NAME = "m2_heldout.jsonl"
 BM25_TIMED_PASSES = 3
+TIMED_PASSES = 3  # evaluation latency: 1 scored warm-up pass + 3 timed passes
 
 
 def _validate_manifest(manifest: Path, corpus_dir: Path) -> int:
@@ -565,6 +575,7 @@ def _reconcile(
     with sessions() as s:
         report = reconcile(s, store, embedder)
     _print_reconcile(report)
+    _print_keyword_info(sessions, store)  # informational only: never changes the verdict
     if not do_repair:
         if not report.consistent:
             print("(diagnostic only: nothing changed; use --repair to re-index from Postgres)")
@@ -585,6 +596,23 @@ def _reconcile(
     print("after repair:")
     _print_reconcile(after)
     return 0 if after.consistent and not fixed.failed else 1
+
+
+def _print_keyword_info(sessions: sessionmaker[Session], store: ChunkStore) -> None:
+    """One informational line about the BM25 keyword index (M2 A2). It never raises and
+    never affects reconciliation, repair or the exit code."""
+    try:
+        size = len(KeywordIndexManager(sessions).get())
+        with sessions() as s:
+            eligible = s.scalar(
+                sa.select(sa.func.count()).select_from(Chunk).where(Chunk.embedding_eligible)
+            )
+        print(
+            f"keyword index (informational): {size} chunks; Postgres eligible {eligible}; "
+            f"Qdrant {store.count()}"
+        )
+    except Exception as exc:
+        print(f"keyword index (informational): unavailable: {type(exc).__name__}: {exc}")
 
 
 def _runs(
@@ -632,8 +660,15 @@ def _search(
     `dense`: BGE + Qdrant (M1). `bm25`: keyword index built from Postgres (M2 A1); it
     loads no embedding model and does not contact Qdrant."""
     hits: list[SearchHit]
+    result: RetrievalResult | None = None
     try:
-        if mode == "bm25":
+        if mode == "hybrid":
+            sessions = sessions or _sessions(settings)
+            result = _retriever(settings, embedder, store, sessions).retrieve(
+                query, mode=mode, top_k=top_k, filters=filters
+            )
+            hits = result.hits
+        elif mode == "bm25":
             sessions = sessions or _sessions(settings)
             hits = KeywordIndexManager(sessions).search(query, top_k=top_k, filters=filters)
         else:
@@ -646,15 +681,25 @@ def _search(
     except KeywordIndexUnavailable as exc:
         print(f"search failed: {exc}")
         return 2
+    except RetrievalError as exc:
+        print(f"search failed: every retriever failed: {exc}")
+        return 2
     except Exception as exc:
         print(f"search failed: {type(exc).__name__}: {exc}")
         return 2
     scope = "primary+supporting" + (" +context_only" if filters.include_context_only else "")
     if filters.mandatory_evidence_only:
         scope += ", MANDATORY-capable evidence only"
-    if mode != "dense":
+    if mode == "hybrid":
+        scope += f"; hybrid RRF k={settings.RRF_K}, {settings.RETRIEVAL_CANDIDATES} per retriever"
+    elif mode != "dense":
         scope += f"; {mode}"
     print(f"query: {query!r}  (top {top_k}; {scope})")
+    if result is not None:
+        for f in result.failures:
+            print(f"DEGRADED: {f.retriever} retrieval failed ({f.error}); "
+                  f"showing {result.score_kind.value} results only")  # fmt: skip
+        print(f"scores: {result.score_kind.value}")
     contexts = {}
     if expand and hits:
         try:
@@ -672,12 +717,87 @@ def _search(
         print(f"{h.rank}. [{h.score:.3f}] {h.citation}  ({', '.join(flags)})")
         if p.get("section"):
             print(f"   section: {p['section']}")
+        if result is not None:
+            print(f"   via: {_via(result.provenance[h.chunk_id])}")
         print(f"   {_short(p['content'])}")
         ctx = contexts.get(h.chunk_id)
         if ctx is not None and ctx.expanded:
             print(f"   parent paragraph ({len(ctx.context.metadata.content.split())} words): "
                   f"{_short(ctx.context.metadata.content, 600)}")  # fmt: skip
     return 0
+
+
+def _via(p: object) -> str:
+    """`dense #3 (0.812) · bm25 #1 (14.200)`: original ranks and scores behind a hit."""
+    parts = []
+    for name in ("dense", "bm25"):
+        rank, score = getattr(p, f"{name}_rank"), getattr(p, f"{name}_score")
+        if rank is not None:
+            parts.append(f"{name} #{rank} ({score:.3f})")
+    return " · ".join(parts) or "-"
+
+
+def _retriever(
+    settings: Settings,
+    embedder: Embedder | None,
+    store: ChunkStore | None,
+    sessions: sessionmaker[Session],
+) -> Retriever:
+    """A retriever whose dependencies load lazily (bm25 alone never loads the model)."""
+    return Retriever(
+        embedder=lambda: embedder or embedder_from_settings(settings),
+        store=lambda: store or store_from_settings(settings),
+        keyword=lambda: KeywordIndexManager(sessions),
+        rrf_k=settings.RRF_K,
+        candidates=settings.RETRIEVAL_CANDIDATES,
+    )
+
+
+def _describe_mode(settings: Settings, mode: str) -> str:
+    from importlib.metadata import version
+
+    bm25 = (
+        f"BM25 (rank_bm25 {version('rank_bm25')} BM25Okapi, k1=1.5, b=0.75, plain tokenizer "
+        f"v{TOKENIZER_VERSION}) over the eligible chunks in Postgres"
+    )
+    dense = (
+        f"dense `{settings.EMBEDDING_MODEL}` @ `{settings.EMBEDDING_MODEL_REVISION}`, "
+        f"collection `{settings.QDRANT_COLLECTION}`"
+    )
+    if mode == "dense":
+        return dense
+    if mode == "bm25":
+        return bm25
+    return (
+        f"hybrid RRF (k={settings.RRF_K}, {settings.RETRIEVAL_CANDIDATES} candidates per "
+        f"retriever; fixed A2 defaults) of {dense} and {bm25}; scores are RRF fused scores"
+    )
+
+
+def _evaluate_modes(
+    settings: Settings,
+    cases: list[RetrievalCase],
+    modes: list[str],
+    *,
+    top_k: int,
+    dataset: Path,
+    embedder: Embedder | None,
+    store: ChunkStore | None,
+    sessions: sessionmaker[Session],
+) -> list[EvalReport]:
+    """Evaluate modes through one `Retriever` (uniform timing; degraded runs refused)."""
+    retriever = _retriever(settings, embedder, store, sessions)
+    reports = []
+    for mode in modes:
+
+        def run(q: str, f: SearchFilters, k: int, m: str = mode) -> RetrievalResult:
+            return retriever.retrieve(q, mode=m, top_k=k, filters=f)
+
+        reports.append(
+            evaluate_retrieval(cases, run, mode=mode, description=_describe_mode(settings, mode),
+                               k=top_k, dataset=str(dataset), timed_passes=TIMED_PASSES)
+        )  # fmt: skip
+    return reports
 
 
 def _evaluate(
@@ -687,6 +807,7 @@ def _evaluate(
     top_k: int,
     report_path: Path | None,
     mode: str = "dense",
+    compare: bool = False,
     embedder: Embedder | None = None,
     store: ChunkStore | None = None,
     sessions: sessionmaker[Session] | None = None,
@@ -707,6 +828,27 @@ def _evaluate(
     except (OSError, ValueError) as exc:
         print(f"invalid dataset: {exc}")
         return 2
+    if compare or mode == "hybrid":
+        modes = [m.value for m in RetrievalMode] if compare else [mode]
+        try:
+            reports = _evaluate_modes(
+                settings,
+                cases,
+                modes,
+                top_k=top_k,
+                dataset=dataset,
+                embedder=embedder,
+                store=store,
+                sessions=sessions or _sessions(settings),
+            )
+        except (DegradedRunError, RetrievalError) as exc:
+            print(f"evaluation refused: {type(exc).__name__}: {exc}")
+            return 2
+        if compare:
+            note = ("fixed A2 defaults; nothing is selected or tuned here (selection "
+                    "happens in M2 A3 on this development set)")  # fmt: skip
+            return _emit(render_comparison(reports, note=note), report_path, REPO_ROOT)
+        return _emit(render_markdown(reports[0]), report_path, REPO_ROOT)
     if mode == "bm25":
         manager = KeywordIndexManager(sessions or _sessions(settings))
         try:
@@ -729,10 +871,13 @@ def _evaluate(
         embedder = embedder or embedder_from_settings(settings)
         store = store or store_from_settings(settings)
         report = evaluate(cases, embedder, store, k=top_k, dataset=str(dataset))
-    text = render_markdown(report)
+    return _emit(render_markdown(report), report_path, REPO_ROOT)
+
+
+def _emit(text: str, report_path: Path | None, root: Path) -> int:
     print(text)
     if report_path is not None:
-        out = report_path if report_path.is_absolute() else REPO_ROOT / report_path
+        out = report_path if report_path.is_absolute() else root / report_path
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(text, encoding="utf-8")
         print(f"report written to {out}")
@@ -812,15 +957,17 @@ def build_parser(settings: Settings) -> argparse.ArgumentParser:
                     help="only evidence that can support a MANDATORY requirement")  # fmt: skip
     se.add_argument("--expand", action="store_true",
                     help="show the complete parent paragraph of child hits (Postgres)")  # fmt: skip
-    se.add_argument("--mode", choices=MODES, default="dense",
-                    help="dense (BGE + Qdrant; default) or bm25 (Postgres keywords)")  # fmt: skip
+    se.add_argument("--mode", choices=MODES, default=None,
+                    help="dense, bm25 or hybrid (default: RETRIEVAL_MODE)")  # fmt: skip
 
     ev = sub.add_parser("evaluate", help="Recall@k on the labelled retrieval benchmark")
     ev.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
     ev.add_argument("--top-k", type=int, default=DEFAULT_K)
     ev.add_argument("--report", type=Path, help="also write the markdown report here")
-    ev.add_argument("--mode", choices=MODES, default="dense",
-                    help="retrieval mode to evaluate (default dense)")  # fmt: skip
+    ev.add_argument("--mode", choices=MODES, default=None,
+                    help="retrieval mode to evaluate (default: RETRIEVAL_MODE)")  # fmt: skip
+    ev.add_argument("--compare", action="store_true",
+                    help="compare dense, bm25 and hybrid at fixed A2 defaults")  # fmt: skip
     return parser
 
 
@@ -838,7 +985,9 @@ def main(argv: list[str] | None = None) -> int:
         "retry": lambda: _retry(settings, args.document, force=args.force),
         "runs": lambda: _runs(settings, args.document, args.failed, args.limit),
         "evaluate": lambda: _evaluate(settings, args.dataset, top_k=args.top_k,
-                                      report_path=args.report, mode=args.mode),
+                                      report_path=args.report,
+                                      mode=args.mode or settings.RETRIEVAL_MODE,
+                                      compare=args.compare),
     }  # fmt: skip
     commands["ingest"] = commands["run"]
     if args.command == "index":
@@ -864,7 +1013,7 @@ def main(argv: list[str] | None = None) -> int:
             entity_terms=tuple(args.entity),
         )
         return _search(settings, args.query, top_k=args.top_k, filters=filters,
-                       expand=args.expand, mode=args.mode)  # fmt: skip
+                       expand=args.expand, mode=args.mode or settings.RETRIEVAL_MODE)  # fmt: skip
     return commands[args.command]()
 
 

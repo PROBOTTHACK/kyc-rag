@@ -132,6 +132,37 @@ def chunk_corpus_fingerprint(session: Session) -> str:
     return str(session.execute(_FINGERPRINT_SQL).scalar_one())
 
 
+def chunk_corpus_version(session: Session) -> str:
+    """Cheap runtime change detector for the keyword index (M2 A2; ~5 ms vs ~100 ms).
+
+    SHA-256 over the row count and the ordered `(id, xmin)` pairs of `chunks` and of
+    `documents`, read in ONE statement (so in one snapshot). Postgres gives every row
+    version written by INSERT or UPDATE the writing transaction's id (`xmin`), so any
+    committed insert, update (even one that writes identical values) or delete of a chunk
+    or document row changes this value. It therefore detects every change the content
+    fingerprint (`chunk_corpus_fingerprint`) detects, plus harmless no-op writes.
+
+    Limitations (docs/04): it identifies row VERSIONS, not content, so it is a runtime
+    freshness check only, never a persistent version identifier. `xmin` is a 32-bit
+    transaction id: in theory a row rewritten exactly ~2^32 transactions later, with
+    everything else unchanged, could repeat its pair; the counts narrow this further and
+    it is unreachable at this project's scale. Freezing (VACUUM) keeps the stored xmin
+    (PostgreSQL >= 9.4), and dump/restore or replication assigns new ones, which only
+    causes an extra rebuild. Do not cache or persist this value across databases.
+    """
+    return str(session.execute(_VERSION_SQL).scalar_one())
+
+
+_VERSION_SQL = text(
+    "SELECT encode(sha256(convert_to("
+    " 'chunks:' || (SELECT count(*) FROM chunks)::text || ':' ||"
+    " coalesce((SELECT string_agg(id::text || '@' || xmin::text, ',' ORDER BY id) FROM chunks),"
+    " '') || '|documents:' || (SELECT count(*) FROM documents)::text || ':' ||"
+    " coalesce((SELECT string_agg(id::text || '@' || xmin::text, ',' ORDER BY id)"
+    " FROM documents), ''), 'UTF8')), 'hex')"
+)
+
+
 # The document column list is written out literally (no string interpolation in SQL); a
 # unit test keeps it equal to `_FINGERPRINT_DOCUMENT_COLUMNS`.
 _FINGERPRINT_SQL = text(

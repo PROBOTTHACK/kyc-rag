@@ -139,10 +139,46 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
   - `evaluate --mode bm25` (`make eval MODE=bm25`) runs the development set and reports latency.
   - `--mode` defaults to `dense`, which is the unchanged M1 path. `make check-dense-golden` verifies it against the M1 golden snapshot.
   - `evaluate` refuses the frozen held-out set (`m2_heldout.jsonl`) in every mode (docs/10).
-- **Measured** (2026-11-10, Windows laptop, local Docker Postgres, indicative):
-  - index build over 429 chunks: 0.05 s (target < 1 s; a measured target, not a gate);
-  - query latency: p50 ~110 ms, dominated by the per-query fingerprint check (~104 ms, hashing about 0.9 MB of row text); BM25 scoring itself takes ~4 ms;
-  - cheaper change detection (for example a database-maintained version counter, which would be a schema change) is a later option.
+- **Measured in A1** (2026-11-10, Windows laptop, local Docker Postgres, indicative): index build over 429 chunks 0.05 s (target < 1 s; a measured target, not a gate). Query latency p50 ~110 ms, dominated by the per-query content-hash check (~104 ms, hashing about 0.9 MB of row text); BM25 scoring itself ~4 ms. A2 replaced that check (below).
+
+**Freshness check: `xmin` version (M2 A2; `chunk_corpus_version` in `app/db/repository.py`):**
+- The manager compares, on every query, a SHA-256 over the row count and the ordered `(id, xmin)` pairs of `chunks` and of `documents`. These are read in one statement, inside the same REPEATABLE READ snapshot as the rows the index is built from.
+- **What it detects:** Postgres stamps every row version written by INSERT or UPDATE with the writing transaction's id (`xmin`). So any committed insert, update (even a no-op UPDATE that writes identical values) or delete of a chunk or document row changes the value. It detects everything the A1 content hash detects, plus harmless no-op writes, which only cause an extra rebuild.
+- **Tests:** the eight A1 freshness cases pass unchanged, plus INSERT, UPDATE, no-op UPDATE and DELETE of chunk and document rows. A read failure still drops the index and raises `KeywordIndexUnavailable`; a stale index is never served.
+- **Limitations:**
+  - `xmin` identifies row *versions*, not content, so it is a **runtime freshness check only**, never a persistent version identifier. Don't store or compare it across databases.
+  - It is a 32-bit transaction id. In theory, a row rewritten exactly ~2^32 transactions later, with everything else unchanged, could repeat its pair. The row counts narrow this further, and it is unreachable at this project's scale.
+  - Freezing (VACUUM) keeps the stored `xmin` (PostgreSQL ≥ 9.4). A dump/restore or replication assigns new values, which only causes a rebuild.
+- **Measured:** check p50 6.1 ms / p95 7.1 ms (A1 content hash: ~103 / 116 ms); BM25 search end to end p50 ~11–13 ms.
+- **Not changed:** no migration. A trigger-maintained version counter (≈1–2 ms; needs a table and triggers via Alembic) remains a possible later optimisation. `max(updated_at)` was rejected, because raw-SQL updates don't touch it.
+
+**Hybrid retrieval: dense + BM25 with Reciprocal Rank Fusion (M2 A2; `app/retrieval/{fusion,retrieve}.py`):**
+- **Modes** (`RetrievalMode`): `dense` (M1 `search()`, unchanged), `bm25` (A1 keyword index, unchanged), `hybrid`. The default comes from `RETRIEVAL_MODE` (default **`dense`** until M2 A3 selects on the development set); `--mode` overrides it.
+- **Hybrid:**
+  - both retrievers run **sequentially**, each returning `RETRIEVAL_CANDIDATES` (50) hits under the same `SearchFilters`;
+  - the two rankings are fused with RRF, `score = Σ 1/(RRF_K + rank)` with `RRF_K` = 60, using ranks only (dense cosine and BM25 scores are not comparable);
+  - ties: fused score descending, then best single-retriever rank, then `chunk_id`;
+  - these are fixed A2 defaults, not tuned.
+- **Score semantics** (`RetrievalResult.score_kind`):
+  - `SearchHit.score` is the original **dense cosine** score in `dense` mode, the original **BM25** score in `bm25` mode, and the **RRF fused** score in `hybrid` mode;
+  - in a degraded hybrid result, it is the surviving retriever's original score;
+  - `RetrievalResult.provenance[chunk_id]` always keeps the original dense rank and score, the original BM25 rank and score (`None` when that retriever didn't return the chunk) and the fused score;
+  - `SearchHit` itself is unchanged.
+- **Payloads:** hybrid hits carry the Postgres-built payload (no Qdrant `index` field), identical whichever retriever found the chunk. A dense point with no stored chunk is not cited (`RetrievalResult.dropped`). Dense-only mode keeps M1's payloads exactly. Citations, filters (`SearchFilters`, the same for both retrievers) and parent expansion (`--expand`, `evidence_context`) are unchanged.
+- **Degraded results:**
+  - **both succeed:** a normal fused result;
+  - **one fails:** the other's own ranking, `degraded = ("dense",)` or `("bm25",)`, with the error in `failures`;
+  - **both fail:** `RetrievalError`.
+  - The CLI prints `DEGRADED: <retriever> retrieval failed (...); showing <score kind> results only` and exits `0` for a degraded but valid result, or `2` when every retriever failed. M1 exit-code meanings are unchanged.
+  - Single modes never fall back.
+  - Evaluations refuse degraded runs (exit 2) rather than score them.
+- **CLI and Make:**
+  - `search --mode hybrid` prints `scores: rrf` and a `via: dense #r (score) · bm25 #r (score)` line per hit;
+  - `evaluate --mode hybrid`; `evaluate --compare` / `make eval-compare` compares dense, BM25 and hybrid on the development set with per-stage latency (freshness, BM25 scoring, query embedding, Qdrant, fusion) and selects nothing;
+  - `make search` / `make eval` take `MODE=dense|bm25|hybrid` (empty = `RETRIEVAL_MODE`);
+  - `reconcile` adds one informational line (`keyword index (informational): N chunks; Postgres eligible M; Qdrant P`, or `unavailable: …`), which never affects its verdict, repair or exit code.
+- **Settings** (`infra/.env.example`): `RETRIEVAL_MODE`, `RRF_K`, `RETRIEVAL_CANDIDATES`.
+- **Measured on the development set:** see docs/10 (A2 comparison).
 
 ## Milestone-1 minimal slice
 Accept PDFs -> extract w/ page refs -> embed -> index in Qdrant -> query returns top-5 passages with citations. Measure Recall@5 on a small hand-labeled set. **Done (M1 Stage F):** `make ingest`, `make search`, `make eval` (Recall@5 0.825 on 20 queries; docs/10).

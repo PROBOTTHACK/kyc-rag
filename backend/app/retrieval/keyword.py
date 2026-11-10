@@ -10,9 +10,12 @@
   IDF and average length are global over the corpus. Metadata filters are applied
   BEFORE scoring: only chunks passing `SearchFilters.matches` are scored at all.
   Eligibility and authority are filters, never ranking signals.
-- Freshness: `KeywordIndexManager.get()` re-reads a fingerprint of the stored rows on
-  every call and rebuilds when it changed. A failed read raises
-  `KeywordIndexUnavailable`; a previously built index is never served after a failure.
+- Freshness: `KeywordIndexManager.get()` re-reads a version fingerprint of the stored
+  rows on every call and rebuilds when it changed. Since M2 A2 this is the cheap
+  `chunk_corpus_version` (row counts + `(id, xmin)` of chunks and documents; ~5 ms)
+  instead of the A1 content hash (~100 ms); it detects every committed insert, update
+  and delete. A failed read raises `KeywordIndexUnavailable`; a previously built index
+  is never served after a failure. `last_check_ms` / `last_build_ms` report the cost.
 """
 
 import re
@@ -26,7 +29,7 @@ from typing import Any
 from rank_bm25 import BM25Okapi
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.db.repository import chunk_corpus_fingerprint, eligible_chunk_payloads
+from app.db.repository import chunk_corpus_version, eligible_chunk_payloads
 from app.retrieval.search import DEFAULT_TOP_K, SearchFilters, SearchHit
 
 TOKENIZER_VERSION = 1  # bump when `tokenize` changes
@@ -111,16 +114,21 @@ class KeywordIndexManager:
         self._index: KeywordIndex | None = None
         self._lock = threading.Lock()
         self.rebuilds = 0
+        self.last_check_ms = 0.0  # freshness check of the last `get()` (session + version read)
+        self.last_build_ms = 0.0  # row load + index build of the last `get()` (0 if reused)
 
     def get(self) -> KeywordIndex:
         with self._lock:
+            started = time.perf_counter()
+            self.last_build_ms = 0.0
             try:
                 with self._sessions() as s:
                     s.connection(execution_options={"isolation_level": "REPEATABLE READ"})
-                    fp = f"t{TOKENIZER_VERSION}:{chunk_corpus_fingerprint(s)}"
+                    fp = f"t{TOKENIZER_VERSION}:x:{chunk_corpus_version(s)}"
+                    self.last_check_ms = (time.perf_counter() - started) * 1000
                     if self._index is not None and self._index.fingerprint == fp:
                         return self._index
-                    payloads = eligible_chunk_payloads(s)
+                    payloads = eligible_chunk_payloads(s)  # same snapshot as `fp`
             except Exception as exc:
                 self._index = None  # never serve an index we could not verify
                 raise KeywordIndexUnavailable(
@@ -128,6 +136,7 @@ class KeywordIndexManager:
                 ) from exc
             self._index = self._build(payloads, fp)
             self.rebuilds += 1
+            self.last_build_ms = (time.perf_counter() - started) * 1000 - self.last_check_ms
             return self._index
 
     def search(

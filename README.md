@@ -152,8 +152,10 @@ Other targets: `make test` (unit), `make test-integration` (needs `make up`), `m
 | `make reconcile` | `reconcile` | Postgres ↔ Qdrant in both directions; read-only |
 | `make repair` | `reconcile --repair [--delete-unknown]` | Re-index inconsistent documents from Postgres |
 | `make runs` | `runs [--document KEY] [--failed]` | Ingestion history with the failing stage and error |
-| `make search Q=…` | `search QUERY [--top-k] [--entity] [--bank] [--mandatory-only] [--expand]` | Top-5 passages with document + page citations |
-| `make eval` | `evaluate [--dataset] [--report]` | Recall@5 / Hit@5 / MRR on the labelled queries |
+| `make search Q=… [MODE=…]` | `search QUERY [--top-k] [--entity] [--bank] [--mandatory-only] [--expand] [--mode dense\|bm25\|hybrid]` | Top-5 passages with document + page citations (M2: BM25 and hybrid modes; default `dense`) |
+| `make eval [MODE=…]` | `evaluate [--dataset] [--report] [--mode …]` | Recall@5 / Hit@5 / MRR on the development set (the frozen held-out set is refused) |
+| `make eval-compare` | `evaluate --compare` | Dense vs BM25 vs hybrid on the development set, with latency (selects nothing) |
+| `make check-dense-golden` | — | M1 dense regression against the golden snapshot (fails, never skips) |
 | `make check-corpus` | `validate-manifest`, `check-ocr` | Manifest + PDF hashes; Tesseract smoke test |
 
 `index` without `--from-db` is the Stage D in-memory indexer (Stages A–C → Qdrant, no Postgres), kept for experiments. Exit codes: `0` ok, `1` a document failed or the stores are inconsistent, `2` invalid input or a service not ready (nothing written). Full reference: [`docs/04-ingestion-pipelines.md`](docs/04-ingestion-pipelines.md); M1 handoff: [`docs/milestones/M1_HANDOFF.md`](docs/milestones/M1_HANDOFF.md).
