@@ -48,6 +48,40 @@ Extract: sections, fields (name/type/required-as-shown/page), checkboxes, signat
 
 **Versioning:** store form_id, version, file hash, extraction timestamp, review status, entity categories. A new form version never silently merges with an old one.
 
+**Deterministic form schemas from stored M1 chunks (implemented, M2 C1; `app/forms/extract.py`, `app/schemas/forms.py`):**
+- **Scope:** the M2 form path, deterministic, without Gemini.
+  - Reads the stored `documents` and `chunks` rows of the five KYC forms plus the context-only NetBanking reference.
+  - Nothing is re-read from the PDFs and nothing is written; persistence is C2.
+  - `extract_form(session, key)` builds a `FormSchema` from those rows; `build_schema(document, records)` is the pure core.
+- **Sections:** consecutive chunks that share an M1 heading form one `FormSection`, in document order. A heading that recurs later starts a new section, so ordering and page/chunk provenance are never merged. A section is `is_declaration` when its heading contains "DECLARATION".
+- **Fields:**
+  - only native-text `form_fields` chunks in the verified M1 format, `"Fields: " + " | ".join(labels)`, are split, on exactly `" | "`;
+  - each `FormField` keeps `printed_label` exactly as stored, including any `*`; `label` is the display form with the leading marker removed;
+  - `required_as_shown` reads leading asterisks only: exactly one gives `True`; no asterisk at all gives `False`; anything else gives `None` with a `marker_issue` (several leading asterisks, an asterisk elsewhere in the label);
+  - empty pieces and wrongly formatted field chunks become `issues`; nothing is invented;
+  - every field carries page, region, chunk ID and position, `appears_on_form=True`, `verification_status="extracted"`, and `mandatory_under_policy=None`, which extraction can never set.
+- **Text blocks:** every other chunk (headings, declarations, instructions) is kept verbatim, with its reliability, OCR confidence, page status and the count of low-confidence OCR lines M1 excluded.
+- **Scanned forms:**
+  - OCR chunks are **always** text blocks, never structured fields (an OCR field list is reported as an issue), with `verification_status` `ocr_reliable` or `ocr_uncertain`;
+  - their sections are flagged `no_field_structure`;
+  - document flags record `scanned_document`, `no_field_structure`, `ocr_uncertain_text`, `reference_document`, `context_only`, `parse_issues` and `ambiguous_required_markers`.
+- **Deterministic and timestamp-free:** identical stored chunks give identical schemas, whatever the input order. Recorded as `extraction_method="m1_chunks"`, `extractor_version=1`.
+- **Measured on the corpus (2026-11-10):**
+
+  | Document | Role | Sections | Fields | `*` required | Text blocks | Flags |
+  |---|---|---|---|---|---|---|
+  | NRI account opening | KYC form | 28 | 312 | 36 | 44 | 14 ambiguous markers |
+  | Resident → NRO conversion | KYC form | 24 | 247 | 31 | 35 | 8 ambiguous markers |
+  | Re-KYC / dormant | KYC form | 4 | 50 | 0 | 6 | — |
+  | Non-individual account opening | KYC form (scanned) | 13 | 0 | 0 | 21 | no field structure, OCR uncertain |
+  | NRI re-KYC | KYC form (scanned) | 9 | 0 | 0 | 12 | no field structure, OCR uncertain |
+  | NetBanking corporate application | reference (context-only) | 4 | 14 | 0 | 5 | reference, context_only |
+
+- **Limitations:**
+  - `printed_label` is the label as M1 stored it, which is already NFKC- and whitespace-normalised. The untouched source lines are in the chunk's `raw_text`, linked by `chunk_id`.
+  - M1 sometimes merges option groups into one label ("*Gender Married Unmarried …") and lists form furniture as labels ("Page 1 of 6", "DDMMYYYY"). These are kept as printed, never filtered by guesswork.
+  - No checkbox, signature or layout understanding: Gemini is deferred.
+
 **Embeddings and Qdrant indexing (implemented, M1 Stage D; `app/retrieval/{embeddings,qdrant_store,indexing,search}.py`):**
 - Model: `BAAI/bge-small-en-v1.5` at the pinned revision `EMBEDDING_MODEL_REVISION`, on CPU. It produces 384-dimensional vectors, L2-normalised, compared by cosine. Queries get the BGE instruction ("Represent this sentence for searching relevant passages: "); passages don't.
 - Embedding input = the child `context` (if any) + chunk `content`; title and section are not embedded. On a dev probe set of 8 queries (separate from the Stage G benchmark), adding title and section let short chunks rank on the title alone: MRR 0.67, against 0.81 for context + content. Every input fits the 512-token limit (max 476 tokens in the corpus). An input that would be truncated raises an error instead.
