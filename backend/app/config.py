@@ -111,6 +111,11 @@ class Settings(BaseSettings):
     LANGSMITH_PROJECT: str = "kyc-engine"
     # --- Limits ---
     MAX_REGENERATIONS: int = Field(default=2, ge=0, le=2)
+    # --- Workflow graph (M3) ---
+    # Clarification rounds before INSUFFICIENT_INFORMATION (M3_PLAN §5; hard max 2).
+    MAX_CLARIFICATION_ROUNDS: int = Field(default=2, ge=0, le=2)
+    # LangGraph super-step limit per invocation; must cover the longest path (builder check).
+    GRAPH_RECURSION_LIMIT: int = Field(default=25, ge=1, le=100)
     MAX_UPLOAD_MB: int = Field(default=20, gt=0)
     RATE_LIMIT_GROQ_RPM: int = Field(default=20, gt=0)
     RATE_LIMIT_GEMINI_RPM: int = Field(default=10, gt=0)

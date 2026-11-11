@@ -72,6 +72,8 @@ flowchart LR
 | `app/core/cache.py` | M2 G4: best-effort Redis JSON cache (short timeouts; failures counted, never raised) |
 | `app/forms/extract.py`, `app/schemas/forms.py` | M2 C1: deterministic form schemas from stored M1 chunks (printed labels, `required_as_shown`, OCR kept as flagged text, page/chunk provenance) |
 | `app/retrieval/rerank.py` | M2 B1: optional cross-encoder reranking (MiniLM, pinned, CPU, lazy; off by default); raw scores for ordering only |
+| `app/graph/{state,routing,builder}.py`, `app/graph/nodes/*.py` | M3 S2: JSON-safe `KYCState` with Pydantic models for every nested value and `validate_state`; the two status vocabularies (`RunStatus`, `Outcome`) and `decide_outcome` precedence; pure, fail-closed routing functions; the graph built with explicit path maps, `GraphDeps` dependency injection and an explicit recursion limit checked against the longest legal path; nine stub nodes (one file each) that make no decisions yet |
+| `app/retrieval/factory.py` | M3 S2: public `retriever_from_settings` (moved unchanged from the CLI; CLI search output verified byte-identical) |
 | `app/retrieval/{fusion,retrieve}.py` | M2 A2: RRF fusion; `dense` / `bm25` / `hybrid` modes with provenance, score kinds and degraded results |
 | `app/ingestion/{pipeline,cli}.py` | Stage F: per-document orchestration (full / persist / index), dry run, retry, CLI |
 

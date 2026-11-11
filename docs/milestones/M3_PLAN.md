@@ -285,6 +285,30 @@ Each stage is one commit, with its tests, lint and docs; M1/M2 behaviour stays u
 - **Tests:** 69 new unit tests (Groq 32, contract/fallback/re-ask/transport 15, limiter 10, cache 12) and 3 Redis integration tests. Unit 598 passed and integration 202 passed (`TESSDATA_DIR`/`GEMINI_API_KEY` unset). `lint` (strict mypy, 79 files), `check-schema` and `check-dense-golden` are green.
 - **No live Groq call was made.**
 
+### S2 outcome (2026-11-11)
+- **Built:**
+  - `app/graph/state.py`: JSON-safe `KYCState`, nested Pydantic models, `validate_state`, and the `SecurityStatus`, `Outcome`, `RunStatus` and `LinkKind` vocabularies;
+  - `app/graph/routing.py`: pure, fail-closed routing plus `decide_outcome` precedence;
+  - `app/graph/builder.py`: `GraphDeps`, `build_graph`, `run_config` and `topology`;
+  - nine stub nodes in `app/graph/nodes/`;
+  - `app/retrieval/factory.py` (`retriever_from_settings`).
+- **New settings:** `MAX_CLARIFICATION_ROUNDS=2` and `GRAPH_RECURSION_LIMIT=25`.
+- **CLI unchanged:** search output is byte-identical to the pre-refactor baseline (dense, bm25, hybrid, entity-filtered mandatory-only, and dense + rerank). Each case was run twice before and twice after the change.
+- **Decisions taken while building:**
+  - **No refusal node:** the revision-2 diagram is authoritative, so a blocked or review security status routes to `finalize`, which records `BLOCKED`.
+  - **Recursion limit:** LangGraph counts the input as a super-step, so a path of n nodes needs `recursion_limit` n + 1. The longest legal path is 8 + 2 x rounds nodes, so 2 rounds need 13. `GraphDeps` refuses any lower limit, and the default is 25.
+  - **Stubs:** they make no decisions. Routing fails closed, so an empty state ends `BLOCKED`. The `clarify` stub only advances the bounded round counter, and S3 replaces it with `interrupt()`. The `finalize` stub only computes the outcome; it persists nothing.
+  - **Synthesis flows straight to validation:** `compliance_synthesis` always continues to `output_validation`, which in S5 handles a missing draft (giving `DEGRADED`). The M4 claim-verification seam sits between them.
+  - **Partial degradation:** a partially degraded retrieval still proceeds, and `decide_outcome` reports it as `DEGRADED`.
+- **Tests:** 86 new unit tests:
+  - routing: every conditional edge, cross-checked against the compiled topology;
+  - outcome precedence, and no approve/reject vocabulary anywhere;
+  - state JSON and checkpoint round trips;
+  - the topology snapshot `tests/fixtures/m3_graph_topology.json`;
+  - recursion-limit boundaries checked against LangGraph;
+  - factory wiring and laziness.
+- **Results:** unit 684 and integration 202 passed. `lint` (strict mypy, 92 files), `check-schema` and `check-dense-golden` are green.
+
 ## 13. Dependencies and configuration
 - **New packages (D2):** `langgraph`, `langgraph-checkpoint-postgres` (pulls in `psycopg-pool`, `langchain-core` and `langsmith`) and `groq` (imported lazily).
 - **Not added:** sse-starlette (`StreamingResponse` is enough) and arq (§9).

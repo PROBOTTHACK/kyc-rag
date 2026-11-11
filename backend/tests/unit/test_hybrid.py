@@ -265,7 +265,7 @@ def test_evaluation_refuses_degraded_runs(services: dict[str, Any]) -> None:
 
 @pytest.fixture
 def cli_services(services: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
-    monkeypatch.setattr(cli, "_retriever", lambda *a, **kw: make(services))
+    monkeypatch.setattr(cli, "retriever_from_settings", lambda *a, **kw: make(services))
     return services
 
 

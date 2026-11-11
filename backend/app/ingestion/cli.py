@@ -103,6 +103,7 @@ from app.retrieval.evaluation import (
     render_comparison,
     render_markdown,
 )
+from app.retrieval.factory import retriever_from_settings
 from app.retrieval.heldout import (
     FROZEN_HELDOUT_SHA256,
     HeldoutProtocolError,
@@ -116,7 +117,6 @@ from app.retrieval.indexing import find_orphans, index_document, prune_orphans
 from app.retrieval.keyword import TOKENIZER_VERSION, KeywordIndexManager, KeywordIndexUnavailable
 from app.retrieval.qdrant_store import ChunkStore, store_from_settings
 from app.retrieval.reconcile import ReconcileReport, reconcile, repair
-from app.retrieval.rerank import reranker_from_settings
 from app.retrieval.retrieve import (
     HitProvenance,
     RetrievalError,
@@ -727,15 +727,17 @@ def _search(
     try:
         if rerank:
             sessions = sessions or _sessions(settings)
-            result = _retriever(settings, embedder, store, sessions).retrieve(
-                query, mode=mode, top_k=top_k, filters=filters, rerank=True
+            retriever = retriever_from_settings(
+                settings, sessions=sessions, embedder=embedder, store=store
             )
+            result = retriever.retrieve(query, mode=mode, top_k=top_k, filters=filters, rerank=True)
             hits = result.hits
         elif mode == "hybrid":
             sessions = sessions or _sessions(settings)
-            result = _retriever(settings, embedder, store, sessions).retrieve(
-                query, mode=mode, top_k=top_k, filters=filters
+            retriever = retriever_from_settings(
+                settings, sessions=sessions, embedder=embedder, store=store
             )
+            result = retriever.retrieve(query, mode=mode, top_k=top_k, filters=filters)
             hits = result.hits
         elif mode == "bm25":
             sessions = sessions or _sessions(settings)
@@ -820,24 +822,6 @@ def _via(p: HitProvenance) -> str:
     return out
 
 
-def _retriever(
-    settings: Settings,
-    embedder: Embedder | None,
-    store: ChunkStore | None,
-    sessions: sessionmaker[Session],
-) -> Retriever:
-    """A retriever whose dependencies load lazily (bm25 alone never loads the model)."""
-    return Retriever(
-        embedder=lambda: embedder or embedder_from_settings(settings),
-        store=lambda: store or store_from_settings(settings),
-        keyword=lambda: KeywordIndexManager(sessions, stopwords=settings.BM25_STOPWORDS),
-        rrf_k=settings.RRF_K,
-        candidates=settings.RETRIEVAL_CANDIDATES,
-        reranker=lambda: reranker_from_settings(settings),  # loaded only if reranking
-        rerank_candidates=settings.RERANK_CANDIDATES,
-    )
-
-
 def _describe_mode(settings: Settings, mode: str) -> str:
     from importlib.metadata import version
 
@@ -872,7 +856,7 @@ def _evaluate_modes(
     rerank: bool = False,
 ) -> list[EvalReport]:
     """Evaluate modes through one `Retriever` (uniform timing; degraded runs refused)."""
-    retriever = _retriever(settings, embedder, store, sessions)
+    retriever = retriever_from_settings(settings, sessions=sessions, embedder=embedder, store=store)
     reports = []
     for mode in modes:
 

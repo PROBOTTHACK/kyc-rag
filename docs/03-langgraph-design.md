@@ -3,6 +3,12 @@
 Single state machine, specialized nodes. A node may use an LLM, deterministic Python, or an external service. Checkpointer: Postgres. Progress events: Redis pub/sub. Tracing: LangSmith.
 
 ## State
+> **As implemented (M3 S2): `app/graph/state.py`.** It follows `docs/milestones/M3_PLAN.md` §4–§5, which supersedes the sketch below:
+> - **JSON-safe values:** every value is JSON, and nested values are Pydantic model dumps, so checkpoints never deserialise application classes.
+> - **Outcome vocabulary:** `final_status` is replaced by the single report `outcome` (`BLOCKED`, `INSUFFICIENT_INFORMATION`, `INSUFFICIENT_EVIDENCE`, `DEGRADED`, `CHECKLIST_REVIEW_REQUIRED`, in precedence order), plus the separate run lifecycle `RunStatus`.
+> - **Claim fields:** they arrive with M4.
+> - **Routing:** `app/graph/routing.py`. A blocked or review security status goes to `finalize`, not to a separate refusal node (M3 plan revision 2).
+
 ```python
 class KYCState(TypedDict, total=False):
     # request
