@@ -24,6 +24,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import re
 import time
 import uuid
 from collections.abc import Mapping
@@ -36,6 +37,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.core.events import NullPublisher, ProgressEvent, Publisher
 from app.db import workflow as db
 from app.graph.builder import GraphDeps, run_config
 from app.graph.inputs import (
@@ -49,9 +51,19 @@ from app.graph.intake import flatten_strings
 from app.graph.report import report_id as derive_report_id
 from app.graph.state import ComplianceReport, DataClass
 from app.security.screen import screen_text
+from app.workflow.stream import (
+    RunView,
+    completed_nodes,
+    missing_completions,
+    session_event_stream,
+)
 
 log = logging.getLogger(__name__)
 SUBMITTABLE = (dict, Command, type(None))
+# LangGraph checkpoint ids are server-issued UUID strings. They are opaque tokens, not user
+# text: about 2 % of random UUIDs contain a digit run that passes the card-number Luhn
+# check, so screening them as text wrongly rejected valid resumes (fixed in M3 S7).
+CHECKPOINT_ID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
 
 class WorkflowError(Exception):
@@ -92,6 +104,12 @@ class WorkflowRuntime:
     owner_id: str = field(default_factory=lambda: f"api-{uuid.uuid4()}")
     tasks: set[asyncio.Task[None]] = field(default_factory=set)
     on_close: list[Any] = field(default_factory=list)  # async closers (checkpointer pool)
+    # M3 S7: progress events. Redis is only a wake-up; PostgreSQL is the source.
+    publisher: Publisher = field(default_factory=NullPublisher)
+    subscriber: Any = None  # () -> redis.asyncio.Redis for pub/sub, or None (poll only)
+    events_poll_s: float = 1.0
+    sse_keepalive_s: float = 15.0
+    sse_idle_timeout_s: float = 900.0
 
 
 def _sha(endpoint: str, body: Mapping[str, Any]) -> str:
@@ -111,6 +129,18 @@ def _screen_raw(body: Any, max_chars: int) -> None:
                 "processed. Use synthetic data only.",
                 categories=list(result.categories),
             )
+
+
+def _without_checkpoint_id(body: Any) -> Any:
+    """The resume body minus a well-formed `checkpoint_id`, for PII screening. A
+    `checkpoint_id` that is not exactly a lowercase UUID is rejected here (codes only,
+    nothing stored), so the only value exempt from screening is pure hex."""
+    if not isinstance(body, dict) or "checkpoint_id" not in body:
+        return body
+    value = body["checkpoint_id"]
+    if not isinstance(value, str) or not CHECKPOINT_ID.fullmatch(value):
+        raise WorkflowError(422, "VALIDATION_ERROR", "The request body is not valid.")
+    return {k: v for k, v in body.items() if k != "checkpoint_id"}
 
 
 def _validate(model: type[BaseModel], body: Any) -> Any:
@@ -331,7 +361,7 @@ class WorkflowService:
                     "RUN_IN_PROGRESS",
                     "A workflow is already running or awaiting clarification " "in this session.",
                 ) from None
-        self._start(run_id, str(run_id), state)
+        self._start(session.id, run_id, str(run_id), state)
         return response
 
     async def resume(self, session_id: str, key: str | None, body: Any) -> dict[str, Any]:
@@ -339,7 +369,7 @@ class WorkflowService:
         async with self.rt.sessions() as s:
             session = await self._active_session(s, session_id)
             run = await db.latest_run(s, session.id)
-        _screen_raw(body, self.rt.query_max_chars)  # before anything else reads the values
+        _screen_raw(_without_checkpoint_id(body), self.rt.query_max_chars)  # before any read
         parsed: ResumeBody = _validate(ResumeBody, body)
         sha = _sha("resume", {"checkpoint_id": parsed.checkpoint_id, "answers": parsed.answers})
         replay = await self._replay(session.id, key, "resume", sha)
@@ -388,7 +418,7 @@ class WorkflowService:
                 return stored
             if not await db.claim_awaiting(s, run.id, self.rt.owner_id, self.rt.lease_s):
                 raise WorkflowError(409, "RUN_IN_PROGRESS", "This workflow was already resumed.")
-        self._start(run.id, run.thread_id, command)
+        self._start(session.id, run.id, run.thread_id, command)
         return response
 
     async def retry(self, session_id: str, key: str | None, body: Any) -> dict[str, Any]:
@@ -435,13 +465,15 @@ class WorkflowService:
                     )
             except IntegrityError:
                 raise WorkflowError(409, "RUN_IN_PROGRESS", "Another retry won.") from None
-        self._start(new_id, run.thread_id, None)
+        self._start(session.id, new_id, run.thread_id, None)
         return response
 
     # --- background execution ------------------------------------------------------------------
 
-    def _start(self, run_id: uuid.UUID, thread_id: str, graph_input: Any) -> None:
-        task = asyncio.create_task(self._execute(run_id, thread_id, graph_input))
+    def _start(
+        self, session_id: uuid.UUID, run_id: uuid.UUID, thread_id: str, graph_input: Any
+    ) -> None:
+        task = asyncio.create_task(self._execute(session_id, run_id, thread_id, graph_input))
         self.rt.tasks.add(task)
         task.add_done_callback(self.rt.tasks.discard)
 
@@ -452,7 +484,46 @@ class WorkflowService:
                 if not await db.renew_lease(s, run_id, self.rt.owner_id, self.rt.lease_s):
                     return
 
-    async def _execute(self, run_id: uuid.UUID, thread_id: str, graph_input: Any) -> None:
+    async def _publish_node(self, session_id: uuid.UUID, run_id: uuid.UUID, event: Any) -> None:
+        """After the node event is COMMITTED in PostgreSQL (M3_PLAN §9 order)."""
+        if event is None:
+            return
+        await self.rt.publisher.publish(
+            str(session_id),
+            ProgressEvent(kind="node", run_id=str(run_id), seq=int(event["seq"]),
+                          node=str(event["node"]), status=str(event["status"]),
+                          at=str(event["at"])),
+        )  # fmt: skip
+
+    async def _publish_run(self, session_id: uuid.UUID, run_id: uuid.UUID, status: str) -> None:
+        """A current-status notification (S7-D3), after the status is committed."""
+        await self.rt.publisher.publish(
+            str(session_id),
+            ProgressEvent(kind="run", run_id=str(run_id), status=status,
+                          at=datetime.now(UTC).isoformat()),
+        )  # fmt: skip
+
+    async def _recover_unrecorded(
+        self, session_id: uuid.UUID, run_id: uuid.UUID, thread_id: str, config: Any
+    ) -> None:
+        """S7-D5: node completions that the checkpoint history has but no earlier run of
+        this thread recorded (a crash between the checkpoint and the `node_events` write)
+        are appended to this retry run as `recovered`, in execution order, before it
+        resumes. Already-recorded completions are never duplicated."""
+        history = [h async for h in self.rt.graph.aget_state_history(config)][::-1]
+        checkpointed = completed_nodes(
+            [(tuple(h.next), (h.metadata or {}).get("source")) for h in history]
+        )
+        async with self.rt.sessions() as s:
+            recorded = await db.recorded_completions(s, thread_id, exclude_run=run_id)
+        for node in missing_completions(checkpointed, recorded):
+            async with self.rt.sessions() as s, s.begin():
+                event = await db.append_node_event(s, run_id, self.rt.owner_id, node, "recovered")
+            await self._publish_node(session_id, run_id, event)
+
+    async def _execute(
+        self, session_id: uuid.UUID, run_id: uuid.UUID, thread_id: str, graph_input: Any
+    ) -> None:
         """The ONLY place the application submits input to the graph."""
         if not isinstance(graph_input, SUBMITTABLE):  # defensive: never a raw value
             raise TypeError("only a start_input state, a resume_command or None is submitted")
@@ -460,11 +531,15 @@ class WorkflowService:
         heartbeat = asyncio.create_task(self._heartbeat(run_id))
         started = time.monotonic()
         try:
+            await self._publish_run(session_id, run_id, "running")
+            if graph_input is None:
+                await self._recover_unrecorded(session_id, run_id, thread_id, config)
             async for update in self.rt.graph.astream(graph_input, config, stream_mode="updates"):
                 for node in update:
                     if node != "__interrupt__":
                         async with self.rt.sessions() as s, s.begin():
-                            await db.append_node_event(s, run_id, self.rt.owner_id, node)
+                            event = await db.append_node_event(s, run_id, self.rt.owner_id, node)
+                        await self._publish_node(session_id, run_id, event)
             snapshot = await self.rt.graph.aget_state(config)
             status = "awaiting_clarification" if snapshot.next else "completed"
             calls = list(snapshot.values.get("llm_calls") or []) if status == "completed" else []
@@ -477,18 +552,60 @@ class WorkflowService:
                     latency_ms=int((time.monotonic() - started) * 1000),
                     llm_calls=calls,
                 )
+            await self._publish_run(session_id, run_id, status)
         except asyncio.CancelledError:
             # Shutdown or crash: the row stays `running` until its lease expires (S6-D2).
             raise
         except Exception as exc:  # noqa: BLE001 - recorded as `failed`, class name only
             log.warning("workflow run %s failed: %s", run_id, type(exc).__name__)
             async with self.rt.sessions() as s, s.begin():
-                await db.append_node_event(
+                event = await db.append_node_event(
                     s, run_id, self.rt.owner_id, f"error:{type(exc).__name__}", "failed"
                 )
                 await db.finish_run(s, run_id, self.rt.owner_id, status="failed")
+            await self._publish_node(session_id, run_id, event)
+            await self._publish_run(session_id, run_id, "failed")
         finally:
             heartbeat.cancel()
+
+    # --- progress stream (M3 S7) ----------------------------------------------------------------
+
+    async def open_event_stream(
+        self, session_id: str, last_event_id: str | None, is_disconnected: Any
+    ) -> Any:
+        """The SSE body for a session. The session must exist (expired sessions may still
+        read their events). Access is possession of the session id (S6-D4)."""
+        try:
+            sid = uuid.UUID(session_id)
+        except ValueError:
+            raise WorkflowError(404, "SESSION_NOT_FOUND", "Session not found.") from None
+        async with self.rt.sessions() as s:
+            if await db.get_session_row(s, sid) is None:
+                raise WorkflowError(404, "SESSION_NOT_FOUND", "Session not found.")
+
+        async def load() -> list[RunView]:
+            async with self.rt.sessions() as s:  # short-lived: never held while waiting
+                runs = await db.session_runs(s, sid)
+            return [
+                RunView(
+                    run_id=str(r.id),
+                    status=r.status,
+                    node_events=list(r.node_events),
+                    status_at=(r.finished_at or r.heartbeat_at or r.started_at).isoformat(),
+                )
+                for r in runs
+            ]
+
+        return session_event_stream(
+            session_id=str(sid),
+            load=load,
+            last_event_id=last_event_id,
+            is_disconnected=is_disconnected,
+            subscriber=self.rt.subscriber,
+            poll_s=self.rt.events_poll_s,
+            keepalive_s=self.rt.sse_keepalive_s,
+            idle_timeout_s=self.rt.sse_idle_timeout_s,
+        )
 
     async def log_stale_leases(self) -> int:
         """Startup: report runs whose lease expired; never re-execute them (M3_PLAN §9)."""

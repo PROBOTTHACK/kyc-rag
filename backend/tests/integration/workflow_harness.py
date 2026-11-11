@@ -19,6 +19,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import Settings, get_settings
+from app.core.events import NullPublisher
 from app.core.loop import selector_loop_factory
 from app.db.session import create_sync_engine, create_sync_sessionmaker
 from app.db.workflow import PostgresReportStore
@@ -109,8 +110,19 @@ class FailOnceAfterSave:
 
 
 def runtime_factory(
-    llm: Any, *, lease_s: float = 60.0, store_wrapper: Callable[[Any], Any] | None = None
+    llm: Any,
+    *,
+    lease_s: float = 60.0,
+    store_wrapper: Callable[[Any], Any] | None = None,
+    publisher: Any = None,
+    subscriber: Any = None,
+    poll_s: float = 0.1,
+    keepalive_s: float = 15.0,
+    idle_s: float = 60.0,
+    on_runtime: Callable[[WorkflowRuntime], None] | None = None,
 ) -> Any:
+    """S7: `publisher` / `subscriber` default to none (PostgreSQL polling only)."""
+
     async def factory(
         settings: Settings, sessions: async_sessionmaker[AsyncSession]
     ) -> WorkflowRuntime:
@@ -125,7 +137,7 @@ def runtime_factory(
             corpus=FakeCorpus(),
             reports=reports,
         )
-        return WorkflowRuntime(
+        runtime = WorkflowRuntime(
             graph=build_graph(deps, checkpointer=AsyncPostgresSaver(pool)),  # type: ignore[arg-type]
             deps=deps,
             sessions=sessions,
@@ -135,7 +147,15 @@ def runtime_factory(
             session_ttl=timedelta(hours=1),
             query_max_chars=2000,
             on_close=[pool.close],
+            publisher=publisher if publisher is not None else NullPublisher(),
+            subscriber=subscriber,
+            events_poll_s=poll_s,
+            sse_keepalive_s=keepalive_s,
+            sse_idle_timeout_s=idle_s,
         )
+        if on_runtime is not None:
+            on_runtime(runtime)
+        return runtime
 
     return factory
 

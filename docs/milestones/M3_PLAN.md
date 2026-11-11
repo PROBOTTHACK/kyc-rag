@@ -507,11 +507,49 @@ S4 is accepted as implemented. These observations carry forward without reopenin
   - **Unchanged:** the topology snapshot (no graph edits).
   - **No live Groq or Gemini call.**
 
+### S7 outcome (2026-11-12)
+- **Built:**
+  - `app/core/events.py`: `ProgressEvent` (`kind`, `run_id`, `seq`, `node`, `status`, `at`; `extra="forbid"`), the best-effort `RedisEventPublisher` (short timeout, failures counted and logged as the class name only, never raised) and `NullPublisher`;
+  - `app/workflow/stream.py`: the `Last-Event-ID` cursor, the PostgreSQL snapshot diff, SSE formatting, the stream generator, and `completed_nodes` / `missing_completions` for recovery;
+  - `GET /api/v1/sessions/{id}/events` (`StreamingResponse`, no new dependency);
+  - service hooks: publish after each committed write (§9 order: checkpoint → `node_events` commit → publish);
+  - `append_node_event … RETURNING`, `session_runs`, `recorded_completions` in `app/db/workflow.py`;
+  - settings `EVENTS_ENABLED`, `EVENTS_PUBLISH_TIMEOUT_S`, `EVENTS_POLL_S`, `SSE_KEEPALIVE_S`, `SSE_IDLE_TIMEOUT_S`.
+- **Owner decisions applied:**
+  - **S7-D1:** PostgreSQL is the only source of what is streamed; Redis is a wake-up only.
+  - **S7-D2:** events carry `kind` and `run_id` besides node, status, seq and timestamp.
+  - **S7-D3:** run events are the current `graph_runs.status`, documented as current-status only. A reconnecting client may get only the latest status; there is no status history and no migration.
+  - **S7-D4:** the stream closes on a terminal latest run (fully sent), disconnect or idle timeout. It stays open before the first message and while awaiting clarification.
+  - **S7-D5:** on `/retry`, the thread's checkpoint history is reconciled against the completions recorded by the thread's EARLIER runs. Only genuinely missing completions are appended to the new run as `recovered`, in execution order, with no duplicates. Nothing else in S6 recovery changed.
+- **SSE robustness:**
+  - ids `<run_id>.<seq>` and `<run_id>.<seq>.<status>` are unique across the runs of a session; malformed and unknown cursors restart from the beginning;
+  - subscribe before the first read; a short-lived DB session per read; at most `MAX_DRAIN` (256) Redis messages drained per wake-up, content discarded; PUBLISH never waits for readers;
+  - the subscription is released on completion, disconnect, idle timeout, cancellation, generator close and exceptions (unit tests for each path; integration checks `PUBSUB NUMSUB` = 0).
+- **Bug found and fixed (a deviation from "do not modify resume security", reported for review):** the S6 raw-body PII screening also screened the resume's `checkpoint_id`. About 2% of UUIDs pass the card-number Luhn check (for example `1f1de055-f966-6080-8002-022e095547bf`), so a valid resume could be refused with `422 SENSITIVE_DATA_DETECTED`. The S7 recovery test exposed it. Fix: `checkpoint_id` must be a lowercase UUID (otherwise `422 VALIDATION_ERROR`, codes only), and only that exact well-formed value is exempt from screening; every other string, number and key is still screened, and the screening order is unchanged. The S6 stale-checkpoint test now uses a well-formed UUID that is not current.
+- **Tests:**
+  - 48 unit tests (`tests/unit/test_events.py`): the key set, the publisher never raising, cursors, diff order and ids, current-status collapse, reconciliation cases (checkpointed-but-unrecorded, already recorded, multiple earlier runs with repeated nodes), cleanup on every exit path, bounded draining, keep-alive, the checkpoint-id regression;
+  - 13 integration tests (`tests/integration/test_workflow_events.py`):
+    - a full flow streamed from before the first message;
+    - Redis down: the run completes and every event arrives by polling, with `dropped > 0`;
+    - reconnect from every id, plus malformed and unknown cursors;
+    - a second question;
+    - a crash before the publish;
+    - recovery with 0, 1 and 2 lost entries;
+    - disconnect releases the subscription;
+    - a slow subscriber does not block the workflow;
+    - idle timeout and keep-alive;
+    - an unknown session gives 404.
+- **Results:**
+  - **Tests:** unit 960 and integration 253 passed.
+  - **Checks:** lint (strict mypy, 108 files), check-schema (no migration) and dense golden are green.
+  - **Unchanged:** the topology snapshot (no graph edits).
+  - **No live Groq or Gemini call.**
+
 ## 13. Dependencies and configuration
 - **New packages (D2):** `langgraph`, `langgraph-checkpoint-postgres` (pulls in `psycopg-pool`, `langchain-core` and `langsmith`) and `groq` (imported lazily).
 - **Not added:** sse-starlette (`StreamingResponse` is enough) and arq (§9).
 - **No new services:** Postgres gains a `langgraph` schema.
-- **New env keys:** `GROQ_LIVE_ENABLED`, `GROQ_DATA_TERMS_VERIFIED_ON`, `GROQ_TIMEOUT_S`, `GROQ_MAX_RETRIES≤2`, `LLM_CACHE_ENABLED=false`, `LLM_CACHE_TTL_S`, `GRAPH_RECURSION_LIMIT`, `MAX_CLARIFICATION_ROUNDS=2`, `RUN_LEASE_S`, `RUN_HEARTBEAT_S`, `SESSION_TTL_H`, `REPORT_RETENTION_D`, `IDEMPOTENCY_TTL_H`, `SSE_IDLE_TIMEOUT_S`.
+- **New env keys:** `GROQ_LIVE_ENABLED`, `GROQ_DATA_TERMS_VERIFIED_ON`, `GROQ_TIMEOUT_S`, `GROQ_MAX_RETRIES≤2`, `LLM_CACHE_ENABLED=false`, `LLM_CACHE_TTL_S`, `GRAPH_RECURSION_LIMIT`, `MAX_CLARIFICATION_ROUNDS=2`, `RUN_LEASE_S`, `RUN_HEARTBEAT_S`, `SESSION_TTL_H`, `REPORT_RETENTION_D`, `IDEMPOTENCY_TTL_H`, `SSE_IDLE_TIMEOUT_S`; added in S7: `EVENTS_ENABLED`, `EVENTS_PUBLISH_TIMEOUT_S`, `EVENTS_POLL_S`, `SSE_KEEPALIVE_S`.
 - **Before any live run:** align the M2 `.env` model drift.
 
 ## 14. Risks: security, privacy, reliability, compliance

@@ -12,7 +12,9 @@
 
 import logging
 from datetime import timedelta
+from typing import Any
 
+import redis.asyncio as aioredis
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
@@ -21,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import Settings
 from app.core.cache import JsonCache
+from app.core.events import NullPublisher, Publisher, RedisEventPublisher
 from app.db.session import create_sync_engine, create_sync_sessionmaker
 from app.db.workflow import PostgresReportStore
 from app.graph.builder import GraphDeps, build_graph
@@ -74,6 +77,23 @@ async def build_runtime(
         corpus=PostgresCorpusReader(sync_sessions, JsonCache.from_settings(settings)),
         reports=reports,
     )
+    publisher: Publisher = NullPublisher()
+    subscriber = None
+    closers: list[Any] = [pool.close]
+    if settings.EVENTS_ENABLED:
+        url = settings.REDIS_URL.get_secret_value()
+        timeout = settings.EVENTS_PUBLISH_TIMEOUT_S
+        pub_client = aioredis.Redis.from_url(
+            url, socket_timeout=timeout, socket_connect_timeout=timeout, retry_on_timeout=False
+        )
+        # Subscriber: short connect timeout; reads block only for EVENTS_POLL_S.
+        sub_client = aioredis.Redis.from_url(url, socket_connect_timeout=timeout)
+        publisher = RedisEventPublisher(pub_client, timeout_s=timeout)
+
+        def subscriber() -> aioredis.Redis:
+            return sub_client
+
+        closers += [pub_client.aclose, sub_client.aclose]
     return WorkflowRuntime(
         graph=build_graph(deps, checkpointer=saver),
         deps=deps,
@@ -83,5 +103,10 @@ async def build_runtime(
         heartbeat_s=settings.RUN_HEARTBEAT_S,
         session_ttl=timedelta(hours=settings.SESSION_TTL_H),
         query_max_chars=settings.QUERY_MAX_CHARS,
-        on_close=[pool.close],
+        on_close=closers,
+        publisher=publisher,
+        subscriber=subscriber,
+        events_poll_s=settings.EVENTS_POLL_S,
+        sse_keepalive_s=settings.SSE_KEEPALIVE_S,
+        sse_idle_timeout_s=settings.SSE_IDLE_TIMEOUT_S,
     )

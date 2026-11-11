@@ -127,6 +127,13 @@ class Settings(BaseSettings):
     RUN_HEARTBEAT_S: float = Field(default=10.0, gt=0, le=600)
     SESSION_TTL_H: float = Field(default=24.0, gt=0, le=720)
     CHECKPOINT_POOL_MAX: int = Field(default=5, ge=1, le=50)
+    # --- Progress events and SSE (M3 S7). PostgreSQL is the source; Redis only wakes the
+    # stream up (falls back to polling every EVENTS_POLL_S). ---
+    EVENTS_ENABLED: bool = True
+    EVENTS_PUBLISH_TIMEOUT_S: float = Field(default=0.25, gt=0, le=5)
+    EVENTS_POLL_S: float = Field(default=1.0, gt=0, le=60)
+    SSE_KEEPALIVE_S: float = Field(default=15.0, gt=0, le=300)
+    SSE_IDLE_TIMEOUT_S: float = Field(default=900.0, gt=0, le=86400)
     MAX_UPLOAD_MB: int = Field(default=20, gt=0)
     RATE_LIMIT_GROQ_RPM: int = Field(default=20, gt=0)
     RATE_LIMIT_GEMINI_RPM: int = Field(default=10, gt=0)

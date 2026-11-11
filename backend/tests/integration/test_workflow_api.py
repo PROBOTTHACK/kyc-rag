@@ -136,7 +136,8 @@ def test_unasked_fields_and_stale_checkpoints_are_rejected_without_writes(
     }
     r = post(client, f"/sessions/{sid}/resume", unasked, key="a")
     assert (r.status_code, r.json()["error"]["code"]) == (422, "INVALID_ANSWER")
-    stale = {"checkpoint_id": "1ef-not-current", "answers": {"account_type": "CURRENT_ACCOUNT"}}
+    not_current = "00000000-0000-0000-0000-000000000000"  # well-formed, not the current one
+    stale = {"checkpoint_id": not_current, "answers": {"account_type": "CURRENT_ACCOUNT"}}
     r = post(client, f"/sessions/{sid}/resume", stale, key="b")
     assert (r.status_code, r.json()["error"]["code"]) == (409, "STALE_CHECKPOINT")
     bad_value = {"checkpoint_id": clar["checkpoint_id"], "answers": {"account_type": "GOLD"}}

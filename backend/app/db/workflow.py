@@ -162,17 +162,20 @@ async def renew_lease(db: AsyncSession, run_id: uuid.UUID, owner_id: str, lease_
 
 async def append_node_event(
     db: AsyncSession, run_id: uuid.UUID, owner_id: str, node: str, status: str = "completed"
-) -> None:
-    """Append `{seq, node, status, at}`; seq is gap-free per run (computed in the UPDATE)."""
-    await db.execute(
+) -> dict[str, Any] | None:
+    """Append `{seq, node, status, at}`; seq is gap-free per run (computed in the UPDATE).
+    Returns the appended event (None if the run is not owned by `owner_id`)."""
+    result = await db.execute(
         text(
             "UPDATE graph_runs SET node_events = node_events || jsonb_build_array("
             "jsonb_build_object('seq', jsonb_array_length(node_events) + 1, 'node', "
             "CAST(:node AS text), 'status', CAST(:status AS text), 'at', now())) "
-            "WHERE id = :id AND owner_id = :owner"
+            "WHERE id = :id AND owner_id = :owner RETURNING node_events -> -1"
         ),
         {"id": run_id, "owner": owner_id, "node": node, "status": status},
     )
+    row = result.first()
+    return dict(row[0]) if row is not None else None
 
 
 async def finish_run(
@@ -243,3 +246,32 @@ async def get_idempotency(
     db: AsyncSession, session_id: uuid.UUID, key: str
 ) -> ApiIdempotency | None:
     return await db.get(ApiIdempotency, (session_id, key))
+
+
+async def session_runs(db: AsyncSession, session_id: uuid.UUID) -> list[GraphRun]:
+    """Every run of a session in a stable order (start time, then id), for the stream."""
+    return list(
+        await db.scalars(
+            select(GraphRun)
+            .where(GraphRun.session_id == session_id)
+            .order_by(GraphRun.started_at, GraphRun.id)
+        )
+    )
+
+
+async def recorded_completions(
+    db: AsyncSession, thread_id: str, *, exclude_run: uuid.UUID
+) -> list[str]:
+    """Node completions recorded by the earlier runs of a thread, in execution order
+    (`completed` and `recovered` entries; error entries are not node completions)."""
+    runs = await db.scalars(
+        select(GraphRun)
+        .where(GraphRun.thread_id == thread_id, GraphRun.id != exclude_run)
+        .order_by(GraphRun.started_at, GraphRun.id)
+    )
+    out: list[str] = []
+    for run in runs:
+        for event in sorted(run.node_events, key=lambda e: int(e["seq"])):
+            if event.get("status") in ("completed", "recovered"):
+                out.append(str(event["node"]))
+    return out

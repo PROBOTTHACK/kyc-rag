@@ -9,7 +9,7 @@ import json
 from typing import Any
 
 from fastapi import APIRouter, Header, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.workflow.service import WorkflowError, WorkflowService
 
@@ -84,3 +84,22 @@ async def post_retry(
 @router.get("/reports/{report_id}")
 async def get_report(report_id: str, request: Request) -> dict[str, Any]:
     return await service(request).get_report(report_id)
+
+
+@router.get("/sessions/{session_id}/events")
+async def session_events(
+    session_id: str,
+    request: Request,
+    last_event_id: str | None = Header(default=None, alias="Last-Event-ID"),
+) -> StreamingResponse:
+    """Server-sent progress events (M3 S7): node events (durable, replayable) and run
+    current-status events, read from PostgreSQL; Redis only wakes the stream up.
+    Reconnect with `Last-Event-ID` to continue without gaps or duplicates."""
+    body = await service(request).open_event_stream(
+        session_id, last_event_id, request.is_disconnected
+    )
+    return StreamingResponse(
+        body,
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

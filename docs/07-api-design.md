@@ -48,7 +48,7 @@
 - **Threads:** one LangGraph thread per question (S6-D1).
 - **Cancellation:** there is no cancel endpoint. A client disconnect never cancels a run, and shutdown is treated like a crash (S6-D2).
 - **Ownership:** possession of the session id (S6-D4). There are no user accounts in M3.
-- **Progress:** `node_events` are recorded in Postgres. SSE (`GET /sessions/{id}/events`) comes in S7.
+- **Progress:** `node_events` are recorded in Postgres and streamed over SSE (`GET /sessions/{id}/events`, implemented in M3 S7; see below).
 
 ## Request
 ```json
@@ -79,12 +79,27 @@
 ```json
 {"status":"CLARIFICATION_REQUIRED","questions":[{"field":"partners","text":"..."}],"checkpoint_id":"..."}
 ```
-## SSE events (backed by Redis pub/sub)
-```
-event: status
-data: {"node":"retrieval","status":"running"}
+## SSE progress events (implemented in M3 S7)
+`GET /api/v1/sessions/{id}/events` returns `text/event-stream` (`Cache-Control: no-cache`, `X-Accel-Buffering: no`). Access is possession of the session id, as for every session endpoint. An unknown or malformed id gives `404 SESSION_NOT_FOUND`; an expired session can still read its events.
 
-event: report
-data: {"report_id":"report_001"}
+**Source (S7-D1):** everything sent is read from PostgreSQL: the durable `graph_runs.node_events` of every run in the session, plus each run's current `graph_runs.status`. Redis pub/sub (`chan:session:{id}`) only wakes the stream up. With Redis down or slow, the stream polls Postgres every `EVENTS_POLL_S`, and the workflow is unaffected because publishing is best-effort (`EVENTS_PUBLISH_TIMEOUT_S`, failures counted and never raised).
+
+**Event kinds (S7-D2):** every `data` has exactly `kind`, `run_id`, `seq`, `node`, `status`, `at`. There is never question text, answers, evidence, report content or a report id; the report id comes from `GET /sessions/{id}` once the run is `completed`.
 ```
+id: <run_id>.0.running
+event: run
+data: {"kind":"run","run_id":"<run_id>","seq":null,"node":null,"status":"running","at":"…"}
+
+id: <run_id>.1
+event: node
+data: {"kind":"node","run_id":"<run_id>","seq":1,"node":"input_security","status":"completed","at":"…"}
+```
+- **`node`:** one entry of `node_events`. These are durable and replayable. `status` is `completed`, `failed` (the `error:<Class>` entry) or `recovered` (see below).
+- **`run`:** the run's **current** status (`running`, `awaiting_clarification`, `completed`, `failed`, `abandoned`) (S7-D3). This is a current-status notification, not a durable history: a client that reconnects after several transitions receives only the latest status. There is no replay of past statuses.
+
+**Ids and reconnect:** `<run_id>.<seq>` for a node event and `<run_id>.<seq>.<status>` for a run event. They are unambiguous across the runs of a session (one run per question). Send the last id back as `Last-Event-ID` to continue with no gaps and no duplicates. A malformed id, or one naming a run outside this session, restarts from the beginning of the session.
+
+**When the stream closes (S7-D4):** when the latest run is `completed`, `failed` or `abandoned` and everything has been sent; when the client disconnects; or after `SSE_IDLE_TIMEOUT_S` with no new event. It stays open before the first message (open the stream first, then post) and while a run awaits clarification. A `: keep-alive` comment is sent every `SSE_KEEPALIVE_S`. The Redis subscription is taken before the first read and released on every exit path (end, disconnect, idle timeout, cancellation, error).
+
+**Recovered completions (S7-D5):** if a process died after LangGraph checkpointed a node and before its `node_events` entry was written, `/retry` compares the thread's checkpoint history with the completions already recorded by the thread's earlier runs and appends only the missing ones, in execution order, to the new run as `status: "recovered"` before resuming.
 Rules: versioned from day one, Pydantic request/response models, consistent error envelope `{error:{code,message}}`, `Idempotency-Key` header required on `/messages`, `/resume` and `/retry`. `/messages` and `/resume` are PII-screened before anything is stored or sent (`422 SENSITIVE_DATA_DETECTED`). Report outcomes and run statuses: `docs/milestones/M3_PLAN.md` §5; no endpoint ever returns an approve/reject decision.

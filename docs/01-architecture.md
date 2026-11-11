@@ -37,7 +37,7 @@ flowchart TD
   OUT --> REP[Final Report]
   HR --> REP
   G -. traces .-> LS[LangSmith]
-  G -. progress events .-> RD[(Redis pub/sub)] --> FE
+  G -. progress events: node_events in Postgres, Redis pub/sub wake-up, SSE .-> RD[(Redis pub/sub)] --> FE
 ```
 
 ## Document ingestion (implemented in M1)

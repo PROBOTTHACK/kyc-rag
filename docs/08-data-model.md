@@ -56,7 +56,7 @@ Use a separate schema or prefix for checkpoint tables. Apply retention (delete e
 | `kyc:llm:{sha256(prompt id+version, provider, model, schema, sha256(system), sha256(user), max tokens)}` | LLM response cache (implemented M3 S1, decision D8): **off by default**; only allowlisted synthetic inputs; value = validated structured output, never prompt or raw text | ≤ 24h |
 | `cache:emb:{sha256(text)}` | embedding cache | 7d |
 | `cache:form:{file_hash}:{version}` | form schema cache | 7d |
-| `chan:session:{id}` | pub/sub progress channel | n/a |
+| `chan:session:{id}` | pub/sub progress channel (implemented M3 S7): a wake-up signal only; the SSE stream reads what it sends from Postgres, so a dropped publish loses nothing; stores nothing | n/a |
 | `lock:ingest:{sha256}` | ingestion idempotency lock | minutes |
 | `arq:*` | job queue | managed |
 
