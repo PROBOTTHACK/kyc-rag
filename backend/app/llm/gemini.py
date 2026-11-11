@@ -22,7 +22,6 @@ Boundaries:
 """
 
 import asyncio
-import collections
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -36,11 +35,8 @@ from app.llm.multimodal import (
     MultimodalProvider,
     MultimodalRequest,
     MultimodalResult,
-    ProviderError,
-    ProviderRateLimited,
     ProviderRecitation,
     ProviderRefused,
-    ProviderTimeout,
     ProviderUnavailable,
     RecitationDiagnostics,
     T,
@@ -48,6 +44,17 @@ from app.llm.multimodal import (
     parse_structured,
     text_sha256,
 )
+from app.llm.transport import (
+    Clock,
+    RpmLimiter,
+    Sleep,
+    exponential_backoff,
+    final_error,
+    is_transport_error,
+)
+from app.llm.transport import TransientError as _Transient
+
+__all__ = ["SYSTEM_INSTRUCTION", "GeminiProvider", "RpmLimiter", "multimodal_from_settings"]
 
 PROVIDER_NAME = "gemini"
 DEFAULT_TIMEOUT_S = 60.0
@@ -78,36 +85,8 @@ reported only as part of the printed label.
 4. Do not invent fields, sections or text. If something is illegible, leave it out.
 5. Return only JSON matching the given schema."""
 
-Sleep = Callable[[float], Awaitable[None]]
-Clock = Callable[[], float]
 # (images, request, schema, timeout_s) -> SDK response object
 GenerateFn = Callable[[list[bytes], MultimodalRequest, type[Any], float], Awaitable[Any]]
-
-
-class _Transient(Exception):
-    def __init__(self, kind: str, detail: str) -> None:
-        super().__init__(detail)
-        self.kind = kind  # "rate_limited" | "server" | "timeout" | "transport"
-
-
-@dataclass
-class RpmLimiter:
-    """Sliding 60-second window: at most `rpm` acquisitions per window."""
-
-    rpm: int
-    clock: Clock = time.monotonic
-    sleep: Sleep = asyncio.sleep
-    _stamps: collections.deque[float] = field(default_factory=collections.deque)
-
-    async def acquire(self) -> None:
-        while True:
-            now = self.clock()
-            while self._stamps and now - self._stamps[0] >= 60.0:
-                self._stamps.popleft()
-            if len(self._stamps) < self.rpm:
-                self._stamps.append(now)
-                return
-            await self.sleep(60.0 - (now - self._stamps[0]))
 
 
 @dataclass(repr=False)
@@ -197,7 +176,7 @@ class GeminiProvider:
             except _Transient as exc:
                 failure, cause = exc, exc
             if attempt >= self.max_retries:
-                raise _final_error(failure, attempts=attempt + 1) from cause
+                raise final_error(failure, attempts=attempt + 1) from cause
             await self.sleep(self._backoff(attempt))
             attempt += 1
 
@@ -205,7 +184,9 @@ class GeminiProvider:
 
     def _backoff(self, attempt: int) -> float:
         """Wait before retry `attempt + 1`: initial x 2^attempt, capped (no jitter)."""
-        return float(min(self.backoff_cap_s, self.backoff_initial_s * (2**attempt)))
+        return exponential_backoff(
+            attempt, initial_s=self.backoff_initial_s, cap_s=self.backoff_cap_s
+        )
 
     def _redact(self, text: str) -> str:
         key = self.api_key.get_secret_value()
@@ -235,7 +216,7 @@ class GeminiProvider:
             if code in RETRYABLE_STATUS:
                 return _Transient("server", detail)
             return ProviderUnavailable(f"Gemini request rejected: {detail}")
-        if _is_transport_error(exc):
+        if is_transport_error(exc):
             return _Transient("transport", detail)
         return ProviderUnavailable(f"Gemini call failed: {detail}")
 
@@ -344,24 +325,6 @@ def _enum_name(value: Any) -> str | None:
         return None
     name = getattr(value, "name", None)
     return str(name if name is not None else value)
-
-
-def _is_transport_error(exc: Exception) -> bool:
-    names = {c.__name__ for c in type(exc).__mro__}
-    return bool(names & {"TransportError", "ConnectError", "ReadTimeout", "ConnectionError"})
-
-
-def _final_error(failure: _Transient, *, attempts: int) -> Exception:
-    msg = f"{failure} (after {attempts} attempt{'s' if attempts > 1 else ''})"
-    err: ProviderError
-    if failure.kind == "rate_limited":
-        err = ProviderRateLimited(msg)
-    elif failure.kind == "timeout":
-        err = ProviderTimeout(msg)
-    else:
-        err = ProviderUnavailable(msg)
-    err.transient = True  # retries exhausted on a transient failure: fallback may help
-    return err
 
 
 def multimodal_from_settings(settings: Settings) -> MultimodalProvider:

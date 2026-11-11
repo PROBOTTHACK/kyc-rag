@@ -116,17 +116,36 @@ Never store secrets or raw PII in Redis; set TTLs on everything.
   - **What that guarantees:** a newly inserted version is found at once and never shadowed by a cached older one, and a deleted row is never served.
 - **Fallback:** corrupt, tampered or mismatched entries are deleted. Misses, those entries and any Redis error or timeout (`FORM_CACHE_TIMEOUT_S=0.25`) load from Postgres with an identical result, then refresh the entry.
 - **Turning it off:** `FORM_CACHE_ENABLED=false` makes every read a plain Postgres read.
-- **Other uses:** rate limiting, pub/sub and the rest of the list above remain for M3.
+- **M3 S1:** the shared LLM rate limiter and the opt-in synthetic-only LLM cache are implemented (see "Provider abstraction" below).
+- **Still to come in M3:** pub/sub progress events (S7). Run locks live in Postgres, not Redis (M3 decision D6).
 
 ## Provider abstraction (required)
 ```python
-class LLMProvider(Protocol):
-    async def generate_structured(self, prompt, schema: type[BaseModel], **opts) -> BaseModel: ...
-    async def generate_text(self, prompt, **opts) -> str: ...
-class MultimodalProvider(Protocol):
-    async def analyze_pages(self, images: list[bytes], prompt, schema) -> BaseModel: ...
+class LLMProvider(Protocol):          # app/llm/provider.py (M3 S1)
+    async def generate_structured(self, request: LLMRequest, schema: type[T]) -> LLMResult[T]: ...
+class MultimodalProvider(Protocol):   # app/llm/multimodal.py (M2)
+    async def analyze_pages(self, images: list[bytes], request: MultimodalRequest, schema: type[T]) -> MultimodalResult[T]: ...
 ```
-`FallbackProvider` wraps primary + fallback with retry/backoff and Redis rate limiter. Swap models by env var only.
+**As implemented (M3 S1):**
+- **Results:** they carry `parsed` (or `None` plus validation errors), the SHA-256 of the raw output, provider, the model that answered, usage, latency and `cache_hit`. Neither the prompt nor the raw output is kept.
+- **`generate_text`:** not implemented. Every workflow call is structured.
+- **Retries and fallback:** each provider retries transient failures itself. `FallbackLLMProvider` / `FallbackMultimodalProvider` try the fallback model only after the primary exhausts its retries on a transient failure.
+- **Invalid output:** handled by `generate_validated`, which makes one re-ask that quotes the validation errors (never the previous output) and then returns the invalid result for the caller to degrade.
+- **Groq stack:** `app.llm.groq.llm_from_settings` builds it as primary → fallback (one shared limiter) → opt-in cache. Models are swapped by env var only.
+
+**Rate limiting and the LLM cache (M3 S1):**
+- **`app/core/ratelimit.py`:**
+  - **What it counts:** every attempt, retries included, reserves one request and its estimated tokens. The estimate is prompt characters / 3 plus `max_output_tokens`.
+  - **Limits:** `RATE_LIMIT_GROQ_RPM=20` and `RATE_LIMIT_GROQ_TPM=6000`.
+  - **Shared window:** one minute, shared through Redis (`rl:groq:{minute}`).
+  - **If Redis fails:** any error falls back to an in-process sliding window with the same limits. The failure is counted and the results don't change.
+  - **Bounded:** a wait longer than `RATE_LIMIT_MAX_WAIT_S` fails as a transient rate limit, and a request larger than the whole budget fails at once.
+- **`app/llm/cache.py` (decision D8):**
+  - **Off by default:** `LLM_CACHE_ENABLED=false`.
+  - **When on, it caches only allowlisted inputs:** a request is cached only when it carries a `synthetic_input_digest` that appears in the committed allowlist (`LLM_CACHE_ALLOWLIST`, every row `"synthetic": true`). Nothing else ever reads or writes the cache, however clean the text looks.
+  - **Keys and values:** keys are hashes; values hold the validated output and the answering model.
+  - **Hits are re-validated,** and unusable entries are deleted.
+  - **Redis errors** count as misses.
 
 ## Free-tier risks & mitigations
 | Risk | Mitigation |

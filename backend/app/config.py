@@ -40,6 +40,16 @@ class Settings(BaseSettings):
     PRIMARY_LLM_MODEL: str | None = None
     FALLBACK_LLM_MODEL: str | None = None
     PROMPT_GUARD_MODEL: str | None = None
+    # Groq live calls are OFF unless explicitly enabled AND the data-use terms were
+    # verified (date recorded in docs/02, "Groq API verification"). M3 sends Groq only
+    # screened, synthetic queries and public corpus text (M3_PLAN §6).
+    GROQ_LIVE_ENABLED: bool = False
+    GROQ_DATA_TERMS_VERIFIED_ON: dt.date | None = None
+    GROQ_TIMEOUT_S: float = Field(default=30.0, gt=0, le=60)
+    # Project default (CLAUDE.md): at most 2 retries, i.e. 3 attempts per model.
+    GROQ_MAX_RETRIES: int = Field(default=2, ge=0, le=2)
+    GROQ_BACKOFF_INITIAL_S: float = Field(default=1.0, gt=0, le=30)
+    GROQ_BACKOFF_CAP_S: float = Field(default=8.0, gt=0, le=30)
     GEMINI_API_KEY: SecretStr | None = None
     MULTIMODAL_MODEL: str | None = None
     # Gemini live calls are OFF unless explicitly enabled AND the data-use terms were
@@ -104,12 +114,26 @@ class Settings(BaseSettings):
     MAX_UPLOAD_MB: int = Field(default=20, gt=0)
     RATE_LIMIT_GROQ_RPM: int = Field(default=20, gt=0)
     RATE_LIMIT_GEMINI_RPM: int = Field(default=10, gt=0)
+    # Per-minute token budget for Groq (input estimate + max output). Below the lowest
+    # published figure (8K TPM, docs/02); check the organisation's real limits.
+    RATE_LIMIT_GROQ_TPM: int = Field(default=6000, gt=0)
+    # Longest a call may wait for rate-limit capacity before failing (transient).
+    RATE_LIMIT_MAX_WAIT_S: float = Field(default=120.0, gt=0, le=600)
+    # Redis operation timeout for the shared limiter; on any Redis error the limiter
+    # falls back to an in-process window (never a different result, only less sharing).
+    RATE_LIMIT_REDIS_TIMEOUT_S: float = Field(default=0.25, gt=0, le=5)
     # --- Health checks ---
     HEALTH_CHECK_TIMEOUT_S: float = Field(default=2.0, gt=0)
     # --- Form-schema cache (Redis; Postgres stays the source of truth) ---
     FORM_CACHE_ENABLED: bool = True
     FORM_CACHE_TTL_S: int = Field(default=604800, gt=0)  # 7 days
     FORM_CACHE_TIMEOUT_S: float = Field(default=0.25, gt=0, le=5)
+    # --- LLM response cache (M3 decision D8): off by default. When on, only requests
+    # whose input digest is in the committed synthetic allowlist are cached. ---
+    LLM_CACHE_ENABLED: bool = False
+    LLM_CACHE_TTL_S: int = Field(default=86400, gt=0, le=86400)  # at most 24 h
+    LLM_CACHE_TIMEOUT_S: float = Field(default=0.25, gt=0, le=5)
+    LLM_CACHE_ALLOWLIST: Path = Path("data/eval/m3_synthetic_inputs.jsonl")
 
     @field_validator(
         "QDRANT_API_KEY",
@@ -122,6 +146,7 @@ class Settings(BaseSettings):
         "MULTIMODAL_MODEL",
         "MULTIMODAL_FALLBACK_MODEL",
         "GEMINI_DATA_TERMS_VERIFIED_ON",
+        "GROQ_DATA_TERMS_VERIFIED_ON",
         "NLI_MODEL",
         "EMBEDDING_MODEL_REVISION",
         "RERANK_MODEL_REVISION",
@@ -138,7 +163,12 @@ class Settings(BaseSettings):
         return v
 
     @field_validator(
-        "CORPUS_DIR", "CORPUS_MANIFEST", "TESSERACT_CMD", "TESSDATA_DIR", "OCR_CACHE_DIR"
+        "CORPUS_DIR",
+        "CORPUS_MANIFEST",
+        "TESSERACT_CMD",
+        "TESSDATA_DIR",
+        "OCR_CACHE_DIR",
+        "LLM_CACHE_ALLOWLIST",
     )
     @classmethod
     def _repo_relative(cls, v: Path | None) -> Path | None:

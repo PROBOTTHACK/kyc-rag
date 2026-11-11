@@ -48,8 +48,8 @@ Use a separate schema or prefix for checkpoint tables. Apply retention (delete e
 ## Redis key conventions (all with TTL)
 | Key | Purpose | TTL |
 |---|---|---|
-| `rl:{provider}:{window}` | rate-limit token bucket | seconds–minutes |
-| `cache:llm:{sha256(prompt+model+version)}` | LLM response cache | 24h |
+| `rl:{provider}:{window}` | shared rate limit (implemented M3 S1): a hash with `req` and `tok` counters for one fixed minute; window = epoch minute | 120 s |
+| `kyc:llm:{sha256(prompt id+version, provider, model, schema, sha256(system), sha256(user), max tokens)}` | LLM response cache (implemented M3 S1, decision D8): **off by default**; only allowlisted synthetic inputs; value = validated structured output, never prompt or raw text | ≤ 24h |
 | `cache:emb:{sha256(text)}` | embedding cache | 7d |
 | `cache:form:{file_hash}:{version}` | form schema cache | 7d |
 | `chan:session:{id}` | pub/sub progress channel | n/a |

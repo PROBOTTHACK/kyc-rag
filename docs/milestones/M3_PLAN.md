@@ -272,6 +272,19 @@ Each stage is one commit, with its tests, lint and docs; M1/M2 behaviour stays u
 - **Regression:** with docker services up and `TESSDATA_DIR` and `GEMINI_API_KEY` unset (as in M2 D), unit 529 passed, integration 199 passed, and `lint`, `check-schema` and `check-dense-golden` were green.
   - With the repo-root `.env` value `TESSDATA_DIR`, one unit test (`test_config.py::test_corpus_paths_resolve_against_repo_root`) fails. It was already environment-dependent before M3 and has nothing to do with the new packages.
 
+### S1 outcome (2026-11-11)
+- **Built:** `app/llm/{common,transport,provider,groq,cache}.py`, `app/core/ratelimit.py`, `FakeLLMProvider` / `scripted_llm`, plus the new settings listed in `infra/.env.example`.
+  - Groq live calls are off unless `GROQ_LIVE_ENABLED` and `GROQ_DATA_TERMS_VERIFIED_ON` are set.
+  - The LLM cache is off by default.
+- **M2 unchanged:** the provider errors and `parse_structured` moved to `common.py`, and the retry helpers to `transport.py`. `multimodal.py` and `gemini.py` re-export the same objects. All Gemini, multimodal and forms tests pass unmodified.
+- **Decisions taken while building:**
+  - **Groq JSON schema:** best-effort mode (`strict: false`). Groq's strict mode needs every property required, so the S3/S5 output models may opt in later. Validation and the single re-ask apply either way.
+  - **Schema rejections:** Groq's `400 json_validate_failed` is treated as invalid output, not as an error, so it goes through the re-ask.
+  - **Token budget:** the limiter reserves estimated tokens (prompt characters / 3 plus the output cap) as well as requests. A request larger than the per-minute budget fails at once.
+  - **`generate_text`:** not implemented. Every workflow call is structured.
+- **Tests:** 69 new unit tests (Groq 32, contract/fallback/re-ask/transport 15, limiter 10, cache 12) and 3 Redis integration tests. Unit 598 passed and integration 202 passed (`TESSDATA_DIR`/`GEMINI_API_KEY` unset). `lint` (strict mypy, 79 files), `check-schema` and `check-dense-golden` are green.
+- **No live Groq call was made.**
+
 ## 13. Dependencies and configuration
 - **New packages (D2):** `langgraph`, `langgraph-checkpoint-postgres` (pulls in `psycopg-pool`, `langchain-core` and `langsmith`) and `groq` (imported lazily).
 - **Not added:** sse-starlette (`StreamingResponse` is enough) and arq (§9).
