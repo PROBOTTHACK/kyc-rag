@@ -9,7 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -40,6 +40,16 @@ class Settings(BaseSettings):
     PRIMARY_LLM_MODEL: str | None = None
     FALLBACK_LLM_MODEL: str | None = None
     PROMPT_GUARD_MODEL: str | None = None
+    # Groq live calls are OFF unless explicitly enabled AND the data-use terms were
+    # verified (date recorded in docs/02, "Groq API verification"). M3 sends Groq only
+    # screened, synthetic queries and public corpus text (M3_PLAN §6).
+    GROQ_LIVE_ENABLED: bool = False
+    GROQ_DATA_TERMS_VERIFIED_ON: dt.date | None = None
+    GROQ_TIMEOUT_S: float = Field(default=30.0, gt=0, le=60)
+    # Project default (CLAUDE.md): at most 2 retries, i.e. 3 attempts per model.
+    GROQ_MAX_RETRIES: int = Field(default=2, ge=0, le=2)
+    GROQ_BACKOFF_INITIAL_S: float = Field(default=1.0, gt=0, le=30)
+    GROQ_BACKOFF_CAP_S: float = Field(default=8.0, gt=0, le=30)
     GEMINI_API_KEY: SecretStr | None = None
     MULTIMODAL_MODEL: str | None = None
     # Gemini live calls are OFF unless explicitly enabled AND the data-use terms were
@@ -101,15 +111,63 @@ class Settings(BaseSettings):
     LANGSMITH_PROJECT: str = "kyc-engine"
     # --- Limits ---
     MAX_REGENERATIONS: int = Field(default=2, ge=0, le=2)
+    # --- Workflow graph (M3) ---
+    # Clarification rounds before INSUFFICIENT_INFORMATION (M3_PLAN §5; hard max 2).
+    MAX_CLARIFICATION_ROUNDS: int = Field(default=2, ge=0, le=2)
+    # LangGraph super-step limit per invocation; must cover the longest path (builder check).
+    GRAPH_RECURSION_LIMIT: int = Field(default=25, ge=1, le=100)
+    # Longest accepted user question (characters); longer input is rejected at the gate.
+    QUERY_MAX_CHARS: int = Field(default=2000, ge=100, le=10000)
+    # Overall cap on an LLM node's work (calls, re-ask, retries, waits, fallback model).
+    NODE_TIMEOUT_S: float = Field(default=180.0, gt=0, le=600)
+    # --- Workflow API and recovery (M3 S6; M3_PLAN §9) ---
+    # Postgres run lease: renewed every RUN_HEARTBEAT_S; a run whose lease expired can be
+    # taken over by POST /retry. Never re-executed automatically.
+    RUN_LEASE_S: float = Field(default=60.0, gt=0, le=3600)
+    RUN_HEARTBEAT_S: float = Field(default=10.0, gt=0, le=600)
+    SESSION_TTL_H: float = Field(default=24.0, gt=0, le=720)
+    CHECKPOINT_POOL_MAX: int = Field(default=5, ge=1, le=50)
+    # --- Retention (M3 S8; M3_PLAN §10). `make purge`; no periodic worker. ---
+    # Phase 1 at expires_at (checkpoints + idempotency rows deleted, session expired);
+    # phase 2 at expires_at + REPORT_RETENTION_D (session row and its cascade deleted).
+    REPORT_RETENTION_D: int = Field(default=30, ge=1, le=365)
+    IDEMPOTENCY_TTL_H: float = Field(default=24.0, gt=0, le=720)
+    # --- Progress events and SSE (M3 S7). PostgreSQL is the source; Redis only wakes the
+    # stream up (falls back to polling every EVENTS_POLL_S). ---
+    EVENTS_ENABLED: bool = True
+    EVENTS_PUBLISH_TIMEOUT_S: float = Field(default=0.25, gt=0, le=5)
+    EVENTS_POLL_S: float = Field(default=1.0, gt=0, le=60)
+    SSE_KEEPALIVE_S: float = Field(default=15.0, gt=0, le=300)
+    SSE_IDLE_TIMEOUT_S: float = Field(default=900.0, gt=0, le=86400)
     MAX_UPLOAD_MB: int = Field(default=20, gt=0)
     RATE_LIMIT_GROQ_RPM: int = Field(default=20, gt=0)
     RATE_LIMIT_GEMINI_RPM: int = Field(default=10, gt=0)
+    # Per-minute token budget for Groq (input estimate + max output). Below the lowest
+    # published figure (8K TPM, docs/02); check the organisation's real limits.
+    RATE_LIMIT_GROQ_TPM: int = Field(default=6000, gt=0)
+    # Longest a call may wait for rate-limit capacity before failing (transient).
+    RATE_LIMIT_MAX_WAIT_S: float = Field(default=120.0, gt=0, le=600)
+    # Redis operation timeout for the shared limiter; on any Redis error the limiter
+    # falls back to an in-process window (never a different result, only less sharing).
+    RATE_LIMIT_REDIS_TIMEOUT_S: float = Field(default=0.25, gt=0, le=5)
     # --- Health checks ---
     HEALTH_CHECK_TIMEOUT_S: float = Field(default=2.0, gt=0)
     # --- Form-schema cache (Redis; Postgres stays the source of truth) ---
     FORM_CACHE_ENABLED: bool = True
     FORM_CACHE_TTL_S: int = Field(default=604800, gt=0)  # 7 days
     FORM_CACHE_TIMEOUT_S: float = Field(default=0.25, gt=0, le=5)
+    # --- LLM response cache (M3 decision D8): off by default. When on, only requests
+    # whose input digest is in the committed synthetic allowlist are cached. ---
+    LLM_CACHE_ENABLED: bool = False
+    LLM_CACHE_TTL_S: int = Field(default=86400, gt=0, le=86400)  # at most 24 h
+    LLM_CACHE_TIMEOUT_S: float = Field(default=0.25, gt=0, le=5)
+    LLM_CACHE_ALLOWLIST: Path = Path("data/eval/m3_synthetic_inputs.jsonl")
+
+    @model_validator(mode="after")
+    def _heartbeat_below_lease(self) -> "Settings":
+        if self.RUN_HEARTBEAT_S >= self.RUN_LEASE_S:
+            raise ValueError("RUN_HEARTBEAT_S must be smaller than RUN_LEASE_S")
+        return self
 
     @field_validator(
         "QDRANT_API_KEY",
@@ -122,6 +180,7 @@ class Settings(BaseSettings):
         "MULTIMODAL_MODEL",
         "MULTIMODAL_FALLBACK_MODEL",
         "GEMINI_DATA_TERMS_VERIFIED_ON",
+        "GROQ_DATA_TERMS_VERIFIED_ON",
         "NLI_MODEL",
         "EMBEDDING_MODEL_REVISION",
         "RERANK_MODEL_REVISION",
@@ -138,7 +197,12 @@ class Settings(BaseSettings):
         return v
 
     @field_validator(
-        "CORPUS_DIR", "CORPUS_MANIFEST", "TESSERACT_CMD", "TESSDATA_DIR", "OCR_CACHE_DIR"
+        "CORPUS_DIR",
+        "CORPUS_MANIFEST",
+        "TESSERACT_CMD",
+        "TESSDATA_DIR",
+        "OCR_CACHE_DIR",
+        "LLM_CACHE_ALLOWLIST",
     )
     @classmethod
     def _repo_relative(cls, v: Path | None) -> Path | None:

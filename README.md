@@ -11,7 +11,7 @@
 ![Qdrant](https://img.shields.io/badge/Qdrant-vector%20search-DC244C)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)
-![Status](https://img.shields.io/badge/status-M1%20complete%2C%20in%20development-orange)
+![Status](https://img.shields.io/badge/status-M3%20complete%2C%20in%20development-orange)
 
 </div>
 
@@ -114,7 +114,7 @@ make venv install                   # .venv + backend with dev tools
 
 # 2. Start Postgres (host port 5433), Redis and Qdrant, then create the schema
 make up
-make migrate                        # Alembic 0001-0005 (M1 corpus, M2 form schemas + guards)
+make migrate                        # Alembic 0001-0007 (M1 corpus, M2 form schemas, M3 workflow + checkpointer)
 make check-schema                   # ORM models == migrations (no drift)
 
 # 3. Add the source PDFs (not in Git; see docs/14-source-corpus.md) and check them
@@ -138,8 +138,24 @@ make forms                          # 6 schemas; a second run reports "unchanged
 cd backend && python -m app.ingestion.cli forms versions && cd ..   # stored versions per form
 cd backend && python -m app.ingestion.cli forms show hdfc_nri_account_opening --method gemini_multimodal && cd ..   # read through the Redis cache ("cache: hit|miss")
 
-# 6. Backend (M0 health endpoint; the compliance API arrives with M3)
+# 6. Backend: health and the M3 workflow API (synthetic data only)
 make api                            # http://localhost:8000/docs, health at /api/v1/health
+#    POST /api/v1/sessions -> POST /api/v1/sessions/{id}/messages (Idempotency-Key header)
+#    -> GET /api/v1/sessions/{id} (clarification questions + checkpoint_id)
+#    -> POST .../resume -> GET /api/v1/reports/{report_id}. See docs/07.
+#    GET /api/v1/sessions/{id}/events streams progress (SSE; open it before the message).
+#    Without Groq live calls enabled, intake asks every question and the report is DEGRADED.
+
+# 7. The M3 LLP demo through the running API (a second terminal; synthetic question only)
+make demo                           # whatever LLM the API runs with; prints events + report + verdict
+#    Live Groq (opt-in): set GROQ_LIVE_ENABLED=true and GROQ_DATA_TERMS_VERIFIED_ON=<the date
+#    you reviewed Groq's terms> in .env (docs/02), restart `make api`, then:
+make demo-live                      # refuses unless the gate is open; set the gate back to false after
+
+# 8. Retention (M3): phase 1 at session expiry, phase 2 after REPORT_RETENTION_D days
+make purge-dry                      # what would be deleted; writes nothing
+make purge                          # checkpoints + idempotency rows, then expired sessions
+make check-workflow                 # read-only: orphan checkpoint data, residue, pending purges
 ```
 
 Ingestion is idempotent: running `make ingest` again writes nothing and embeds nothing unless a source changed. If a document fails, it is reported with the failing stage and is never marked `completed`. Fix the cause, then `make retry`. See [Ingestion operations](#ingestion-operations-m1) below.
@@ -228,11 +244,20 @@ M2-specific limits:
 - The RECITATION→OCR fallback is tested but has not yet occurred live.
 - Details: [`docs/milestones/M2_HANDOFF.md`](docs/milestones/M2_HANDOFF.md).
 
+M3 limits:
+- The workflow drafts a checklist only from retrieved, cited sources, and a deterministic validator checks every citation and every MANDATORY.
+- On the thin LLP evidence in the corpus, the honest result is a short CONDITIONAL checklist with unresolved items; the live Groq demo proposed two MANDATORY items and the validator downgraded both (only supporting-form evidence).
+- Crashed runs are recovered explicitly (`POST /retry`), never automatically. Run-status SSE events are current status only.
+- When the knowledge base does not support an answer, it says so and refers you to HDFC Bank. It never treats missing evidence as "not required".
+- Explanations are model-drafted and not yet claim-verified (M4).
+- Every result requires human review.
+- Details: [`docs/milestones/M3_HANDOFF.md`](docs/milestones/M3_HANDOFF.md).
+
 ## Roadmap
 
 - [x] Document ingestion and retrieval foundation (M1: see [`docs/milestones/M1_HANDOFF.md`](docs/milestones/M1_HANDOFF.md))
 - [x] Hybrid retrieval and multimodal form extraction (M2: see [`docs/milestones/M2_HANDOFF.md`](docs/milestones/M2_HANDOFF.md))
-- [ ] End-to-end LangGraph workflow
+- [x] End-to-end LangGraph workflow (M3: see [`docs/milestones/M3_HANDOFF.md`](docs/milestones/M3_HANDOFF.md))
 - [ ] Claim verification, security and human review
 - [ ] Dashboard frontend
 - [ ] Evaluation benchmark and observability

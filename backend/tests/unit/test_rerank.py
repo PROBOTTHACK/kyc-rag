@@ -243,7 +243,9 @@ def test_cli_default_search_does_not_rerank(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 def search_cli(services: dict[str, Any], monkeypatch: pytest.MonkeyPatch, reranker: Any) -> int:
-    monkeypatch.setattr(cli, "_retriever", lambda *a, **kw: retriever(services, reranker))
+    monkeypatch.setattr(
+        cli, "retriever_from_settings", lambda *a, **kw: retriever(services, reranker)
+    )
     sessions: Any = object()
     return cli._search(get_settings(), QUERY, top_k=3, filters=SearchFilters(), expand=False,
                        mode="dense", rerank=True, sessions=sessions)  # fmt: skip

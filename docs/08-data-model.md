@@ -34,25 +34,48 @@ M1 tables (Alembic `0001_m1_corpus` + `0002_m1_persistence`; ORM `app/db/models.
   - **Read cache (M2 G4):** reads can go through the Redis cache keyed by (form_key, method, version). Postgres decides the current row and validates every cached entry (docs/02); the table is unchanged.
   - **Not stored:** review status and entity applicability. These belong to later human-review and rules stages, and are not inferred from forms.
 - `rules`(rule_id PK, entity_type, topic, source_document FK, source_page, conditions jsonb, applicability, verification_status)
+- **M3 workflow tables (implemented in M3 S5, Alembic `0006_m3_workflow`, ORM `KycSession`/`GraphRun`/`ReportRow`/`ApiIdempotency`, repository `app/db/workflow.py`; `docs/milestones/M3_PLAN.md` §11. `reports`: CHECKs on outcome (five values), `human_review_required IS TRUE` and JSON identity; a `BEFORE UPDATE` trigger makes it insert-only; UNIQUE(session_id, run_id). `graph_runs`/`api_idempotency` are used from S6; supersede the `sessions`/`reports`/`graph_runs` sketches below):** `kyc_sessions`, `graph_runs` (run lifecycle + Postgres run lease, one active run per session via a partial unique index), `reports` (insert-only, one `outcome` each, `human_review_required` always true), `api_idempotency`. The one-run-per-session lock is the Postgres lease, **not** a Redis key (M3 decision D6).
 - `sessions`(id, entity_type, account_type, status, created_at, expires_at)
 - `reports`(id, session_id FK, final_json jsonb, verification_status, created_at)
 - `claims`(id, report_id FK, claim_text, evidence_refs jsonb, nli_label, nli_scores jsonb, confidence, review_status)
 - `review_cases`(id, report_id, claim_id, reason, status, reviewer_decision, reviewer_note, created_at, decided_at)
 - `graph_runs`(id, session_id, langsmith_run_id, status, latency_ms, retries, token_usage jsonb, node_events jsonb)
 - `eval_runs`(id, config_name, created_at) and `eval_results`(id, run_id, case_id, predicted jsonb, expected jsonb, metrics jsonb)
-- LangGraph checkpoint tables are created by `langgraph-checkpoint-postgres` (`.setup()`).
+- **LangGraph checkpoint tables (implemented in M3 S6, migration `0007_m3_checkpointer`):**
+  - **Where they live:** the library's own `setup()` creates `checkpoints`, `checkpoint_blobs`, `checkpoint_writes` and `checkpoint_migrations` in a dedicated `langgraph` schema. The runtime pool sets `search_path=langgraph`.
+  - **Not in the ORM:** `check-schema` compares the default schema only.
+  - **Downgrade:** it refuses while any checkpoint exists.
+  - **Threads:** one per question (`graph_runs.thread_id`).
 
-Use a separate schema or prefix for checkpoint tables. Apply retention (delete expired sessions/uploads).
+Use a separate schema or prefix for checkpoint tables.
+
+**Retention (implemented in M3 S8, `app/workflow/retention.py`; `make purge`, `make purge-dry`, `make check-workflow`):**
+
+| Phase | When | What happens | What stays |
+|---|---|---|---|
+| 1 | `expires_at` | checkpoint data for every thread of the session (all `langgraph` tables with a `thread_id` column), the idempotency rows; open runs → `abandoned`; `status=expired`, `checkpoints_purged_at` set | session, runs, reports (readable) |
+| 2 | `expires_at + REPORT_RETENTION_D` | checkpoint data deleted and verified first, then the session row; the FKs cascade to `graph_runs`, `reports`, `api_idempotency` | nothing |
+| orphans | any time | checkpoint data whose thread has no `graph_runs` row | — |
+| idempotency TTL | `created_at + IDEMPOTENCY_TTL_H` | old idempotency rows | — |
+
+- **One transaction per session:**
+  1. lock `kyc_sessions` and `graph_runs` (`FOR UPDATE`, `lock_timeout` 5 s);
+  2. recheck the state;
+  3. delete the checkpoint data and verify it is gone;
+  4. change or delete the session.
+- **Skipped, with a reason, and retried by the next purge:** a valid run lease (`live_lease`), a held lock (`locked`), or a state that changed since planning (`not_expired`, `gone`). Any error rolls back.
+- **Stale writers:** checkpoint data written after phase 1 by a writer whose lease had already expired is reported by `check` and removed by the next purge.
+- **Dry run:** `--dry-run` is one read-only transaction.
 
 ## Redis key conventions (all with TTL)
 | Key | Purpose | TTL |
 |---|---|---|
-| `rl:{provider}:{window}` | rate-limit token bucket | seconds–minutes |
-| `cache:llm:{sha256(prompt+model+version)}` | LLM response cache | 24h |
+| `rl:{provider}:{window}` | shared rate limit (implemented M3 S1): a hash with `req` and `tok` counters for one fixed minute; window = epoch minute | 120 s |
+| `kyc:llm:{sha256(prompt id+version, provider, model, schema, sha256(system), sha256(user), max tokens)}` | LLM response cache (implemented M3 S1, decision D8): **off by default**; only allowlisted synthetic inputs; value = validated structured output, never prompt or raw text | ≤ 24h |
 | `cache:emb:{sha256(text)}` | embedding cache | 7d |
 | `cache:form:{file_hash}:{version}` | form schema cache | 7d |
-| `chan:session:{id}` | pub/sub progress channel | n/a |
-| `lock:ingest:{sha256}` / `lock:run:{session}` | idempotency / one-run lock | minutes |
+| `chan:session:{id}` | pub/sub progress channel (implemented M3 S7): a wake-up signal only; the SSE stream reads what it sends from Postgres, so a dropped publish loses nothing; stores nothing | n/a |
+| `lock:ingest:{sha256}` | ingestion idempotency lock | minutes |
 | `arq:*` | job queue | managed |
 
 ## Qdrant

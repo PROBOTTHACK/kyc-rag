@@ -1,0 +1,691 @@
+# M3 Plan: LangGraph end-to-end KYC workflow
+
+> Status: **approved by the project owner (2026-11-11), revision 2.** Committed in Stage S0. No implementation stage has started.
+> Independent portfolio prototype. Not an HDFC Bank or RBI system. Synthetic and public data only.
+
+**Revision 2 changes (from the owner's review of revision 1):**
+- **PII:** the same screening now applies on both entry points, and clarification answers are structured (§6).
+- **Statuses:** run lifecycle and report outcome are now two separate vocabularies (§5).
+- **LLM cache:** opt-in, and limited to allowlisted synthetic inputs (§8).
+- **Crash recovery and concurrency:** the run lease lives in Postgres, recovery is an explicit retry, and duplicates are handled by idempotency (§9).
+- **Evidence boundaries:** association is never an obligation, and the MANDATORY gate is spelled out exactly (§7).
+- **Retention:** two-phase purge (§10).
+
+## 1. Context
+M0–M2 built the evidence foundation: ingestion with provenance, dense/BM25/hybrid retrieval, and versioned form schemas (deterministic and Gemini). Nothing connects these pieces yet:
+- `app/graph/` has only empty files;
+- there is no text LLM layer;
+- the only API endpoint is `/health`.
+
+The roadmap M3 (docs/12) asks for KYCState, the security, intake, retrieval, form, synthesis and output nodes, conditional routing, a Postgres checkpointer, interrupt/resume for clarification, Redis pub/sub with SSE, and a Groq LLMProvider with fallback, a Redis rate limiter and a cache. **It is done when** an LLP question with missing information pauses, resumes and returns a cited checklist.
+
+M3 builds a traceable, human-supervised workflow, not an autonomous agent. M4 keeps claim-level NLI, review cases, Prompt Guard and the rules table. M3 leaves a seam for each.
+
+## Core principle: no evidence, no answer (owner requirement, 2026-11-11)
+This is an independent educational/portfolio prototype, **not** an HDFC Bank product, service or compliance system. It never invents information, policy requirements, regulatory obligations or answers to satisfy a query.
+
+1. **Relevant evidence found:** keep it, with document, page and chunk references.
+2. **Partial evidence:** keep what is supported and name what remains unknown.
+3. **No relevant evidence:** say that there is not enough information to answer.
+4. **Retrieval failure:** report it as a technical failure, distinct from a search that found nothing.
+5. **Ambiguous query:** ask for clarification (S3).
+6. **Unverified HDFC-specific information:** refer the user to https://www.hdfcbank.com/ or HDFC Bank customer service.
+
+**Fallback text** (used by S5): "I don't have sufficient verified information in my available knowledge base to answer this query. Please visit https://www.hdfcbank.com/ or contact HDFC Bank customer service for accurate information."
+
+**What S4 records (`retrieval_meta.evidence_status`):**
+
+| Status | Meaning |
+|---|---|
+| `found` | Eligible, entity-scope, primary-capable evidence was **retrieved**. This is not proof that the evidence is relevant or correct: scores are uncalibrated, and S5 judges support. |
+| `partial` | Eligible evidence exists but none is entity-scope primary-capable. The gap codes are in `gaps`. |
+| `none` | The search ran and returned nothing eligible. |
+| `retrieval_failed` | A technical failure. |
+
+- **Absence is not a finding:** missing evidence is a gap, never "not required".
+- **Entity-group evidence:** it can never on its own establish MANDATORY.
+
+## 2. Verified starting point
+- **Git:** `main` = `origin/main` = `a288b09` (checked with `git ls-remote`), so the M2 merge is pushed, and the tree is clean. `M2_HANDOFF.md` still says "not merged into main"; S0 fixes that line.
+- **Reused:**
+  - `Retriever.retrieve` / `RetrievalResult` (degraded, failures, provenance) and `SearchFilters` (`app/retrieval/{retrieve,search}.py`);
+  - `evidence_context` / `get_chunks` / `get_document` (`app/db/repository.py`);
+  - `load_form_schema_cached` (`app/db/forms.py`);
+  - `FormSchema`/`FormField` (`mandatory_under_policy=None`, enforced by the database);
+  - the taxonomy enums and `expand_entity_terms`;
+  - the `Settings` Groq and limit fields;
+  - the `main.py` lifespan (async engine, Redis, Qdrant) and `selector_loop_factory`;
+  - the Gemini transport patterns: `RpmLimiter`, backoff, classification, redaction, and transient-only fallback;
+  - the test fixtures `temp_db`, `migrated`, `corpus_db` and `corpus_store`, and the fakes.
+- **Gaps:**
+  - there is no text `LLMProvider`, Groq provider or fake text LLM;
+  - the backoff helpers are private to `gemini.py`;
+  - the retriever factory is private (`cli._retriever`);
+  - retrieval, the repositories and the form cache are sync;
+  - there are no workflow tables, checkpointer or API;
+  - `rules/`, `security/` and `verification/` are empty;
+  - langgraph, the checkpointer and groq are not installed.
+- **Corpus fact that drives the demo:** LLP has no RBI CDD paragraph (docs/15), and only the scanned HDFC non-individual form names it. That form is `supporting` and OCR-uncertain. An honest LLP checklist is therefore mostly CONDITIONAL/UNCLEAR, and the acceptance test asserts exactly that.
+
+## 3. Architecture in plain language
+1. **The API is the front door.** It checks the session, the idempotency key and the run lease, then screens the input (§6) **before** anything is stored or sent anywhere. That covers both new questions and clarification answers.
+2. **The graph is a fixed state machine:**
+   - security checks;
+   - intake: the LLM extracts what the user *stated*. If something is missing, the graph **pauses** and asks multiple-choice questions;
+   - policy retrieval, real hits only;
+   - stored form schemas, with **no Gemini call**;
+   - deterministic links between form fields and evidence;
+   - Groq drafts a checklist that may cite only the evidence IDs it was given;
+   - a **deterministic validator** has the final say on citations and on MANDATORY;
+   - finalize writes one immutable report with exactly one **outcome**.
+3. **Postgres holds all state.** It saves a checkpoint after every node, and the run lease, idempotency records, reports and run logs live there too. **Redis is optional and best-effort:** it carries the rate limiter, the opt-in demo cache and progress pub/sub. Losing Redis never changes a result.
+4. **No approve or reject state exists** in any enum, table or API.
+
+```mermaid
+flowchart TD
+  M[POST /sessions/id/messages] --> GATE
+  R[POST /sessions/id/resume<br/>structured answers + checkpoint_id] --> GATE
+  T[POST /sessions/id/retry] --> GATE
+  GATE[API gate: session active? idempotency key,<br/>Postgres run lease, PII screen] -- sensitive ID detected --> X[422 SENSITIVE_DATA_DETECTED<br/>nothing stored or sent]
+  GATE -- ok --> SEC[input_security]
+  SEC -- blocked / review --> FIN
+  SEC -- safe --> INT[entity_intake]
+  INT -- missing & rounds<2 --> CLR[clarify: interrupt()] -.pause.-> R
+  INT -- missing & rounds=2 --> FIN
+  INT -- complete --> RET[policy_retrieval]
+  RET -- no eligible evidence --> FIN
+  RET --> FN{forms relevant?}
+  FN -- yes --> FORM[form_analysis<br/>stored schema only]
+  FN -- no --> ASSOC
+  FORM --> ASSOC[evidence_association<br/>relationships, not obligations]
+  ASSOC --> SYN[compliance_synthesis<br/>Groq proposes]
+  SYN -. M4 seam: claim_verification .-> VAL
+  SYN --> VAL[output_validation<br/>deterministic, authoritative]
+  VAL --> FIN[finalize: outcome by precedence,<br/>insert-only report]
+```
+Every node completion is written to `graph_runs` (Postgres), then published to Redis. SSE sends a Postgres snapshot first, then live events (§9).
+
+## 4. State schema (`app/graph/state.py`)
+`KYCState(TypedDict, total=False)` holds JSON-safe dicts produced by Pydantic models; nodes re-validate them when they read. The fields:
+- **request:**
+  - `session_id`, `run_id`;
+  - `query` (the screened text);
+  - `clarification_rounds` (≤ `MAX_CLARIFICATION_ROUNDS=2`);
+  - `clarification_answers: list[ClarificationAnswer]` (structured, §6);
+  - `screening: list[ScreenRecord]` (categories and counts only, never the matched text).
+- **security:** `security_status` (`safe|blocked|review`), `security_reasons`.
+- **intake:**
+  - `entity_profile: EntityProfile`, which holds `entity_type`, `residency` and `account_type`, each recorded as `{value | null, source: user_stated | user_answered | unknown}`;
+  - `missing_fields`, `ambiguities`, `intake_complete`.
+- **retrieval:**
+  - `retrieval_query`, `filters`;
+  - `evidence: list[EvidenceItem]`, where an item holds the chunk_id, document_id/key, bank, page, page_end, paragraph, section, source_status, evidence_eligibility, text_reliability, can_support_mandatory, rank, score_kind, the public corpus `text` and `expanded_parent_id`;
+  - `retrieval_meta`.
+- **forms:**
+  - `form_analysis_required`;
+  - `forms: list[FormRef]`: form_key, method, version, row_id, schema_sha256 and the subset of fields used;
+  - `form_flags`.
+- **association:** `associations: list[FieldEvidenceLink]` (§7).
+- **synthesis:**
+  - `draft: ChecklistDraft | None`, `synthesis_attempts` (≤ 2: one call plus one repair);
+  - `llm_calls: list[LLMCallRecord]`: provider, model, latency, tokens and cache_hit. No prompts and no keys.
+- **outcome:**
+  - `degradations: list[Degradation]`;
+  - `validation_findings`;
+  - `outcome` (§5), `report_id`.
+
+**Bounds:** an explicit `recursion_limit` (`GRAPH_RECURSION_LIMIT=25`) and per-node timeouts. The state holds no secrets and no binaries.
+
+## 5. Statuses: one lifecycle vocabulary, one outcome vocabulary
+**Run lifecycle** (`graph_runs.status`), which describes the execution:
+
+| Status | Meaning |
+|---|---|
+| `running` | holds a live lease (§9) |
+| `awaiting_clarification` | interrupted at `clarify`; waiting for `/resume` |
+| `completed` | `finalize` committed a report |
+| `failed` | an unhandled error after bounded retries; no report. `/retry` is allowed while the session is active |
+| `abandoned` | lease expired and taken over by `/retry` (a new run row continues the same thread) |
+
+**Session status** (`kyc_sessions.status`): `active` | `expired`. Whether a session is busy comes from its runs, not from this field.
+
+**Report outcome** (`reports.outcome`, exactly one per report). Every terminal path writes a report. Every report has `human_review_required = true` (a database CHECK) and the fixed notice *"Decision support only. Not a KYC decision. Not claim-verified (M4)."*
+
+| Outcome | When | Checklist? | What the reviewer sees |
+|---|---|---|---|
+| `BLOCKED` | `security_status` is blocked or review (in M3 a security *review* is not processed; M4 turns it into a review case) | no | reason codes only, never the triggering text |
+| `INSUFFICIENT_INFORMATION` | intake still incomplete after 2 clarification rounds | no | the missing fields |
+| `INSUFFICIENT_EVIDENCE` | retrieval returned no eligible evidence, or every retriever failed (`RetrievalError`) | no | the query metadata and the failure kind |
+| `DEGRADED` | a checklist could not be produced or fully trusted for **technical** reasons: LLM unavailable or invalid after the repair re-ask, a partially failed retriever (`RetrievalResult.degraded`), rerank failure, a form-schema load failure | only if synthesis succeeded, labelled `degraded` | the checklist (if any) plus `degradations` |
+| `CHECKLIST_REVIEW_REQUIRED` | the normal path: a validated checklist with no degradation | yes | the checklist, citations, `unresolved_items` and validator findings |
+
+- **Precedence**, deterministic and tested: BLOCKED > INSUFFICIENT_INFORMATION > INSUFFICIENT_EVIDENCE > DEGRADED > CHECKLIST_REVIEW_REQUIRED.
+- **`failed`** is a run lifecycle state, not an outcome. It means no report was written.
+- **No approve or reject anywhere:** a unit test asserts that no enum, CHECK or API schema contains approve/reject/accept/decline values.
+
+## 6. PII screening (both entry points)
+- **Where:** `app/security/screen.py` `screen_text(text) -> ScreenResult(action, categories, counts)`. It runs in the **API gate for `/messages` and `/resume`**, before the idempotency record, the graph state, the checkpoint, the logs or any LLM call. `input_security` runs it again inside the graph as defence in depth; a hit there means BLOCKED.
+- **Policy:**
+  - **Government and financial identifier patterns block the request:**
+    - Aadhaar: 12 digits that pass the Verhoeff check;
+    - PAN format;
+    - passport-like patterns;
+    - card numbers that pass Luhn;
+    - long digit runs next to account or IFSC context.
+    - The response is `422 SENSITIVE_DATA_DETECTED` with category names only. **Nothing is stored or sent.** The log records category and count only.
+  - **Contact patterns** (email, phone) are replaced with `[REDACTED_EMAIL]` / `[REDACTED_PHONE]`, and the request proceeds. The screening record keeps the counts.
+- **Clarification answers are structured:** `{checkpoint_id, answers: {entity_type?, residency?, account_type?}}`. The values must be taxonomy enum members, and free text in an answer is rejected. Answers merge deterministically, with **no LLM call on resume**. An optional free-text `note` is **not accepted in M3**.
+- **Honesty statement** (in docs, the API description and the report notice): regex screening is a best-effort filter. **It does not guarantee that all personal data is removed.** The real control is the policy that M3 accepts **synthetic data only**. The API and README say so, and the live demo uses only the committed synthetic scripts.
+- **Gemini:** never receives user content in M3. The form node reads stored schemas only.
+
+## 7. Evidence association and the MANDATORY gate
+- **Association links** (`same_chunk`: the field's chunk was retrieved; `same_section`: same document and section; `topic_match`: shared entity/residency tags plus section-term overlap) are **evidence relationships only**. They mean "this policy passage is related to this form field". **They are never proof of a legal obligation.** They do not count as citations, and they never set `mandatory_under_policy`. M3 writes no form field and leaves that value null.
+- **Synthesis applicability is a proposal. `output_validation` is authoritative.** A requirement keeps `MANDATORY` only if **at least one cited evidence id** resolves (through Postgres, not state) to a chunk with all of the following:
+  - `evidence_eligibility = primary`;
+  - `can_support_mandatory = true`, so not OCR-uncertain;
+  - `source_status = active`;
+  - a document and page that exist in `document_pages`.
+- **Downgrades:** an item supported only by form, supporting, dated, superseded or OCR-uncertain evidence becomes at most `CONDITIONAL` (`UNCLEAR` if it has no resolvable citation). Each downgrade is recorded as a finding.
+- **Other validator rules:**
+  - unknown evidence ids are stripped and flagged;
+  - an applicability is never upgraded;
+  - every item carries an uncertainty label.
+- **Even a MANDATORY that passes the gate** is labelled "proposed; not claim-verified (M4)".
+
+## 8. LLM layer and cache
+- **Files:** `app/llm/provider.py` (an `LLMProvider` protocol with `generate_structured(request, schema) -> LLMResult[T]`), `transport.py`, `groq.py`, `FallbackLLMProvider` and `FakeLLMProvider`.
+- **`transport.py`:** backoff and classification extracted from `gemini.py` **without changing Gemini behaviour**. The Gemini tests must pass unchanged.
+- **Groq configuration:**
+  - model IDs come from env;
+  - the IDs, limits and **data-use terms are verified in S0** and recorded in docs/02;
+  - live calls need `GROQ_LIVE_ENABLED=true` and `GROQ_DATA_TERMS_VERIFIED_ON`;
+  - retries: ≤ 2 with jitter, plus a per-call timeout;
+  - the fallback model is used only after transient exhaustion.
+- **Rate limiter:** a Redis token bucket (`rl:groq:{window}`, TTL ≤ 120 s). If Redis is down it falls back to the in-process `RpmLimiter`, recorded as a degradation note. This is not an outcome change.
+- **LLM response cache:**
+  - **Off by default:** `LLM_CACHE_ENABLED=false`.
+  - **When enabled, it caches only allowlisted synthetic inputs.** The SHA-256 of the screened, normalised query must appear in the committed `data/eval/m3_synthetic_inputs.jsonl` (demo and benchmark scripts, reviewed as synthetic), and the session must have been created with `data_class=synthetic_demo`. **Regex screening is never the cache decision.** Arbitrary user text is never cached, even when it looks clean.
+  - **Key:** `kyc:llm:{sha256(prompt_id|prompt_version|model|input_digest)}`. It is a hash only, with no raw prompt or query. The value is the validated structured output; TTL 24 h.
+  - **Every hit is re-validated** with Pydantic. `output_validation` runs on cached and live outputs alike.
+  - **Redis error → miss → live (or fake) call.** Correctness does not depend on Redis.
+- **LangSmith stays off.** Prompts are never written to state, `graph_runs` or logs.
+
+## 9. Crash recovery and concurrency (no arq)
+- **Execution:** the API starts the run as an in-process `asyncio` task and returns `202` with `run_id`. The graph uses `AsyncPostgresSaver`, thread_id = session_id, with a checkpoint after every node.
+- **Run lease (Postgres, not Redis):**
+  - **The lease:** `graph_runs` has `owner_id` (a per-process UUID), `heartbeat_at` and `lease_expires_at`.
+  - **One active run per session:** a **partial unique index** `uq_graph_runs_active ON (session_id) WHERE status IN ('running','awaiting_clarification')` guarantees it.
+  - **Heartbeat:** the running task renews every `RUN_HEARTBEAT_S=10` (lease `RUN_LEASE_S=60`).
+  - **No Redis lock:** docs/08's `lock:run:{session}` is replaced by this lease (D6), so there is no stale Redis lock to recover.
+- **Crash recovery is explicit, not automatic.**
+  - **What survives a crash:** after an API crash the last checkpoint is intact in Postgres, and the run row stays `running` with an expiring lease.
+  - **What resumes it:** `POST /sessions/{id}/retry` (with an Idempotency-Key). A compare-and-set on `lease_expires_at < now()` succeeds for one caller only. It marks the old row `abandoned`, inserts a new `running` row on the same thread, and resumes the graph from the last checkpoint.
+  - **Before the lease expires:** a retry gets `409 RUN_IN_PROGRESS` with `retry_after`.
+  - **On startup:** the app only logs stale leases. It never re-executes on its own, which avoids surprise LLM spend and duplicate runs.
+  - **Re-running a node:** the node that was in flight re-runs.
+    - Retrieval and the deterministic nodes are idempotent.
+    - An LLM node may call again (bounded, counted in `llm_calls`).
+    - `finalize` uses `report_id = uuid5(run thread, checkpoint id)` and `INSERT … ON CONFLICT DO NOTHING`, so a crash during finalize never creates two reports.
+- **Idempotency:**
+  - an `Idempotency-Key` header is **required** on `/messages`, `/resume` and `/retry`;
+  - table `api_idempotency(session_id, key, endpoint, request_sha256, response_json, created_at)`, UNIQUE(session_id, key);
+  - same key and same body → the stored response; same key and a different body → `409 IDEMPOTENCY_MISMATCH`;
+  - the request hash is computed over the **screened** body. Blocked requests are not recorded.
+- **Concurrent resumes:**
+  - `/resume` requires the `checkpoint_id` from the interrupt payload;
+  - the transition `awaiting_clarification → running` is a conditional UPDATE, so exactly one resume wins;
+  - the other gets `409 RUN_IN_PROGRESS`, or `409 STALE_CHECKPOINT` if the checkpoint has moved on;
+  - `/messages` while a run is active or awaiting clarification → `409`.
+- **Crash after a checkpoint but before an event:**
+  - **Events are notifications, never state.** Each node end is written in order: checkpoint (library) → append to `graph_runs.node_events` with a per-run `seq` → Redis publish.
+  - **On connect or reconnect** (`Last-Event-ID`), SSE first sends a **snapshot from Postgres** (node_events after the seq, run status, report id), then live events, de-duplicated by seq.
+  - **A lost publish** is therefore repaired on the next connect. An event lost before its `node_events` row was written is reconstructed from the checkpoint history.
+- **Why not arq:** the acceptance criteria are pause, resume, a cited checklist and resume-after-crash. Postgres checkpoints, the lease and an explicit retry meet all four in one process. arq would add a worker process but no correctness property M3 needs. **Limitation:** M3 does not restart crashed runs automatically.
+
+## 10. Retention and deletion
+- **Settings:**
+  - `SESSION_TTL_H=24`: the active window;
+  - `REPORT_RETENTION_D=30`: after expiry;
+  - `IDEMPOTENCY_TTL_H=24`.
+- **Phase 1, at `expires_at`:**
+  - the session becomes `expired`, and `/messages`, `/resume` and `/retry` return `410 SESSION_EXPIRED`. **Expired sessions cannot be resumed.**
+  - its **LangGraph checkpoint data is deleted by thread_id** (the checkpointer's delete-thread API, verified in S0, otherwise a delete scoped to the `langgraph` schema);
+  - its idempotency rows are deleted;
+  - any non-terminal run is marked `abandoned` with no report.
+  - Reports and `graph_runs` stay readable.
+- **Phase 2, at `expires_at + REPORT_RETENTION_D`:** the session row is deleted, and `reports`, `graph_runs` and `api_idempotency` go with it through `ON DELETE CASCADE`. Until then, reports are insert-only; only this purge deletes them. M4 review cases will need their own retention rule.
+- **Orphans:** checkpoint threads with no matching session (the library tables have no FK) are deleted by the same purge, and an integrity check reports them.
+- **How it runs:** the CLI `workflow purge [--dry-run]` and `make purge`. It is idempotent and runs per session in one transaction. An optional in-process periodic sweep is off by default.
+- **Redis:** every key has a TTL.
+  - LLM cache: 24 h. Its keys are content hashes, not tied to a session, and hold only allowlisted synthetic-derived output.
+  - Rate-limit keys: ≤ 120 s.
+  - Form cache: unchanged, 7 d.
+  - Pub/sub channels `chan:session:{id}` store nothing. Subscriptions close on the terminal event, on client disconnect and after `SSE_IDLE_TIMEOUT_S=900`, with keep-alive comments.
+  - There are no Redis locks.
+
+## 11. Persistence summary
+- **Alembic `0006_m3_workflow`**, additive:
+  - `kyc_sessions`: id, status, `data_class` (`synthetic_demo|unspecified`), created_at, expires_at, checkpoints_purged_at;
+  - `graph_runs`: lifecycle, lease, node_events, llm_calls, latency, and the partial unique index;
+  - `reports`: outcome CHECK, `human_review_required` CHECK true, nullable checklist JSON, degradations, findings; insert-only;
+  - `api_idempotency`.
+- **Alembic `0007_m3_checkpointer`:** calls the library `setup()` in a dedicated `langgraph` schema (D3). `check-schema` excludes that schema.
+- **Unchanged:** Qdrant and `form_schemas` are read-only from the graph.
+
+## 12. Stages and acceptance criteria
+Each stage is one commit, with its tests, lint and docs; M1/M2 behaviour stays unchanged.
+
+| Stage | Scope | Acceptance criteria and tests |
+|---|---|---|
+| **S0** Plan & dependency verification | Commit `M3_PLAN.md`; fix the stale M2_HANDOFF line; verify and pin langgraph, langgraph-checkpoint-postgres and groq (each ≥ 2 weeks old, licences in docs/02); verify Groq IDs, limits and data terms, and the checkpointer's delete-thread API; update docs/08 (lease replaces the Redis lock) and docs/07 (resume/retry/idempotency) | Unit 529 and integration 199 green; check-dense-golden, check-schema and lint clean; no behaviour change |
+| **S1** LLM layer | provider protocol, transport extraction, Groq provider, fallback, fake, Redis limiter, opt-in allowlisted cache | Gemini tests unchanged and green; retries ≤ 2; timeout; 429 → fallback; refusal not retried; key redacted in errors and repr; invalid JSON → one re-ask; limiter with injected clock; Redis down → in-process limiter with identical results; **cache:** off by default; a non-allowlisted input is never written even when the regex finds nothing; the key contains no prompt or query substring; a corrupt entry is rejected; Redis down → live call, identical validated output |
+| **S2** State, routing, skeleton | `state.py`, `routing.py`, `builder.py`, `GraphDeps`, stub nodes, MemorySaver; public `retriever_from_settings` (the CLI uses it) | every routing edge table-tested; **outcome precedence table-tested**; no approve/reject value in any enum; recursion limit enforced; state JSON round-trip; CLI `search` output byte-identical |
+| **S3** Screening, security, intake, clarification | `app/security/screen.py`, `input_security`, `entity_intake`, `clarify`, structured answers | synthetic Aadhaar (Verhoeff-valid), PAN and card (Luhn) → 422 on **both** `/messages` and `/resume`, with nothing in state, checkpoint, logs or the fake LLM's recorded inputs; email/phone redacted; legitimate "what is a system prompt?" passes; an LLP query lacking an account type → interrupt with enum questions (residency is asked only of individuals, S3); a non-individual's residency is never assumed; a non-enum answer → 422; a third round → `INSUFFICIENT_INFORMATION`; the LLM never sets a value the user didn't state (its evidence span must occur in the question and name the value, S3.1) |
+| **S4** Retrieval, forms, association | `policy_retrieval`, `form_analysis`, `evidence_association` | partial retriever failure → a recorded degradation; all fail → `INSUFFICIENT_EVIDENCE`; integration: a TRUST query gives RBI ¶35 with doc and page; the form node makes **zero Gemini calls** (spy) and records method and version; OCR-uncertain fields keep their status; every link is typed as a relationship; `mandatory_under_policy is None` everywhere |
+| **S5** Synthesis, validation, reports | versioned synthesis prompt, `ChecklistDraft`, `output_validation`, `finalize`, migration 0006 | MANDATORY with only form, supporting, dated or OCR-uncertain citations → downgraded with a finding; MANDATORY with an association link but no primary citation → downgraded; a fabricated id → stripped; an injection string inside an evidence chunk changes nothing (adversarial fixture); invalid JSON twice → `DEGRADED` without a checklist; a degraded retriever plus a valid synthesis → `DEGRADED` with a labelled checklist; report insert-only; `human_review_required` CHECK; migration up/down/up; check-schema clean; a BLOCKED report carries reason codes only, never `query` or other user text (S3.1 carry-forward); **no evidence, no answer (S4 carry-forward):** `none` / `retrieval_failed`, or nothing surviving validation, gives the plain fallback text with the hdfcbank.com referral; a retrieval failure is reported as a failure, not as "no information"; missing evidence is never turned into a negative compliance conclusion; unverified HDFC-specific points refer to HDFC Bank; every response carries the independence disclaimer; `entity_group` evidence (and form, supporting or OCR-uncertain evidence) cannot alone establish MANDATORY |
+| **S6** Checkpointer, API, recovery | migration 0007; `POST /sessions`, `GET /sessions/{id}`, `/messages`, `/resume`, `/retry`, `GET /reports/{id}`; lease, heartbeat, idempotency, error envelope | interrupt → **new app instance** → resume continues from the checkpoint; injected crash mid-run → retry before lease expiry 409, after expiry resumes from the last checkpoint, the old row `abandoned`, exactly one report; crash inside finalize → one report; duplicate key → same response, no second run; same key with a different body → 409; two concurrent resumes → exactly one 202; stale `checkpoint_id` → 409; secret and PII scan over checkpoint rows; every `Command(resume)` is built only by `resume_command(..., asked=<pending question fields>)` and a PII resume attempt leaves nothing in `checkpoint_writes`; the API adds the `checkpoint_id` stale-check outside the graph (the graph payload stays `{answers}`) (S3.1 carry-forward) |
+| **S7** Events & SSE | `app/core/events.py`; `GET /sessions/{id}/events` with a Postgres snapshot and `Last-Event-ID` | event order = node order with gap-free seq; publish dropped (Redis down) → the run is unaffected and a reconnect snapshot fills the gap; crash after checkpoint and before publish → snapshot shows the node; disconnect frees the subscription; events carry node, status, seq and timestamp only |
+| **S8** Retention, E2E, handoff | `workflow purge`, `make purge`; the LLP demo via the API (fake LLM in CI, one opt-in live Groq run with a synthetic script); docs 01/02/03/07/08 and README; `M3_HANDOFF.md` | purge phase 1 deletes the checkpoint thread and idempotency rows and makes the session non-resumable (410); phase 2 cascades; orphan threads removed; dry-run writes nothing. **Done when:** the LLP question pauses, resumes and returns `CHECKLIST_REVIEW_REQUIRED` (or an honestly labelled outcome) in which every item cites doc, page and chunk, no MANDATORY lacks a primary citation, and unresolved items are listed. Full suites, lint, check-schema, check-dense-golden, ingest no-op and a secret scan are all green |
+
+### S0 outcome (2026-11-11)
+- **Packages pinned:** `langgraph==1.2.18`, `langgraph-checkpoint-postgres==3.2.0`, `groq==1.7.0`. Every transitive package is at least two weeks old, and the lock diff only adds lines. Details and licences: docs/02.
+- **Groq verified:** both gpt-oss models are production models and support strict structured output, and API inputs are not used for training. Free-tier rate limits were **not** confirmed. The published Developer-plan figures conflict (TPM 8K vs 250K). docs/02, "Groq API verification", has the full record.
+- **Consequences for later stages:**
+  - **S1:** the limiter must respect a per-minute token budget as well as RPM, or prompts must be capped.
+  - **S6:** must show that `setup()` and `adelete_thread()` work inside the `langgraph` schema through `search_path`, because the library uses unqualified table names.
+- **Regression:** with docker services up and `TESSDATA_DIR` and `GEMINI_API_KEY` unset (as in M2 D), unit 529 passed, integration 199 passed, and `lint`, `check-schema` and `check-dense-golden` were green.
+  - With the repo-root `.env` value `TESSDATA_DIR`, one unit test (`test_config.py::test_corpus_paths_resolve_against_repo_root`) fails. It was already environment-dependent before M3 and has nothing to do with the new packages.
+
+### S1 outcome (2026-11-11)
+- **Built:** `app/llm/{common,transport,provider,groq,cache}.py`, `app/core/ratelimit.py`, `FakeLLMProvider` / `scripted_llm`, plus the new settings listed in `infra/.env.example`.
+  - Groq live calls are off unless `GROQ_LIVE_ENABLED` and `GROQ_DATA_TERMS_VERIFIED_ON` are set.
+  - The LLM cache is off by default.
+- **M2 unchanged:** the provider errors and `parse_structured` moved to `common.py`, and the retry helpers to `transport.py`. `multimodal.py` and `gemini.py` re-export the same objects. All Gemini, multimodal and forms tests pass unmodified.
+- **Decisions taken while building:**
+  - **Groq JSON schema:** best-effort mode (`strict: false`). Groq's strict mode needs every property required, so the S3/S5 output models may opt in later. Validation and the single re-ask apply either way.
+  - **Schema rejections:** Groq's `400 json_validate_failed` is treated as invalid output, not as an error, so it goes through the re-ask.
+  - **Token budget:** the limiter reserves estimated tokens (prompt characters / 3 plus the output cap) as well as requests. A request larger than the per-minute budget fails at once.
+  - **`generate_text`:** not implemented. Every workflow call is structured.
+- **Tests:** 69 new unit tests (Groq 32, contract/fallback/re-ask/transport 15, limiter 10, cache 12) and 3 Redis integration tests. Unit 598 passed and integration 202 passed (`TESSDATA_DIR`/`GEMINI_API_KEY` unset). `lint` (strict mypy, 79 files), `check-schema` and `check-dense-golden` are green.
+- **No live Groq call was made.**
+
+### S2 outcome (2026-11-11)
+- **Built:**
+  - `app/graph/state.py`: JSON-safe `KYCState`, nested Pydantic models, `validate_state`, and the `SecurityStatus`, `Outcome`, `RunStatus` and `LinkKind` vocabularies;
+  - `app/graph/routing.py`: pure, fail-closed routing plus `decide_outcome` precedence;
+  - `app/graph/builder.py`: `GraphDeps`, `build_graph`, `run_config` and `topology`;
+  - nine stub nodes in `app/graph/nodes/`;
+  - `app/retrieval/factory.py` (`retriever_from_settings`).
+- **New settings:** `MAX_CLARIFICATION_ROUNDS=2` and `GRAPH_RECURSION_LIMIT=25`.
+- **CLI unchanged:** search output is byte-identical to the pre-refactor baseline (dense, bm25, hybrid, entity-filtered mandatory-only, and dense + rerank). Each case was run twice before and twice after the change.
+- **Decisions taken while building:**
+  - **No refusal node:** the revision-2 diagram is authoritative, so a blocked or review security status routes to `finalize`, which records `BLOCKED`.
+  - **Recursion limit:** LangGraph counts the input as a super-step, so a path of n nodes needs `recursion_limit` n + 1. The longest legal path is 8 + 2 x rounds nodes, so 2 rounds need 13. `GraphDeps` refuses any lower limit, and the default is 25.
+  - **Stubs:** they make no decisions. Routing fails closed, so an empty state ends `BLOCKED`. The `clarify` stub only advances the bounded round counter, and S3 replaces it with `interrupt()`. The `finalize` stub only computes the outcome; it persists nothing.
+  - **Synthesis flows straight to validation:** `compliance_synthesis` always continues to `output_validation`, which in S5 handles a missing draft (giving `DEGRADED`). The M4 claim-verification seam sits between them.
+  - **Partial degradation:** a partially degraded retrieval still proceeds, and `decide_outcome` reports it as `DEGRADED`.
+- **Tests:** 86 new unit tests:
+  - routing: every conditional edge, cross-checked against the compiled topology;
+  - outcome precedence, and no approve/reject vocabulary anywhere;
+  - state JSON and checkpoint round trips;
+  - the topology snapshot `tests/fixtures/m3_graph_topology.json`;
+  - recursion-limit boundaries checked against LangGraph;
+  - factory wiring and laziness.
+- **Results:** unit 684 and integration 202 passed. `lint` (strict mypy, 92 files), `check-schema` and `check-dense-golden` are green.
+
+### S3 outcome (2026-11-11)
+- **Built:**
+  - `app/security/screen.py`;
+  - `app/graph/inputs.py`: the gate, `start_input` and `resume_command`. They raise `SensitiveDataDetected`, `InputRejected` or `InvalidAnswer`, carrying codes only;
+  - `app/graph/intake.py`: `IntakeExtraction`, a versioned prompt, and the rules for interpreting the model's answer and parsing clarification answers;
+  - real `input_security`, `entity_intake` (async) and `clarify` (`interrupt()`) nodes;
+  - `AccountType` in the taxonomy;
+  - `ProfileValue.evidence_span`;
+  - `KYCState.data_class`;
+  - the `QUERY_MAX_CHARS` setting;
+  - the committed synthetic allowlist `data/eval/m3_synthetic_inputs.jsonl` (6 demo questions).
+- **Deviations from the S2 graph (both follow this plan):**
+  - **Re-screening after answers:** the fixed edge `clarify -> entity_intake` became `clarify -> input_security`, so every resumed answer is screened again (§3 diagram: a resume passes the gate and SEC). The longest path is now 8 + 3 x rounds nodes, so a limit of 15 for 2 rounds; the default stays 25. The topology snapshot changed by that one edge.
+  - **Async execution:** `entity_intake` is async because the S1 LLM layer is async. The graph now runs with `ainvoke`/`astream`, and the sync nodes run in LangGraph's worker thread. The S2 graph tests were rewritten to drive the real nodes with the fake LLM; their path, outcome and limit assertions are kept.
+- **Decisions taken while building:**
+  - **Account-type vocabulary:** `SAVINGS_ACCOUNT`, `CURRENT_ACCOUNT`, `NRE_ACCOUNT`, `NRO_ACCOUNT`, `TERM_DEPOSIT`, grounded in docs/07 and the HDFC forms. It is not stored in any database column.
+  - **Required fields:** entity type and account type; residency only for `INDIVIDUAL`. For other entities it stays unknown and is never assumed.
+  - **Quotes required:** a model-proposed value is accepted only with an `evidence_span` that occurs in the screened question. Otherwise it is `unsupported` and asked about.
+  - **One LLM call per run:** intake calls the LLM on the first pass only; clarification answers are merged without one. If the LLM is missing or fails, every field is asked and a degradation is recorded.
+  - **Gate before graph:** the gate rejects identifiers before the graph exists, because LangGraph checkpoints graph input and `Command(resume=...)` values. The in-graph checks are a second line: they block, remove identifier-bearing text from state and never call the LLM, but a raw resume value that skipped the gate would still be in the checkpoint writes. S6 must build every resume through `resume_command`.
+  - **Text still passed on after a block:** a block for injection or hygiene reasons still passes on the email/phone-redacted text, so a `BLOCKED` report can exist without contact details. Identifier-bearing text is never passed on.
+  - **Fix to account-number detection:** it is proximity-based (account/IFSC wording within 40 characters before the digits, phone numbers removed first). Without this, any KYC question containing "account" plus a phone number was blocked; a regression test covers it.
+- **Tests:** 107 new unit tests (screening 49, intake rules and gate 36, graph interrupt/resume flows 22), and 2 Postgres integration tests (`AsyncPostgresSaver` on a throwaway database; the paused run resumes in a new saver and graph instance; no email or PAN in any checkpoint table).
+- **Results:** unit 791 and integration 204 passed. `lint` (strict mypy, 95 files), `check-schema` and `check-dense-golden` are green. No live Groq call was made.
+
+### S3.1 outcome: review fixes (2026-11-11)
+A self-review of S3 against this plan found gaps. All were fixed before S4 (owner-approved fix plan):
+- **Quotes must name the value:** the model's `evidence_span` must occur in the question and contain a keyword for the proposed value (`VALUE_KEYWORDS`, with exclusions such as "non-resident" ≠ RESIDENT and "limited liability partnership" ≠ PARTNERSHIP), at least 2 characters. Before this fix, a generic span ("account", "a") could make an invented value `user_stated`.
+- **Indian-language text was falsely sent to review:** ZWNJ/ZWJ (U+200C/D), which Indic scripts use, and LRM/RLM (U+200E/F), which Urdu uses, no longer count as hidden formatting. The zero-width space, word joiners, the BOM and the bidi override/isolate controls still go to review.
+- **Numbers in resume payloads are screened:** an identifier sent as a JSON number is caught (`SensitiveDataDetected` at the gate; BLOCKED in the graph).
+- **Graph `input_schema` (`KYCInput`):** a run's input can carry only what `start_input` produces, so a pre-filled profile, evidence, security status or outcome is dropped. Tests reach later paths with `aupdate_state(..., as_node=...)` instead.
+- **Node time limit:** `NODE_TIMEOUT_S` (default 180 s) caps `entity_intake`'s LLM work. A timeout degrades (`llm` / `node_timeout`) to the clarification questions. The sync deterministic nodes have no time limit in M3.
+- **`resume_command(..., asked=...)`:** the gate can reject answers to fields that were not asked, matching the node.
+- **Logs:** a test confirms no email, phone, PAN or Aadhaar text reaches the logs on the start, gate-rejection, resume and in-graph-block paths.
+- **Recursion limit, measured:** a fresh run of n nodes needs `n + 1` (the builder's check, a safe upper bound). A run continued after `aupdate_state` already counts that write's step.
+- **Carried forward (no S3 code):**
+  - **S6:** resumes only through the gate, with a `checkpoint_writes` scan; the `checkpoint_id` stale-check outside the graph.
+  - **S5:** BLOCKED reports carry codes only.
+  - Both are added to the acceptance rows above.
+- **Deviations kept:**
+  - the `clarify → input_security` edge;
+  - the async graph;
+  - the rewritten S2 graph tests;
+  - residency asked only of individuals (owner to confirm);
+  - the `AccountType` vocabulary (owner to confirm).
+- **Results:**
+  - **Tests:** unit 822 (31 new) and integration 204 passed.
+  - **Checks:** lint (strict mypy, 95 files), check-schema and dense golden are green.
+  - **Unchanged:** the topology snapshot.
+  - **No live Groq call.**
+
+### S4 outcome (2026-11-11): COMPLETE, accepted by the owner (commit `0583b23a2d48214c6b013407cc1d773d76b0defd`, branch `feat/m3-s4-retrieval-forms`)
+- **Built:**
+  - `app/graph/corpus.py`: `CorpusReader`, `PostgresCorpusReader` (existing repository and forms functions only, plus one `form_documents` helper) and `SupportsRetrieve`;
+  - `app/graph/evidence.py`: pure helpers (evidence items, `classify_evidence`, candidate forms, schema choice, field subset, links);
+  - real `policy_retrieval`, `form_analysis` and `evidence_association` nodes;
+  - `GraphDeps.corpus`, `retrieval_mode` and `rerank` (from `RETRIEVAL_MODE` / `RERANK_ENABLED`).
+- **Retrieval:**
+  - an entity pass, plus the approved entity-group pass (S4-D1) when the entity pass has no primary-capable chunk;
+  - items are labelled `match_scope`;
+  - parent expansion and a 1,500-character cap (`text_truncated`);
+  - dropped hits are counted, never cited.
+  - **Four statuses** (`found`, `partial` with gap codes, `none`, `retrieval_failed`). `none` and `retrieval_failed` both end `INSUFFICIENT_EVIDENCE`, but stay distinct in `evidence_status`, `failed`, `failure_kinds` and degradations.
+- **Forms:**
+  - **Selection:** KYC forms listing the entity; for INDIVIDUAL also the stated residency, while for other entities residency is unused (approved rule). The reference document is never selected.
+  - **Schema:** the latest complete Gemini row, else m1.
+  - **Fields:** at most 60, copied with their extraction status.
+  - A missing schema is a gap and a degradation.
+  - **No Gemini calls:** this is verified with spies.
+- **Association:** `same_chunk` / `same_section` / `topic_match` links, `relationship_only=True`, at most 3 per field and 200 in total, deterministic.
+- **Approved decisions are only consumed:**
+  - the profile is read through `EntityProfile`, with no new vocabulary (a test checks this);
+  - `account_type` is unused, because no corpus document is tagged by account type;
+  - residency is used only for individual form selection.
+- **Measured on the dev stack (real BGE dense, read-only):**
+  - **TRUST:** `found`, with RBI ¶35 (p. 38) first; the non-individual form uses Gemini v2, with `scanned_document` visible.
+  - **LLP:** `partial`. The only entity-scope evidence is the scanned form; RBI ¶34/¶35 arrive as `entity_group`.
+  - **NRI individual:** `partial` (forms and the FAQ only in the top 5); three NRI forms are selected.
+- **Tests:**
+  - 43 new unit tests on a synthetic corpus built from real chunk and schema models;
+  - 4 integration tests on the ingested throwaway corpus (BM25: ¶35 for a trust, form selection, the LLP end to end with fields traced to stored schemas);
+  - 2 read-only dev-stack tests (real dense, Gemini rows).
+  - The S2/S3 graph tests now run their post-intake paths through the real S4 nodes with the fakes.
+- **Results:**
+  - **Tests:** unit 865 and integration 210 passed.
+  - **Checks:** lint (strict mypy, 97 files), check-schema and dense golden are green.
+  - **Unchanged:** the topology snapshot (no new edges).
+  - **No live Groq or Gemini call.**
+
+#### S4 acceptance and carry-forward (owner review, 2026-11-11)
+S4 is accepted as implemented. These observations carry forward without reopening S4; later stages must preserve them:
+1. **NRI retrieval returns partial evidence.** The dev-stack top 5 are HDFC forms and an RBI FAQ, with no entity-scope primary-capable chunk. This limitation stays visible (`evidence_status="partial"` with its gap). It must not be "fixed" by inventing evidence or by broadening retrieval scope.
+2. **LLP policy evidence arrives only through the entity group** (`match_scope="entity_group"`). In S5 it must never on its own establish MANDATORY (already in the S5 acceptance row).
+3. **The 60-field cap stays visible.** `fields_capped` in `FormRef.flags` and `form_flags` must reach every downstream output, so no later stage implies the whole form was analysed.
+4. **A missing schema stays distinct from a retrieval failure.**
+   - **A missing or unloadable form schema:** recorded as `no_stored_schema` / `schema_load_failed`, in `form_flags`, `retrieval_meta.gaps` and a `forms` degradation.
+   - **A technical retrieval failure:** recorded as `evidence_status="retrieval_failed"`, `failed=true`, `failure_kinds` and a `retrieval` degradation.
+   - S5 reports must keep the two apart.
+
+### S5 outcome (2026-11-11)
+- **Built:**
+  - `app/graph/synthesis.py`: `ChecklistDraft`, the versioned, delimited and budgeted prompt;
+  - `app/graph/validation.py`: the authoritative gate;
+  - `app/graph/report.py`: `ComplianceReport` builder, deterministic messages, `ReportStore`;
+  - real `compliance_synthesis`, `output_validation` and `finalize` nodes;
+  - `app/db/workflow.py`: `create_session`, `PostgresReportStore`;
+  - migration `0006_m3_workflow` with ORM rows;
+  - state keys `checklist` / `report`, `GraphDeps.reports`, and the `decide_outcome` rule S5-D2.
+- **Owner decisions applied:**
+  - **S5-D1:** uncited requirements are dropped.
+  - **S5-D2:** nothing surviving gives `INSUFFICIENT_EVIDENCE` / `no_supported_requirements` plus the fallback text.
+  - **S5-D3:** report id = uuid5(session/run).
+  - **S5-D4:** all four tables are created now.
+- **Carry-forward commitments met:**
+  - entity-group evidence never establishes MANDATORY (finding `only_entity_group`);
+  - NRI partial evidence stays `partial`, with its gap in the report;
+  - `fields_capped` is shown as `subset_only` and in the message;
+  - a missing schema has its own message line, never the retrieval-failure text;
+  - `none` gives the fallback verbatim, while `retrieval_failed` gives a distinct technical-failure message plus the referral;
+  - BLOCKED reports carry codes only;
+  - every message ends with the disclaimer;
+  - no message says "not required" or "not applicable".
+- **Measured on the dev stack** (real BGE dense, scripted adversarial drafts proposing MANDATORY for every top citation):
+  - **TRUST:** the RBI ¶35 item stays MANDATORY; the FAQ and form items are downgraded.
+  - **LLP and NRI:** every item becomes CONDITIONAL; the status stays `partial`.
+- **Tests:**
+  - 37 new unit tests: the MANDATORY gate, no invention, the prompt and budget, synthesis failures, outcomes, every message case, report invariants;
+  - 10 table and migration integration tests: up/down/up, CHECKs, the insert-only trigger, the partial unique index, store idempotency;
+  - 2 end-to-end integration tests on the ingested corpus, with reports stored in Postgres;
+  - S2/S4 graph tests updated where synthesis now consumes a scripted draft. The S4 integration tests script an empty draft, so their retrieval assertions are unchanged and the honest outcome is `INSUFFICIENT_EVIDENCE`.
+  - **One test moved:** the 0005 migration test now runs its ORM drift check at head (as the 0003/0004 tests do), because the ORM now includes 0006.
+- **Results:**
+  - **Tests:** unit 902 and integration 222 passed.
+  - **Checks:** lint (strict mypy, 101 files), check-schema and dense golden are green.
+  - **Unchanged:** the topology snapshot.
+  - **No live Groq or Gemini call.**
+
+### S6 outcome (2026-11-11)
+- **Built:**
+  - migration `0007_m3_checkpointer`: the library `setup()` runs in the `langgraph` schema, and the downgrade refuses while checkpoints exist;
+  - `app/workflow/runtime.py`: the checkpointer pool, the real graph deps and the live-gated LLM;
+  - `app/workflow/service.py`: all API logic;
+  - `app/api/v1/sessions.py`, `app/api/errors.py`;
+  - async run, lease, node-event and idempotency functions in `app/db/workflow.py`;
+  - settings `RUN_LEASE_S`, `RUN_HEARTBEAT_S`, `SESSION_TTL_H`, `CHECKPOINT_POOL_MAX`;
+  - `create_app(runtime_factory=...)` for tests.
+- **Owner decisions applied:**
+  - **S6-D1:** one thread per question.
+  - **S6-D2:** no cancel endpoint; shutdown behaves like a crash.
+  - **S6-D3:** `node_events` in Postgres now; SSE in S7.
+  - **S6-D4:** ownership is possession of the session id.
+  - **S6-D5:** a live-gated LLM. Without it the API runs, and outcomes are degraded.
+- **Mandatory resume security:**
+  - **Order:** raw-body screening of every string, number and key → shape → the awaiting run plus the current `checkpoint_id` (outside the graph) → `resume_command(asked=pending fields)` → idempotency → compare-and-set claim → submission.
+  - **One submission point:** `WorkflowService._execute` is the only place that submits to the graph, and `Command` is built only in `app/graph/inputs.py` (AST-checked tests).
+  - **Leak scans:** for four PII resume shapes (value, key, extra field, JSON number) the response is `422`, and the database bytes (all `langgraph` tables plus the workflow tables) are byte-identical before and after. Redis and the logs hold no trace, and the run still awaits on the same checkpoint.
+- **Recovery, verified against a new app instance and the real Postgres checkpointer:**
+  - **Resume:** a paused run resumes in a new instance.
+  - **Crash mid-run (during synthesis):** retry gets `409` + `Retry-After` while the lease is valid. After expiry it resumes from the last checkpoint (the first event is `compliance_synthesis`), the old run becomes `abandoned`, and there is exactly one report.
+  - **Crash inside finalize after the report insert:** the run is `failed`; retry then completes it, still with one report.
+  - **Startup:** stale leases are only logged.
+- **Also verified:** idempotent replay and mismatch; two concurrent resumes give exactly one `202`; expired sessions give `410`; a second question gets a fresh thread; validation errors never echo input.
+- **Smoke run of the real runtime on the dev stack** (dense retrieval, Gemini form schemas, no LLM): the question pauses with both questions, a PII resume gets `422`, and after the resume every node runs to an honest `DEGRADED` report with the fallback text. The smoke-run rows were removed from the dev database afterwards.
+- **One S5 test moved:** the S5 migration-0006 test now runs its drift check at head (0006 is no longer the head), the same fix as the 0005 test in S5.
+- **Test-harness finding:** Alembic's `fileConfig` disables already-created loggers when fixtures migrate. The S6 fixtures re-enable the `app.*` loggers, so log-leak assertions really observe the app's logs. The API process never runs Alembic.
+- **Tests:**
+  - 10 unit tests: the envelope, no echo, raw screening, hashes, AST submission checks;
+  - 18 integration tests: 13 API, 4 recovery, 1 migration.
+- **Results:**
+  - **Tests:** unit 912 and integration 240 passed.
+  - **Checks:** lint (strict mypy, 106 files), check-schema and dense golden are green.
+  - **Unchanged:** the topology snapshot (no graph edits).
+  - **No live Groq or Gemini call.**
+
+### S7 outcome (2026-11-12)
+- **Built:**
+  - `app/core/events.py`: `ProgressEvent` (`kind`, `run_id`, `seq`, `node`, `status`, `at`; `extra="forbid"`), the best-effort `RedisEventPublisher` (short timeout, failures counted and logged as the class name only, never raised) and `NullPublisher`;
+  - `app/workflow/stream.py`: the `Last-Event-ID` cursor, the PostgreSQL snapshot diff, SSE formatting, the stream generator, and `completed_nodes` / `missing_completions` for recovery;
+  - `GET /api/v1/sessions/{id}/events` (`StreamingResponse`, no new dependency);
+  - service hooks: publish after each committed write (§9 order: checkpoint → `node_events` commit → publish);
+  - `append_node_event … RETURNING`, `session_runs`, `recorded_completions` in `app/db/workflow.py`;
+  - settings `EVENTS_ENABLED`, `EVENTS_PUBLISH_TIMEOUT_S`, `EVENTS_POLL_S`, `SSE_KEEPALIVE_S`, `SSE_IDLE_TIMEOUT_S`.
+- **Owner decisions applied:**
+  - **S7-D1:** PostgreSQL is the only source of what is streamed; Redis is a wake-up only.
+  - **S7-D2:** events carry `kind` and `run_id` besides node, status, seq and timestamp.
+  - **S7-D3:** run events are the current `graph_runs.status`, documented as current-status only. A reconnecting client may get only the latest status; there is no status history and no migration.
+  - **S7-D4:** the stream closes on a terminal latest run (fully sent), disconnect or idle timeout. It stays open before the first message and while awaiting clarification.
+  - **S7-D5:** on `/retry`, the thread's checkpoint history is reconciled against the completions recorded by the thread's EARLIER runs. Only genuinely missing completions are appended to the new run as `recovered`, in execution order, with no duplicates. Nothing else in S6 recovery changed.
+- **SSE robustness:**
+  - ids `<run_id>.<seq>` and `<run_id>.<seq>.<status>` are unique across the runs of a session; malformed and unknown cursors restart from the beginning;
+  - subscribe before the first read; a short-lived DB session per read; at most `MAX_DRAIN` (256) Redis messages drained per wake-up, content discarded; PUBLISH never waits for readers;
+  - the subscription is released on completion, disconnect, idle timeout, cancellation, generator close and exceptions (unit tests for each path; integration checks `PUBSUB NUMSUB` = 0).
+- **Bug found and fixed (a deviation from "do not modify resume security", reported for review):** the S6 raw-body PII screening also screened the resume's `checkpoint_id`. About 2% of UUIDs pass the card-number Luhn check (for example `1f1de055-f966-6080-8002-022e095547bf`), so a valid resume could be refused with `422 SENSITIVE_DATA_DETECTED`. The S7 recovery test exposed it. Fix: `checkpoint_id` must be a lowercase UUID (otherwise `422 VALIDATION_ERROR`, codes only), and only that exact well-formed value is exempt from screening; every other string, number and key is still screened, and the screening order is unchanged. The S6 stale-checkpoint test now uses a well-formed UUID that is not current.
+- **Tests:**
+  - 48 unit tests (`tests/unit/test_events.py`): the key set, the publisher never raising, cursors, diff order and ids, current-status collapse, reconciliation cases (checkpointed-but-unrecorded, already recorded, multiple earlier runs with repeated nodes), cleanup on every exit path, bounded draining, keep-alive, the checkpoint-id regression;
+  - 13 integration tests (`tests/integration/test_workflow_events.py`):
+    - a full flow streamed from before the first message;
+    - Redis down: the run completes and every event arrives by polling, with `dropped > 0`;
+    - reconnect from every id, plus malformed and unknown cursors;
+    - a second question;
+    - a crash before the publish;
+    - recovery with 0, 1 and 2 lost entries;
+    - disconnect releases the subscription;
+    - a slow subscriber does not block the workflow;
+    - idle timeout and keep-alive;
+    - an unknown session gives 404.
+- **Results:**
+  - **Tests:** unit 960 and integration 253 passed.
+  - **Checks:** lint (strict mypy, 108 files), check-schema (no migration) and dense golden are green.
+  - **Unchanged:** the topology snapshot (no graph edits).
+  - **No live Groq or Gemini call.**
+
+### S8 outcome, part 1 (2026-11-12): retention, end-to-end, demo (before the live gate)
+- **Owner corrections applied:**
+  - **Locks at execution:** the lease is rechecked under row locks at execution time.
+  - **One transaction per session:** phase 1 and phase 2 each lock, delete the checkpoint data, verify it is gone, then change or delete the session.
+  - **Orphans across every table:** orphans are found in every `langgraph` table that has a `thread_id` column.
+  - **Gemini D2 rejected:** `.env.example` now matches the configuration M2 actually used (`gemini-3.6-flash` / `gemini-3.5-flash-lite`).
+  - **Live gate untouched:** no `.env` change and no live call.
+- **Built:**
+  - **`app/workflow/retention.py`:**
+    - two-phase purge, orphan cleanup, idempotency TTL and an integrity check;
+    - locking: `kyc_sessions`/`graph_runs FOR UPDATE` with a 5 s `lock_timeout`;
+    - safe skips with a reason: `live_lease`, `locked`, `not_expired`, `gone`;
+    - any error rolls back and is retried by the next purge;
+    - residue left by a stale writer after phase 1 is reported and removed.
+  - **`app/workflow/cli.py`:** `purge [--dry-run]` and `check`, as `make purge`, `make purge-dry` and `make check-workflow`. There is no periodic worker (S8-D1).
+  - **`app/workflow/acceptance.py`:** the M3 "done when" checker. Every citation's chunk id, document key and page are looked up in Postgres; a MANDATORY item needs a primary citation that can support MANDATORY; unresolved items must be listed; INSUFFICIENT_EVIDENCE must carry the fallback text.
+  - **`app/workflow/demo.py`:**
+    - runs as `make demo` / `make demo-live` against a running `make api`;
+    - preflight checks only that settings are present, never their values;
+    - `--live` requires the owner's Groq gate plus `LLM_CACHE_ENABLED=false`, and at least one recorded Groq call;
+    - the question is `m3-demo-01` from the synthetic allowlist; clarifications get enum answers only;
+    - output goes to the gitignored `data/processed/m3_demo/`.
+  - **Settings:** `REPORT_RETENTION_D=30` and `IDEMPOTENCY_TTL_H=24`. No migration: `kyc_sessions.status` and `checkpoints_purged_at` come from 0006.
+- **Tests:**
+  - 6 unit tests (`test_retention.py`).
+  - 13 integration tests (`test_workflow_retention.py`):
+    - phase 1 and the resulting 410s;
+    - reports stay readable after phase 1;
+    - phase 2 order;
+    - a failed checkpoint delete retains everything (phase 1 and phase 2);
+    - a live lease is skipped, then purged once it expires;
+    - a held lock is skipped;
+    - a state change since planning is skipped;
+    - stale-writer residue;
+    - orphans in each table;
+    - a byte-identical dry run;
+    - the idempotency TTL;
+    - schema discovery.
+  - 1 end-to-end integration test (`test_m3_e2e.py`): the LLP question through the API on the real ingested corpus (BM25, stored form schemas, a scripted LLM citing the evidence retrieval actually returned, plus a bogus id), with SSE opened first. It pauses, resumes and passes `check_report`. The bogus id is stripped and no MANDATORY item appears for the LLP group scope.
+- **Demo (no-LLM mode, dev stack):** `make demo` paused, was answered (`entity_type`, `account_type`), resumed and completed with 15 SSE events. The outcome was **DEGRADED** (LLM not configured), with evidence status partial and 2 unresolved items. Acceptance passed. `make demo-live` preflight refused while the gate is closed (exit 2). Two synthetic demo sessions remain in the dev database until they expire and are purged.
+- **Fix during regression:** the S6 AST guard (only the workflow service may call `astream`/`stream`/`ainvoke`/`invoke`) flagged the demo's `httpx` `client.stream(...)`. The guard was kept strict, and the demo uses `client.send(..., stream=True)` instead.
+- **Results:**
+  - **Tests:** unit 966 and integration 267 passed.
+  - **Checks:** lint (strict mypy, 112 files), check-schema (no migration), dense golden, and the ingest dry run (every document unchanged) are green.
+  - **No live Groq or Gemini call.**
+- **Pending (owner gate):** the single live Groq run, then docs 01/02/03/07/08, the README and `M3_HANDOFF.md`.
+
+### S8 outcome, part 2 (2026-11-12): the live Groq run, docs, handoff; M3 complete
+- **Owner authorisation:** after the owner set the gate, presence was confirmed only (no values printed). One metadata-only `models.list` call confirmed `openai/gpt-oss-120b` and `-20b` were available.
+- **`make demo-live` (one session):**
+  - **Calls:** 2 Groq calls (intake 2.2 s, 623/312 tokens; synthesis 3.2 s, 2886/1093 tokens). No fallback, no cache, no Gemini.
+  - **Clarification:** `account_type` only.
+  - **Outcome:** **CHECKLIST_REVIEW_REQUIRED**, evidence partial, with 2 items citing `hdfc_non_individual_account_opening` p.1. The model proposed both as MANDATORY and the validator downgraded both to CONDITIONAL. 3 unresolved items. Acceptance passed. Recorded as-is.
+- **Found and fixed:** in dev, the DEBUG root level let `groq._base_client` write the full request (the prompt) to the API log. No key was logged. `configure_logging` now holds payload-logging libraries at WARNING in every environment (3 unit tests). The local log file was deleted.
+- **Docs:** README (M3 quick-start: demo, retention, limits, roadmap), docs 01/02/03/07/08, and `M3_HANDOFF.md`.
+- **Results (final run):**
+  - **Tests:** integration 267 passed. Unit 968 passed, plus 1 failure that depends on `.env`: `test_app_imports_without_the_groq_sdk_or_a_key` reads the repo `.env`, where the owner's live gate is still `true`. It passes once the gate is closed.
+  - **Checks:** lint (strict mypy, 112 files), check-schema, dense golden and the ingest dry run are green.
+- **Next:** the owner sets `GROQ_LIVE_ENABLED=false`. Merging into `main` waits for owner approval.
+
+## 13. Dependencies and configuration
+- **New packages (D2):** `langgraph`, `langgraph-checkpoint-postgres` (pulls in `psycopg-pool`, `langchain-core` and `langsmith`) and `groq` (imported lazily).
+- **Not added:** sse-starlette (`StreamingResponse` is enough) and arq (§9).
+- **No new services:** Postgres gains a `langgraph` schema.
+- **New env keys:** `GROQ_LIVE_ENABLED`, `GROQ_DATA_TERMS_VERIFIED_ON`, `GROQ_TIMEOUT_S`, `GROQ_MAX_RETRIES≤2`, `LLM_CACHE_ENABLED=false`, `LLM_CACHE_TTL_S`, `GRAPH_RECURSION_LIMIT`, `MAX_CLARIFICATION_ROUNDS=2`, `RUN_LEASE_S`, `RUN_HEARTBEAT_S`, `SESSION_TTL_H`, `REPORT_RETENTION_D`, `IDEMPOTENCY_TTL_H`, `SSE_IDLE_TIMEOUT_S`; added in S7: `EVENTS_ENABLED`, `EVENTS_PUBLISH_TIMEOUT_S`, `EVENTS_POLL_S`, `SSE_KEEPALIVE_S`.
+- **Before any live run:** align the M2 `.env` model drift.
+
+## 14. Risks: security, privacy, reliability, compliance
+- **Privacy:**
+  - **Screening is not a guarantee.** The synthetic-only policy, blocking ID patterns, structured answers and the absence of free-text resume reduce exposure; they do not eliminate it.
+  - **Groq** receives only the screened query and public corpus text. Its live gate requires recorded terms verification.
+  - **Gemini** receives no user content.
+  - **LangSmith** stays off.
+  - Checkpoints are purged at session expiry.
+- **Security:**
+  - Evidence is delimited and treated as data, and the LLM has no tools. An adversarial fixture covers evidence injection.
+  - Prompt Guard and the full attack suite are M4, and M3 documentation must not claim them.
+  - API errors never echo the input.
+- **Compliance:**
+  - Only the deterministic gate yields MANDATORY, and it never upgrades.
+  - Association links are never obligations.
+  - Every outcome requires human review.
+  - No approve or reject state exists.
+  - Reports carry "not claim-verified (M4)".
+- **Reliability:**
+  - Postgres-only correctness: Redis loss means slower or no live events, never a different result.
+  - Recovery is explicit, and a re-run node may make one more LLM call.
+  - The partial unique index plus compare-and-set prevents double runs.
+  - Finalize is idempotent.
+  - All loops are bounded: clarification 2, synthesis 1 + 1, transport retries 2, recursion limit.
+- **Technical:**
+  - **Sync/async:** sync retrieval runs in `asyncio.to_thread`.
+  - **Windows:** the selector loop is required for the checkpointer.
+  - **LangGraph:** API churn is handled by exact pins and an isolated `builder.py`.
+- **Evidence quality:**
+  - **Thin LLP evidence:** an honest CONDITIONAL/UNCLEAR outcome is expected and documented, not tuned.
+  - **Small retrieval benchmarks:** they stay visible as degradations and unresolved items.
+
+## 15. Decisions (final table)
+| # | Decision | Recommendation | Alternative |
+|---|---|---|---|
+| D1 | M3/M4 boundary | M3: deterministic security, PII screen, synthesis and a deterministic validator; **no** NLI, review_cases or Prompt Guard (M4) | Pull NLI into M3 (scope growth) |
+| D2 | New packages | `langgraph`, `langgraph-checkpoint-postgres`, `groq`; no sse-starlette, no arq | httpx to Groq's OpenAI-compatible API instead of the `groq` SDK |
+| D3 | Checkpoint tables | library `setup()` called from Alembic `0007`, in the `langgraph` schema; check-schema excludes it | a separate `make` target outside Alembic |
+| D4 | Form source in the workflow | latest complete `gemini_multimodal` row, else `m1_chunks`, always recorded; never live Gemini | `m1_chunks` only |
+| D5 | Branching | stacked sub-branches as in M2 (`feat/m3-s0-plan` → … → `feat/m3-s8-e2e`), one commit per stage, merge to `main` after the handoff | one `feat/m3-workflow` branch |
+| D6 | Run lock | Postgres lease plus a partial unique index (replaces docs/08 `lock:run:{session}`) | Redis lock with TTL (needs stale-lock recovery; Redis becomes correctness-critical) |
+| D7 | PII policy | block on ID/financial patterns (422, nothing stored); redact email/phone; structured enum-only clarification answers | block on every pattern |
+| D8 | LLM cache | off by default; when on, only allowlisted synthetic inputs (`data_class=synthetic_demo` + committed hash list) | no LLM cache in M3 |
+
+## 16. `docs/milestones/M3_PLAN.md` outline
+1. Status and disclaimer
+2. Context and roadmap
+3. Verified starting point
+4. Architecture and diagram
+5. State schema
+6. Statuses (lifecycle vs outcome)
+7. Nodes and routing
+8. PII screening
+9. Evidence association and MANDATORY gate
+10. LLM layer and cache
+11. Crash recovery and concurrency
+12. Retention and deletion
+13. Persistence and migrations
+14. Stages S0–S8 and acceptance criteria
+15. Dependencies and configuration
+16. Risks
+17. Decisions
+18. Out of scope / M4 seams
+19. Verification and demo path
+
+## Verification (end of M3)
+1. `make up migrate check-schema ingest forms`
+2. `make test test-integration lint check-dense-golden`
+3. `make api`
+4. Run the synthetic LLP script:
+   - create a session (`data_class=synthetic_demo`);
+   - POST the message (with an Idempotency-Key);
+   - SSE shows `CLARIFICATION_REQUIRED`;
+   - resume with enum answers;
+   - `GET /reports/{id}` returns the outcome and citations; check them against `search` and `forms show`.
+5. Crash drill: kill the API mid-run, restart it, `/retry` after the lease expires, and confirm exactly one report.
+6. `make purge` with `--dry-run`, then for real.
+7. Secret and PII scan over checkpoints, `graph_runs`, reports and Redis.

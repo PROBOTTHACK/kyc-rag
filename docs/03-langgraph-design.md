@@ -1,8 +1,37 @@
 # 03 — LangGraph Design
 
-Single state machine, specialized nodes. A node may use an LLM, deterministic Python, or an external service. Checkpointer: Postgres. Progress events: Redis pub/sub. Tracing: LangSmith.
+Single state machine, specialized nodes. A node may use an LLM, deterministic Python, or an external service. Checkpointer: Postgres. Status (M3 complete, 2026-11-12): the workflow runs end to end through the API; claim verification (NLI), Prompt Guard and review cases are M4 and are not built. Progress events (M3 S7): the durable `graph_runs.node_events` in Postgres, streamed over SSE, with Redis pub/sub as a best-effort wake-up only. Tracing: LangSmith.
 
 ## State
+> **As implemented (M3 S2): `app/graph/state.py`.** It follows `docs/milestones/M3_PLAN.md` §4–§5, which supersedes the sketch below:
+> - **JSON-safe values:** every value is JSON, and nested values are Pydantic model dumps, so checkpoints never deserialise application classes.
+> - **Outcome vocabulary:** `final_status` is replaced by the single report `outcome` (`BLOCKED`, `INSUFFICIENT_INFORMATION`, `INSUFFICIENT_EVIDENCE`, `DEGRADED`, `CHECKLIST_REVIEW_REQUIRED`, in precedence order), plus the separate run lifecycle `RunStatus`.
+> - **Claim fields:** they arrive with M4.
+> - **Routing:** `app/graph/routing.py`. A blocked or review security status goes to `finalize`, not to a separate refusal node (M3 plan revision 2).
+> - **Security, intake and clarification (M3 S3):** these are real nodes.
+>   - **`input_security`:** deterministic and monotonic. An input cannot declare itself safe, and a block is never relaxed.
+>   - **`entity_intake`:** async. It makes one LLM call on the first pass only.
+>   - **What intake accepts:** values in the closed vocabularies, backed by words in the question; nothing is defaulted.
+>   - **`clarify`:** uses `interrupt()` and `Command(resume=...)`, with enum-only answers. Every round counts, up to `MAX_CLARIFICATION_ROUNDS`.
+>   - **After an answer:** the graph returns to `input_security`.
+>   - **Running it:** the graph runs with `ainvoke`/`astream`.
+> - **Retrieval, forms and association (M3 S4):** these are real nodes.
+>   - **Reads:** sync nodes reading through `GraphDeps.retriever` / `GraphDeps.corpus` (`app/graph/corpus.py`).
+>   - **Retrieval:** an entity pass, plus an entity-group pass when no primary-capable chunk is found.
+>   - **Evidence status:** one of four, in `retrieval_meta.evidence_status` (`found` / `partial` / `none` / `retrieval_failed`).
+>   - **Forms:** stored schemas only, never Gemini.
+>   - **Links:** relationships only.
+>   - **No new edges.**
+> - **Synthesis, validation and finalize (M3 S5):** these are real nodes.
+>   - **`compliance_synthesis`:** async, one call plus one re-ask, under the node time limit. Its prompt holds profile values, delimited evidence, bounded form labels and gap codes, and fits the Groq token budget.
+>   - **`output_validation`:** deterministic and authoritative.
+>   - **`finalize`:** writes one insert-only report per run (id = uuid5 of session and run) through `GraphDeps.reports`, with a deterministic user message: the fallback text when nothing is supported, failure reported apart from "no information", and the disclaimer.
+>   - **No new edges.**
+> - **Execution (M3 S6):**
+>   - **Checkpointer:** the graph runs in the API process with `AsyncPostgresSaver` (the `langgraph` schema), one thread per question.
+>   - **Single submission point:** `WorkflowService._execute` is the only place that submits input. It submits only a `start_input` state, a `resume_command` result or `None` (retry from the last checkpoint).
+>   - **Recovery:** explicit, through `/retry` after the lease expires.
+
 ```python
 class KYCState(TypedDict, total=False):
     # request

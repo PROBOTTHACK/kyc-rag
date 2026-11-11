@@ -24,6 +24,20 @@ Group membership is a retrieval convenience only. It does **not** mean an RBI pa
 
 **Document-level rule:** a document's `entity_types` lists only the legal forms it names explicitly. Generic wording ("legal entity", "customer") adds nothing at document level. Chunk-level tagging (Phase 3) may narrow a document's types but never widen them.
 
+## Account type (workflow intake, M3 S3)
+`AccountType`: `SAVINGS_ACCOUNT`, `CURRENT_ACCOUNT`, `NRE_ACCOUNT`, `NRO_ACCOUNT`, `TERM_DEPOSIT`.
+- **Why it is closed:** a closed vocabulary means intake never accepts a free-form model value.
+- **Where it comes from:** docs/07 (current account), and the HDFC forms (savings/current, and the NRI "NRE/NRO Account-cum-Term Deposit" form).
+- **Storage:** it is not stored in any database column, so adding a value needs no migration.
+- **What it does not mean:** an account type selects nothing by itself, and it is not a claim about which rules apply.
+
+**Which intake fields are required:** `entity_type` and `account_type` always; `residency` only for `INDIVIDUAL`.
+- Residency is defined for individuals only, so for other entities it stays `unknown` and is never assumed.
+- Each value records its source:
+  - `user_stated`: read from the question by the intake model, with the exact supporting words in `evidence_span`. Those words must occur in the question and contain a keyword for that value (`VALUE_KEYWORDS` in `app/graph/intake.py`, S3.1); other wording fails safe to a clarification question;
+  - `user_answered`: a structured clarification answer;
+  - `unknown`.
+
 ## Residency status (separate axis)
 `RESIDENT`, `NRI` (Non-Resident Indian), `PIO` (Person of Indian Origin; the HDFC forms group OCI cardholders here). An NRI customer is `entity_type=INDIVIDUAL` with `residency=NRI`, never an entity type of its own. An empty list on a document means "not specified".
 

@@ -8,18 +8,44 @@ Page images and the text a model reads from them are untrusted data. The provide
 returns structured output; it is validated here and never executed or obeyed.
 """
 
-import hashlib
-from typing import Generic, Protocol, TypeVar
+from typing import Generic, Protocol
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field
 
-T = TypeVar("T", bound=BaseModel)
+# Shared with the M3 text contract; re-exported so existing imports keep working.
+from app.llm.common import (
+    MAX_ERRORS,
+    ProviderError,
+    ProviderRateLimited,
+    ProviderRefused,
+    ProviderTimeout,
+    ProviderUnavailable,
+    T,
+    TokenUsage,
+    _Frozen,
+    parse_structured,
+    text_sha256,
+)
 
-MAX_ERRORS = 20  # cap on validation messages kept per result
-
-
-class _Frozen(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+__all__ = [
+    "MAX_ERRORS",
+    "Citation",
+    "MultimodalProvider",
+    "MultimodalRequest",
+    "MultimodalResult",
+    "PageImage",
+    "ProviderError",
+    "ProviderRateLimited",
+    "ProviderRecitation",
+    "ProviderRefused",
+    "ProviderTimeout",
+    "ProviderUnavailable",
+    "RecitationDiagnostics",
+    "T",
+    "TokenUsage",
+    "parse_structured",
+    "text_sha256",
+]
 
 
 class PageImage(_Frozen):
@@ -36,11 +62,6 @@ class MultimodalRequest(_Frozen):
     pages: list[PageImage]
 
 
-class TokenUsage(_Frozen):
-    input_tokens: int | None = None
-    output_tokens: int | None = None
-
-
 class MultimodalResult(BaseModel, Generic[T]):
     model_config = ConfigDict(frozen=True)
 
@@ -52,26 +73,6 @@ class MultimodalResult(BaseModel, Generic[T]):
     usage: TokenUsage | None = None
     latency_ms: int = Field(ge=0)
     finish_reason: str | None = None
-
-
-class ProviderError(Exception):
-    """Base class; messages must never contain secrets. `transient` is True only when a
-    provider gave up after exhausting retries on rate limits, server errors or timeouts
-    (never for refusals, invalid requests or auth failures)."""
-
-    transient: bool = False
-
-
-class ProviderUnavailable(ProviderError):
-    """Not configured, network failure or a server error after retries."""
-
-
-class ProviderRateLimited(ProviderError):
-    """Quota or rate limit still exceeded after retries."""
-
-
-class ProviderRefused(ProviderError):
-    """The model refused or a safety filter blocked the response."""
 
 
 class Citation(_Frozen):
@@ -107,10 +108,6 @@ class ProviderRecitation(ProviderRefused):
         self.diagnostics = diagnostics
 
 
-class ProviderTimeout(ProviderError):
-    """The call exceeded its timeout after retries."""
-
-
 class MultimodalProvider(Protocol):
     @property
     def name(self) -> str: ...
@@ -121,18 +118,3 @@ class MultimodalProvider(Protocol):
     async def analyze_pages(
         self, images: list[bytes], request: MultimodalRequest, schema: type[T]
     ) -> MultimodalResult[T]: ...
-
-
-def parse_structured(raw_text: str, schema: type[T]) -> tuple[T | None, list[str]]:
-    """Validate model text against `schema`: `(parsed, [])` or `(None, errors)`."""
-    try:
-        return schema.model_validate_json(raw_text), []
-    except ValidationError as exc:
-        errors = [
-            f"{'.'.join(str(p) for p in e['loc']) or '<root>'}: {e['msg']}" for e in exc.errors()
-        ]
-        return None, errors[:MAX_ERRORS]
-
-
-def text_sha256(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
