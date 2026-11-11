@@ -127,6 +127,11 @@ class Settings(BaseSettings):
     RUN_HEARTBEAT_S: float = Field(default=10.0, gt=0, le=600)
     SESSION_TTL_H: float = Field(default=24.0, gt=0, le=720)
     CHECKPOINT_POOL_MAX: int = Field(default=5, ge=1, le=50)
+    # --- Retention (M3 S8; M3_PLAN §10). `make purge`; no periodic worker. ---
+    # Phase 1 at expires_at (checkpoints + idempotency rows deleted, session expired);
+    # phase 2 at expires_at + REPORT_RETENTION_D (session row and its cascade deleted).
+    REPORT_RETENTION_D: int = Field(default=30, ge=1, le=365)
+    IDEMPOTENCY_TTL_H: float = Field(default=24.0, gt=0, le=720)
     # --- Progress events and SSE (M3 S7). PostgreSQL is the source; Redis only wakes the
     # stream up (falls back to polling every EVENTS_POLL_S). ---
     EVENTS_ENABLED: bool = True

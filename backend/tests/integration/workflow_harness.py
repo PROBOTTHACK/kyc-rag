@@ -120,6 +120,9 @@ def runtime_factory(
     keepalive_s: float = 15.0,
     idle_s: float = 60.0,
     on_runtime: Callable[[WorkflowRuntime], None] | None = None,
+    retriever: Any = None,
+    corpus: Any = None,
+    retrieval_mode: str | None = None,
 ) -> Any:
     """S7: `publisher` / `subscriber` default to none (PostgreSQL polling only)."""
 
@@ -131,11 +134,13 @@ def runtime_factory(
         reports: Any = PostgresReportStore(create_sync_sessionmaker(create_sync_engine(settings)))
         if store_wrapper is not None:
             reports = store_wrapper(reports)
+        extra: dict[str, Any] = {"retrieval_mode": retrieval_mode} if retrieval_mode else {}
         deps = GraphDeps(
             llm=llm,
-            retriever=FakeRetriever({"LLP": [NI_FIELDS], "LEGAL_ENTITY": [RBI_LEGAL]}),
-            corpus=FakeCorpus(),
+            retriever=retriever or FakeRetriever({"LLP": [NI_FIELDS], "LEGAL_ENTITY": [RBI_LEGAL]}),
+            corpus=corpus or FakeCorpus(),
             reports=reports,
+            **extra,
         )
         runtime = WorkflowRuntime(
             graph=build_graph(deps, checkpointer=AsyncPostgresSaver(pool)),  # type: ignore[arg-type]

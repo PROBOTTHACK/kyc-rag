@@ -545,6 +545,53 @@ S4 is accepted as implemented. These observations carry forward without reopenin
   - **Unchanged:** the topology snapshot (no graph edits).
   - **No live Groq or Gemini call.**
 
+### S8 outcome, part 1 (2026-11-12): retention, end-to-end, demo (before the live gate)
+- **Owner corrections applied:**
+  - **Locks at execution:** the lease is rechecked under row locks at execution time.
+  - **One transaction per session:** phase 1 and phase 2 each lock, delete the checkpoint data, verify it is gone, then change or delete the session.
+  - **Orphans across every table:** orphans are found in every `langgraph` table that has a `thread_id` column.
+  - **Gemini D2 rejected:** `.env.example` now matches the configuration M2 actually used (`gemini-3.6-flash` / `gemini-3.5-flash-lite`).
+  - **Live gate untouched:** no `.env` change and no live call.
+- **Built:**
+  - **`app/workflow/retention.py`:**
+    - two-phase purge, orphan cleanup, idempotency TTL and an integrity check;
+    - locking: `kyc_sessions`/`graph_runs FOR UPDATE` with a 5 s `lock_timeout`;
+    - safe skips with a reason: `live_lease`, `locked`, `not_expired`, `gone`;
+    - any error rolls back and is retried by the next purge;
+    - residue left by a stale writer after phase 1 is reported and removed.
+  - **`app/workflow/cli.py`:** `purge [--dry-run]` and `check`, as `make purge`, `make purge-dry` and `make check-workflow`. There is no periodic worker (S8-D1).
+  - **`app/workflow/acceptance.py`:** the M3 "done when" checker. Every citation's chunk id, document key and page are looked up in Postgres; a MANDATORY item needs a primary citation that can support MANDATORY; unresolved items must be listed; INSUFFICIENT_EVIDENCE must carry the fallback text.
+  - **`app/workflow/demo.py`:**
+    - runs as `make demo` / `make demo-live` against a running `make api`;
+    - preflight checks only that settings are present, never their values;
+    - `--live` requires the owner's Groq gate plus `LLM_CACHE_ENABLED=false`, and at least one recorded Groq call;
+    - the question is `m3-demo-01` from the synthetic allowlist; clarifications get enum answers only;
+    - output goes to the gitignored `data/processed/m3_demo/`.
+  - **Settings:** `REPORT_RETENTION_D=30` and `IDEMPOTENCY_TTL_H=24`. No migration: `kyc_sessions.status` and `checkpoints_purged_at` come from 0006.
+- **Tests:**
+  - 6 unit tests (`test_retention.py`).
+  - 13 integration tests (`test_workflow_retention.py`):
+    - phase 1 and the resulting 410s;
+    - reports stay readable after phase 1;
+    - phase 2 order;
+    - a failed checkpoint delete retains everything (phase 1 and phase 2);
+    - a live lease is skipped, then purged once it expires;
+    - a held lock is skipped;
+    - a state change since planning is skipped;
+    - stale-writer residue;
+    - orphans in each table;
+    - a byte-identical dry run;
+    - the idempotency TTL;
+    - schema discovery.
+  - 1 end-to-end integration test (`test_m3_e2e.py`): the LLP question through the API on the real ingested corpus (BM25, stored form schemas, a scripted LLM citing the evidence retrieval actually returned, plus a bogus id), with SSE opened first. It pauses, resumes and passes `check_report`. The bogus id is stripped and no MANDATORY item appears for the LLP group scope.
+- **Demo (no-LLM mode, dev stack):** `make demo` paused, was answered (`entity_type`, `account_type`), resumed and completed with 15 SSE events. The outcome was **DEGRADED** (LLM not configured), with evidence status partial and 2 unresolved items. Acceptance passed. `make demo-live` preflight refused while the gate is closed (exit 2). Two synthetic demo sessions remain in the dev database until they expire and are purged.
+- **Fix during regression:** the S6 AST guard (only the workflow service may call `astream`/`stream`/`ainvoke`/`invoke`) flagged the demo's `httpx` `client.stream(...)`. The guard was kept strict, and the demo uses `client.send(..., stream=True)` instead.
+- **Results:**
+  - **Tests:** unit 966 and integration 267 passed.
+  - **Checks:** lint (strict mypy, 112 files), check-schema (no migration), dense golden, and the ingest dry run (every document unchanged) are green.
+  - **No live Groq or Gemini call.**
+- **Pending (owner gate):** the single live Groq run, then docs 01/02/03/07/08, the README and `M3_HANDOFF.md`.
+
 ## 13. Dependencies and configuration
 - **New packages (D2):** `langgraph`, `langgraph-checkpoint-postgres` (pulls in `psycopg-pool`, `langchain-core` and `langsmith`) and `groq` (imported lazily).
 - **Not added:** sse-starlette (`StreamingResponse` is enough) and arq (§9).

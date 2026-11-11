@@ -19,6 +19,7 @@ PY := "$(VENV_PY)"
 COMPOSE := docker compose -f infra/docker-compose.yml
 BACKEND := backend
 CLI = cd $(BACKEND) && $(PY) -m app.ingestion.cli
+WF = cd $(BACKEND) && $(PY) -m app.workflow.cli
 # Optional document selection for ingestion targets: make ingest DOC="rbi_kyc_faqs hdfc_nri_rekyc"
 DOC ?=
 DOCS = $(foreach d,$(DOC),--document $(d))
@@ -27,6 +28,7 @@ DOCS = $(foreach d,$(DOC),--document $(d))
 .PHONY: help venv install install-locked lock up down migrate check-schema ingest ingest-dry
 .PHONY: persist index retry reconcile repair runs forms search check-corpus eval eval-compare eval-select eval-heldout check-dense-golden
 .PHONY: api test test-integration lint fmt web
+.PHONY: purge purge-dry check-workflow demo demo-live
 
 # Printed by make itself ($(info)), so it needs no shell and looks the same everywhere.
 help:
@@ -38,6 +40,7 @@ help:
 	$(info Forms:     forms [DOC="key ..."]  (then: cli forms list | show KEY))
 	$(info Retrieval: search Q="..."  eval  eval-compare  eval-select  check-dense-golden)
 	$(info Dev:       api test test-integration lint fmt)
+	$(info Workflow:  purge purge-dry check-workflow demo demo-live  (demo needs `make api`))
 	$(info )
 	$(info Typical first run: make up migrate check-corpus ingest)
 	$(info Interpreter: $(VENV_PY))
@@ -160,6 +163,27 @@ eval-heldout:
 # M1 dense golden regression: real model + dev collection; fails (never skips) if missing.
 check-dense-golden:
 	cd $(BACKEND) && $(PY) -m pytest -m integration tests/integration/test_dense_golden.py
+
+# M3 S8 retention (M3_PLAN §10): phase 1 at session expiry, phase 2 after REPORT_RETENTION_D.
+purge:
+	$(WF) purge
+
+# What `purge` would do; one read-only transaction, writes nothing.
+purge-dry:
+	$(WF) purge --dry-run
+
+# Read-only: orphan checkpoint data, residue in purged sessions, pending purges.
+check-workflow:
+	$(WF) check
+
+# The M3 LLP demo through the running API (`make api` first). Uses whatever LLM the API
+# runs with: no LLM when the Groq live gate is closed (an honest DEGRADED outcome).
+demo:
+	cd $(BACKEND) && $(PY) -m app.workflow.demo
+
+# Same, but refuses unless the preflight confirms the Groq live gate (owner opt-in).
+demo-live:
+	cd $(BACKEND) && $(PY) -m app.workflow.demo --live
 
 web:
 	$(error make web: not implemented until Milestone 5 (docs/12))
