@@ -28,6 +28,12 @@
 
 - M2 G2: `google-genai==2.33.0` (Apache-2.0, from the PyPI `License-Expression`; released 2026-10-23, Python ≥ 3.11). This is the newest release at least two weeks old on 2026-11-10. 2.34.0 (2026-10-29) and the new major 3.0.0 (2026-11-06, which switches to an `httpx2` dependency) were too recent. It is imported only inside `app/llm/gemini.py`, and lazily, so the app imports without it being loaded.
 
+- **M3 S0 (2026-11-11):** `langgraph==1.2.18`, `langgraph-checkpoint-postgres==3.2.0` (both MIT) and `groq==1.7.0` (Apache-2.0), licences from the PyPI `License-Expression`. Each is the newest release at least two weeks old on 2026-11-11: langgraph 1.2.20 (2026-11-05) was too recent; checkpoint-postgres 3.2.0 is from 2026-10-14; groq 1.7.0 is from 2026-08-26 and is the latest.
+  - **Transitive packages:** they were resolved with `pip install --uploaded-prior-to 2026-10-28`, so every package added is also at least two weeks old. They include `langchain-core 1.7.0`, `langsmith 0.14.14` and `langgraph-checkpoint 4.3.1` (all MIT), `ormsgpack`, `orjson`, `xxhash`, `zstandard` and `uuid_utils`, plus `psycopg-pool 3.3.3`. **psycopg-pool is LGPL-3.0-only:** it is used as an unmodified, separately installed library, which LGPL permits. Re-check this before redistributing a bundled binary.
+  - **No existing pin changed:** the lock diff only adds lines.
+  - **`langsmith` is installed but tracing stays off** (`LANGSMITH_TRACING=false`, M3 plan §8).
+  - **Checkpointer API (checked from the installed source):** `AsyncPostgresSaver.setup()` creates `checkpoints`, `checkpoint_blobs`, `checkpoint_writes` and `checkpoint_migrations`, using unqualified table names. Placing them in a `langgraph` schema (decision D3) therefore relies on the connection's `search_path`, and S6 must test that. `adelete_thread(thread_id)` deletes a thread's rows from `checkpoints`, `checkpoint_blobs` and `checkpoint_writes`, which is the deletion path for M3 retention (plan §10).
+
 ## Gemini API verification (2026-11-10, before any live call)
 Sources read on 2026-11-10. The `ai.google.dev` URLs now redirect permanently to `aistudio.google.com/docs/...`.
 - **Model ID:** `gemini-3.8-flash` is listed as the stable ID ("Stable: `gemini-3.8-flash`"; the model page says "Latest update: September 2026"; the What's-new page says it is GA).
@@ -53,6 +59,40 @@ Sources read on 2026-11-10. The `ai.google.dev` URLs now redirect permanently to
   - **When it is used:** only after the primary exhausts its 5 attempts on transient errors. It gets the same 5-attempt policy and shares the same RPM limiter.
   - **Provenance:** each stored page records the model that answered it.
   - **Data use:** the same free-tier terms apply, so only the approved blank forms are ever sent.
+
+## Groq API verification (2026-11-11, M3 S0, before any live call)
+The official pages were read on 2026-11-11. Quotes are verbatim. **No live Groq call has been made.**
+
+**Models.**
+- **Configured:** `PRIMARY_LLM_MODEL=openai/gpt-oss-120b` and `FALLBACK_LLM_MODEL=openai/gpt-oss-20b` (`infra/.env.example` and `.env` agree).
+- **Status:** both are under "Production Models" (https://console.groq.com/docs/models). Neither appears among preview or deprecated models, and neither is named by any entry on https://console.groq.com/docs/deprecations.
+- **Limits:** each has a context window of 131,072 tokens and up to 65,536 completion tokens.
+- **Deprecation can happen at any time:** the Services Agreement §4.4 says "Groq may deprecate the AI Model Services at any time". Model IDs therefore stay env-only.
+
+**Structured output.** Both models are listed under "Models with Strict Mode (`strict: true`)". The page says strict mode "uses constrained decoding to guarantee schema-compliant output" (https://console.groq.com/docs/structured-outputs).
+- **No streaming or tools with it:** "Streaming and tool use are not currently supported with Structured Outputs."
+- **Pydantic validation still applies:** the plan's validation and its single re-ask stay in place regardless.
+
+**Rate limits are not settled.**
+- **Published figures:** https://console.groq.com/docs/rate-limits shows one table, described as "the base limits for the Developer plan". Both models are listed at RPM 30, RPD 1K, TPM 8K and TPD 200K.
+- **Free-plan figures:** the free-plan tab could not be read.
+- **Conflict:** the models page lists "250K TPM / 1K RPM" for the Developer plan.
+- **Where the real limits are:** the per-organisation limits are shown only on the console's limits page.
+- **Decision:** keep the configured `RATE_LIMIT_GROQ_RPM=20` (below every published figure). Check the organisation's real limits in the console before relying on more.
+- **TPM 8K may be the binding limit:** synthesis prompts carry evidence text, so the S1 limiter must also respect a per-minute token budget, or prompts must be capped.
+
+**Data use.**
+- **Which terms apply:** https://groq.com/terms-of-use says the Groq Services Agreement governs cloud/API use. The privacy policy excludes data processed "as a 'data processor' on behalf of customers".
+- **Training:** the Services Agreement §4.2 (https://console.groq.com/docs/legal/services-agreement) says: "Groq is not permitted to use Inputs or Outputs for training or fine-tuning any AI Model Services or other models … unless explicitly granted permission or instructed by Customer."
+- **Retention:** https://console.groq.com/docs/your-data says: "By default, Groq does not retain customer data for inference requests." Logs for reliability or abuse investigation "are retained for up to 30 days, unless legally required to retain longer". The same page says this storage can be opted out of in Data Controls.
+- **Zero Data Retention:** the your-data page says "All customers may enable Zero Data Retention (ZDR)". The Services Agreement says "Eligible Customers". The two pages disagree, and plan eligibility was not confirmed.
+- **Not established:** no page read says anything about human review of API content, or distinguishes free from paid API data handling.
+
+**Suitability decision (M3).**
+- **What may be sent:** these terms are better than Gemini's free tier (no training use), but they do **not** make Groq a place for real personal data. Retention for up to 30 days, the ZDR eligibility ambiguity and the absence of a human-review statement all leave that open.
+- **M3 sends Groq only:** the **screened query** and **public corpus text**, under the synthetic-data-only policy (M3 plan §6). Clarification answers are enum values merged without an LLM call.
+- **Live gate:** live calls stay off unless `GROQ_LIVE_ENABLED=true` and `GROQ_DATA_TERMS_VERIFIED_ON=2026-11-11` (this review) are set, alongside `GROQ_API_KEY`. The repo-root `.env` holds a Groq key (checked by length only, never printed). It is unused until S1 adds the gate.
+- **Before a live run:** optionally enable ZDR, or opt out of log storage, in the console Data Controls.
 
 ## Where Postgres is used
 - **LangGraph checkpointer** (replaces SQLite) -> pause/resume for clarification & human review.

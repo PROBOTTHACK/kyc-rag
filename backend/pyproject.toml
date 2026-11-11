@@ -7,7 +7,6 @@ name = "kyc-engine"
 version = "0.0.1"
 description = "Agentic KYC Compliance Engine (portfolio prototype)"
 requires-python = ">=3.11"
-# Later milestones add their own deps (LangGraph, ...).
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
@@ -25,6 +24,10 @@ dependencies = [
     # M2: BM25 keyword retrieval (Apache-2.0; pure Python, needs numpy).
     "rank_bm25==0.2.2",
     "google-genai==2.33.0",  # Apache-2.0; imported only in app/llm/gemini.py
+    # M3: workflow orchestration and text LLM (versions >= 2 weeks old on 2026-11-11; docs/02).
+    "langgraph==1.2.18",  # MIT
+    "langgraph-checkpoint-postgres==3.2.0",  # MIT; pulls psycopg-pool (LGPL-3.0-only)
+    "groq==1.7.0",  # Apache-2.0; to be imported only in app/llm/groq.py
 ]
 
 [project.optional-dependencies]

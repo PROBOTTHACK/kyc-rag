@@ -263,6 +263,15 @@ Each stage is one commit, with its tests, lint and docs; M1/M2 behaviour stays u
 | **S7** Events & SSE | `app/core/events.py`; `GET /sessions/{id}/events` with a Postgres snapshot and `Last-Event-ID` | event order = node order with gap-free seq; publish dropped (Redis down) → the run is unaffected and a reconnect snapshot fills the gap; crash after checkpoint and before publish → snapshot shows the node; disconnect frees the subscription; events carry node, status, seq and timestamp only |
 | **S8** Retention, E2E, handoff | `workflow purge`, `make purge`; the LLP demo via the API (fake LLM in CI, one opt-in live Groq run with a synthetic script); docs 01/02/03/07/08 and README; `M3_HANDOFF.md` | purge phase 1 deletes the checkpoint thread and idempotency rows and makes the session non-resumable (410); phase 2 cascades; orphan threads removed; dry-run writes nothing. **Done when:** the LLP question pauses, resumes and returns `CHECKLIST_REVIEW_REQUIRED` (or an honestly labelled outcome) in which every item cites doc, page and chunk, no MANDATORY lacks a primary citation, and unresolved items are listed. Full suites, lint, check-schema, check-dense-golden, ingest no-op and a secret scan are all green |
 
+### S0 outcome (2026-11-11)
+- **Packages pinned:** `langgraph==1.2.18`, `langgraph-checkpoint-postgres==3.2.0`, `groq==1.7.0`. Every transitive package is at least two weeks old, and the lock diff only adds lines. Details and licences: docs/02.
+- **Groq verified:** both gpt-oss models are production models and support strict structured output, and API inputs are not used for training. Free-tier rate limits were **not** confirmed. The published Developer-plan figures conflict (TPM 8K vs 250K). docs/02, "Groq API verification", has the full record.
+- **Consequences for later stages:**
+  - **S1:** the limiter must respect a per-minute token budget as well as RPM, or prompts must be capped.
+  - **S6:** must show that `setup()` and `adelete_thread()` work inside the `langgraph` schema through `search_path`, because the library uses unqualified table names.
+- **Regression:** with docker services up and `TESSDATA_DIR` and `GEMINI_API_KEY` unset (as in M2 D), unit 529 passed, integration 199 passed, and `lint`, `check-schema` and `check-dense-golden` were green.
+  - With the repo-root `.env` value `TESSDATA_DIR`, one unit test (`test_config.py::test_corpus_paths_resolve_against_repo_root`) fails. It was already environment-dependent before M3 and has nothing to do with the new packages.
+
 ## 13. Dependencies and configuration
 - **New packages (D2):** `langgraph`, `langgraph-checkpoint-postgres` (pulls in `psycopg-pool`, `langchain-core` and `langsmith`) and `groq` (imported lazily).
 - **Not added:** sse-starlette (`StreamingResponse` is enough) and arq (§9).
