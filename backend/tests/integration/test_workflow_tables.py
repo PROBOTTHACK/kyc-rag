@@ -61,7 +61,6 @@ def test_0006_is_additive_and_reversible(temp_db: str) -> None:
     assert not WORKFLOW & before
     command.upgrade(cfg, "0006_m3_workflow")
     assert tables(engine) == before | WORKFLOW
-    command.check(cfg)  # ORM and migration agree
     command.downgrade(cfg, "0005_m2_gemini_method")
     assert tables(engine) == before
     with engine.connect() as conn:  # the trigger function went with it
@@ -69,6 +68,7 @@ def test_0006_is_additive_and_reversible(temp_db: str) -> None:
             sa.text("SELECT 1 FROM pg_proc WHERE proname = 'reports_reject_update'")
         ).first()
     command.upgrade(cfg, "head")
+    command.check(cfg)  # ORM and migrations agree (at head; 0006 is no longer the head)
     assert tables(engine) >= WORKFLOW
 
 

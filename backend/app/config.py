@@ -9,7 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -120,6 +120,13 @@ class Settings(BaseSettings):
     QUERY_MAX_CHARS: int = Field(default=2000, ge=100, le=10000)
     # Overall cap on an LLM node's work (calls, re-ask, retries, waits, fallback model).
     NODE_TIMEOUT_S: float = Field(default=180.0, gt=0, le=600)
+    # --- Workflow API and recovery (M3 S6; M3_PLAN §9) ---
+    # Postgres run lease: renewed every RUN_HEARTBEAT_S; a run whose lease expired can be
+    # taken over by POST /retry. Never re-executed automatically.
+    RUN_LEASE_S: float = Field(default=60.0, gt=0, le=3600)
+    RUN_HEARTBEAT_S: float = Field(default=10.0, gt=0, le=600)
+    SESSION_TTL_H: float = Field(default=24.0, gt=0, le=720)
+    CHECKPOINT_POOL_MAX: int = Field(default=5, ge=1, le=50)
     MAX_UPLOAD_MB: int = Field(default=20, gt=0)
     RATE_LIMIT_GROQ_RPM: int = Field(default=20, gt=0)
     RATE_LIMIT_GEMINI_RPM: int = Field(default=10, gt=0)
@@ -143,6 +150,12 @@ class Settings(BaseSettings):
     LLM_CACHE_TTL_S: int = Field(default=86400, gt=0, le=86400)  # at most 24 h
     LLM_CACHE_TIMEOUT_S: float = Field(default=0.25, gt=0, le=5)
     LLM_CACHE_ALLOWLIST: Path = Path("data/eval/m3_synthetic_inputs.jsonl")
+
+    @model_validator(mode="after")
+    def _heartbeat_below_lease(self) -> "Settings":
+        if self.RUN_HEARTBEAT_S >= self.RUN_LEASE_S:
+            raise ValueError("RUN_HEARTBEAT_S must be smaller than RUN_LEASE_S")
+        return self
 
     @field_validator(
         "QDRANT_API_KEY",

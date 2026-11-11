@@ -470,6 +470,43 @@ S4 is accepted as implemented. These observations carry forward without reopenin
   - **Unchanged:** the topology snapshot.
   - **No live Groq or Gemini call.**
 
+### S6 outcome (2026-11-11)
+- **Built:**
+  - migration `0007_m3_checkpointer`: the library `setup()` runs in the `langgraph` schema, and the downgrade refuses while checkpoints exist;
+  - `app/workflow/runtime.py`: the checkpointer pool, the real graph deps and the live-gated LLM;
+  - `app/workflow/service.py`: all API logic;
+  - `app/api/v1/sessions.py`, `app/api/errors.py`;
+  - async run, lease, node-event and idempotency functions in `app/db/workflow.py`;
+  - settings `RUN_LEASE_S`, `RUN_HEARTBEAT_S`, `SESSION_TTL_H`, `CHECKPOINT_POOL_MAX`;
+  - `create_app(runtime_factory=...)` for tests.
+- **Owner decisions applied:**
+  - **S6-D1:** one thread per question.
+  - **S6-D2:** no cancel endpoint; shutdown behaves like a crash.
+  - **S6-D3:** `node_events` in Postgres now; SSE in S7.
+  - **S6-D4:** ownership is possession of the session id.
+  - **S6-D5:** a live-gated LLM. Without it the API runs, and outcomes are degraded.
+- **Mandatory resume security:**
+  - **Order:** raw-body screening of every string, number and key → shape → the awaiting run plus the current `checkpoint_id` (outside the graph) → `resume_command(asked=pending fields)` → idempotency → compare-and-set claim → submission.
+  - **One submission point:** `WorkflowService._execute` is the only place that submits to the graph, and `Command` is built only in `app/graph/inputs.py` (AST-checked tests).
+  - **Leak scans:** for four PII resume shapes (value, key, extra field, JSON number) the response is `422`, and the database bytes (all `langgraph` tables plus the workflow tables) are byte-identical before and after. Redis and the logs hold no trace, and the run still awaits on the same checkpoint.
+- **Recovery, verified against a new app instance and the real Postgres checkpointer:**
+  - **Resume:** a paused run resumes in a new instance.
+  - **Crash mid-run (during synthesis):** retry gets `409` + `Retry-After` while the lease is valid. After expiry it resumes from the last checkpoint (the first event is `compliance_synthesis`), the old run becomes `abandoned`, and there is exactly one report.
+  - **Crash inside finalize after the report insert:** the run is `failed`; retry then completes it, still with one report.
+  - **Startup:** stale leases are only logged.
+- **Also verified:** idempotent replay and mismatch; two concurrent resumes give exactly one `202`; expired sessions give `410`; a second question gets a fresh thread; validation errors never echo input.
+- **Smoke run of the real runtime on the dev stack** (dense retrieval, Gemini form schemas, no LLM): the question pauses with both questions, a PII resume gets `422`, and after the resume every node runs to an honest `DEGRADED` report with the fallback text. The smoke-run rows were removed from the dev database afterwards.
+- **One S5 test moved:** the S5 migration-0006 test now runs its drift check at head (0006 is no longer the head), the same fix as the 0005 test in S5.
+- **Test-harness finding:** Alembic's `fileConfig` disables already-created loggers when fixtures migrate. The S6 fixtures re-enable the `app.*` loggers, so log-leak assertions really observe the app's logs. The API process never runs Alembic.
+- **Tests:**
+  - 10 unit tests: the envelope, no echo, raw screening, hashes, AST submission checks;
+  - 18 integration tests: 13 API, 4 recovery, 1 migration.
+- **Results:**
+  - **Tests:** unit 912 and integration 240 passed.
+  - **Checks:** lint (strict mypy, 106 files), check-schema and dense golden are green.
+  - **Unchanged:** the topology snapshot (no graph edits).
+  - **No live Groq or Gemini call.**
+
 ## 13. Dependencies and configuration
 - **New packages (D2):** `langgraph`, `langgraph-checkpoint-postgres` (pulls in `psycopg-pool`, `langchain-core` and `langsmith`) and `groq` (imported lazily).
 - **Not added:** sse-starlette (`StreamingResponse` is enough) and arq (§9).

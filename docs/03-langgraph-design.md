@@ -27,6 +27,10 @@ Single state machine, specialized nodes. A node may use an LLM, deterministic Py
 >   - **`output_validation`:** deterministic and authoritative.
 >   - **`finalize`:** writes one insert-only report per run (id = uuid5 of session and run) through `GraphDeps.reports`, with a deterministic user message: the fallback text when nothing is supported, failure reported apart from "no information", and the disclaimer.
 >   - **No new edges.**
+> - **Execution (M3 S6):**
+>   - **Checkpointer:** the graph runs in the API process with `AsyncPostgresSaver` (the `langgraph` schema), one thread per question.
+>   - **Single submission point:** `WorkflowService._execute` is the only place that submits input. It submits only a `start_input` state, a `resume_command` result or `None` (retry from the last checkpoint).
+>   - **Recovery:** explicit, through `/retry` after the lease expires.
 
 ```python
 class KYCState(TypedDict, total=False):

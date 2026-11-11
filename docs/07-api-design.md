@@ -17,6 +17,39 @@
 | GET | `/observability/runs/{id}` | Node-level execution details |
 | GET | `/health` | Health (db, redis, qdrant). 200 when all ok, 503 `degraded` otherwise; per-check `ok`, `latency_ms`, `error` (exception class only, never URLs/credentials); each check times out after `HEALTH_CHECK_TIMEOUT_S` (default 2s) |
 
+## Workflow API as implemented (M3 S6; `app/api/v1/sessions.py`, `app/workflow/service.py`)
+| Method | Endpoint | Body | Success |
+|---|---|---|---|
+| POST | `/sessions` | `{"data_class"?: "synthetic_demo" \| "unspecified"}` | `201 {session_id, status, data_class, expires_at}` |
+| GET | `/sessions/{id}` | – | `200`: the session plus `workflow` (`run_id`, `thread_id`, `status`, `node_events`, and `clarification {checkpoint_id, round, max_rounds, questions}` while awaiting, or `report_id` / `outcome` once completed) |
+| POST | `/sessions/{id}/messages` | `{"message": str}` | `202 {session_id, run_id, status: "running"}` |
+| POST | `/sessions/{id}/resume` | `{"checkpoint_id": str, "answers": {field: enum value}}` | `202` |
+| POST | `/sessions/{id}/retry` | `{}` | `202` (a new run on the same thread, from the last checkpoint) |
+| GET | `/reports/{id}` | – | `200 ComplianceReport` |
+
+**Rules:**
+- **Idempotency:** `Idempotency-Key` is required on `/messages`, `/resume` and `/retry`.
+  - The same key with the same body returns the stored response, and no second run starts.
+  - The same key with a different body is `409 IDEMPOTENCY_MISMATCH`.
+- **Errors:** every error is `{"error": {"code", "message", ...}}`. Validation errors never echo the input, unexpected errors return `INTERNAL_ERROR`, and request bodies are never logged.
+- **Resume security:** every resume follows this order.
+  1. Every string and number in the raw body, keys included, is screened (`422 SENSITIVE_DATA_DETECTED`, codes only).
+  2. The body shape is checked.
+  3. The run must be `awaiting_clarification`, and the `checkpoint_id` must equal the current one (`409 STALE_CHECKPOINT`, checked outside the graph).
+  4. The answers go through `resume_command(asked=<the pending question fields>)` (`422 INVALID_ANSWER`).
+  5. A compare-and-set claims the run (exactly one concurrent resume wins).
+  6. Only then is a `Command` submitted.
+  - Nothing from a rejected request reaches the checkpoint, the workflow tables, Redis or the logs.
+- **Runs:**
+  - **One active run per session** (`409 RUN_IN_PROGRESS`).
+  - **Leases:** the Postgres lease is renewed every `RUN_HEARTBEAT_S`.
+  - **Retry:** `/retry` is refused while the lease is valid (`409` with `Retry-After`), then takes over an expired or failed run.
+  - **Startup:** expired leases are only logged, never re-executed.
+- **Threads:** one LangGraph thread per question (S6-D1).
+- **Cancellation:** there is no cancel endpoint. A client disconnect never cancels a run, and shutdown is treated like a crash (S6-D2).
+- **Ownership:** possession of the session id (S6-D4). There are no user accounts in M3.
+- **Progress:** `node_events` are recorded in Postgres. SSE (`GET /sessions/{id}/events`) comes in S7.
+
 ## Request
 ```json
 {"session_id":"session_001","message":"What KYC documents are required for an LLP current account?",

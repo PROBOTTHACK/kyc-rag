@@ -41,7 +41,11 @@ M1 tables (Alembic `0001_m1_corpus` + `0002_m1_persistence`; ORM `app/db/models.
 - `review_cases`(id, report_id, claim_id, reason, status, reviewer_decision, reviewer_note, created_at, decided_at)
 - `graph_runs`(id, session_id, langsmith_run_id, status, latency_ms, retries, token_usage jsonb, node_events jsonb)
 - `eval_runs`(id, config_name, created_at) and `eval_results`(id, run_id, case_id, predicted jsonb, expected jsonb, metrics jsonb)
-- LangGraph checkpoint tables are created by `langgraph-checkpoint-postgres` (`.setup()`).
+- **LangGraph checkpoint tables (implemented in M3 S6, migration `0007_m3_checkpointer`):**
+  - **Where they live:** the library's own `setup()` creates `checkpoints`, `checkpoint_blobs`, `checkpoint_writes` and `checkpoint_migrations` in a dedicated `langgraph` schema. The runtime pool sets `search_path=langgraph`.
+  - **Not in the ORM:** `check-schema` compares the default schema only.
+  - **Downgrade:** it refuses while any checkpoint exists.
+  - **Threads:** one per question (`graph_runs.thread_id`).
 
 Use a separate schema or prefix for checkpoint tables. Apply retention (delete expired sessions/uploads).
 

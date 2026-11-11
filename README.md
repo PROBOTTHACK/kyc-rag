@@ -138,8 +138,12 @@ make forms                          # 6 schemas; a second run reports "unchanged
 cd backend && python -m app.ingestion.cli forms versions && cd ..   # stored versions per form
 cd backend && python -m app.ingestion.cli forms show hdfc_nri_account_opening --method gemini_multimodal && cd ..   # read through the Redis cache ("cache: hit|miss")
 
-# 6. Backend (M0 health endpoint; the compliance API arrives with M3)
+# 6. Backend: health and the M3 workflow API (synthetic data only)
 make api                            # http://localhost:8000/docs, health at /api/v1/health
+#    POST /api/v1/sessions -> POST /api/v1/sessions/{id}/messages (Idempotency-Key header)
+#    -> GET /api/v1/sessions/{id} (clarification questions + checkpoint_id)
+#    -> POST .../resume -> GET /api/v1/reports/{report_id}. See docs/07.
+#    Without Groq live calls enabled, intake asks every question and the report is DEGRADED.
 ```
 
 Ingestion is idempotent: running `make ingest` again writes nothing and embeds nothing unless a source changed. If a document fails, it is reported with the failing stage and is never marked `completed`. Fix the cause, then `make retry`. See [Ingestion operations](#ingestion-operations-m1) below.
