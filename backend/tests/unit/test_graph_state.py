@@ -168,13 +168,33 @@ def test_nested_values_read_back_into_their_models() -> None:
     assert read_list({}, "evidence", EvidenceItem) == []
 
 
-# Keys the S3 nodes recompute on every run (security, intake) and the outcome.
-RECOMPUTED = {"screening", "security_status", "security_reasons", "entity_profile",
-              "missing_fields", "ambiguities", "intake_complete", "outcome"}  # fmt: skip
+# Keys the S3/S4 nodes recompute on every run (security, intake, retrieval, forms,
+# association) and the outcome.
+RECOMPUTED = {
+    "screening",
+    "security_status",
+    "security_reasons",
+    "entity_profile",
+    "missing_fields",
+    "ambiguities",
+    "intake_complete",
+    "outcome",
+    "retrieval_query",
+    "filters",
+    "evidence",
+    "retrieval_meta",
+    "form_analysis_required",
+    "forms",
+    "form_flags",
+    "associations",
+    "degradations",
+}
 
 
 def test_state_survives_a_checkpoint_round_trip() -> None:
-    deps = GraphDeps()
+    from tests.unit.test_graph_s4 import RBI_TRUST, FakeCorpus, FakeRetriever
+
+    deps = GraphDeps(retriever=FakeRetriever({"TRUST": [RBI_TRUST]}), corpus=FakeCorpus())
     graph = build_graph(deps, checkpointer=InMemorySaver())
     config = run_config(deps, thread_id="s-1")
     state = full_state() | {

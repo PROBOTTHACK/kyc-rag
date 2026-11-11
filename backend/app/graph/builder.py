@@ -31,6 +31,7 @@ from langgraph.graph.state import CompiledStateGraph
 
 from app.config import Settings
 from app.graph import routing as r
+from app.graph.corpus import CorpusReader, SupportsRetrieve
 from app.graph.nodes.clarify import clarify
 from app.graph.nodes.compliance_synthesis import compliance_synthesis
 from app.graph.nodes.entity_intake import entity_intake
@@ -43,7 +44,6 @@ from app.graph.nodes.policy_retrieval import policy_retrieval
 from app.graph.state import KYCInput, KYCState
 from app.llm.cache import SyntheticAllowlist
 from app.llm.provider import LLMProvider
-from app.retrieval.retrieve import Retriever
 
 # Nodes on the longest path apart from the clarification loop:
 # input_security, entity_intake, policy_retrieval, form_analysis, evidence_association,
@@ -66,13 +66,18 @@ def required_recursion_limit(max_clarification_rounds: int) -> int:
 @dataclass(frozen=True)
 class GraphDeps:
     """Dependencies bound into the nodes. Optional services stay None until the stage
-    that uses them (S3 intake: `llm`; S4 retrieval: `retriever`). Without an `llm`,
-    intake records a degradation and clarification asks for every field."""
+    that uses them. Without an `llm`, intake records a degradation and clarification
+    asks for every field. Without a `retriever` or `corpus` (S4), retrieval reports
+    `retrieval_failed` (never an empty "no evidence" result). The S6 API builds the real
+    ones (`retriever_from_settings`, `PostgresCorpusReader`); tests inject fakes."""
 
     max_clarification_rounds: int = 2
     recursion_limit: int = 25
     llm: LLMProvider | None = None
-    retriever: Retriever | None = None
+    retriever: SupportsRetrieve | None = None
+    corpus: CorpusReader | None = None
+    retrieval_mode: str = "dense"
+    rerank: bool = False
     query_max_chars: int = 2000
     node_timeout_s: float = 180.0
     synthetic_allowlist: SyntheticAllowlist = SyntheticAllowlist()
@@ -97,13 +102,17 @@ class GraphDeps:
         settings: Settings,
         *,
         llm: LLMProvider | None = None,
-        retriever: Retriever | None = None,
+        retriever: SupportsRetrieve | None = None,
+        corpus: CorpusReader | None = None,
     ) -> "GraphDeps":
         return cls(
             max_clarification_rounds=settings.MAX_CLARIFICATION_ROUNDS,
             recursion_limit=settings.GRAPH_RECURSION_LIMIT,
             llm=llm,
             retriever=retriever,
+            corpus=corpus,
+            retrieval_mode=settings.RETRIEVAL_MODE,
+            rerank=settings.RERANK_ENABLED,
             query_max_chars=settings.QUERY_MAX_CHARS,
             node_timeout_s=settings.NODE_TIMEOUT_S,
             synthetic_allowlist=SyntheticAllowlist.load(settings.LLM_CACHE_ALLOWLIST),

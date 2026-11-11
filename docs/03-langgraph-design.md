@@ -15,6 +15,13 @@ Single state machine, specialized nodes. A node may use an LLM, deterministic Py
 >   - **`clarify`:** uses `interrupt()` and `Command(resume=...)`, with enum-only answers. Every round counts, up to `MAX_CLARIFICATION_ROUNDS`.
 >   - **After an answer:** the graph returns to `input_security`.
 >   - **Running it:** the graph runs with `ainvoke`/`astream`.
+> - **Retrieval, forms and association (M3 S4):** these are real nodes.
+>   - **Reads:** sync nodes reading through `GraphDeps.retriever` / `GraphDeps.corpus` (`app/graph/corpus.py`).
+>   - **Retrieval:** an entity pass, plus an entity-group pass when no primary-capable chunk is found.
+>   - **Evidence status:** one of four, in `retrieval_meta.evidence_status` (`found` / `partial` / `none` / `retrieval_failed`).
+>   - **Forms:** stored schemas only, never Gemini.
+>   - **Links:** relationships only.
+>   - **No new edges.**
 
 ```python
 class KYCState(TypedDict, total=False):

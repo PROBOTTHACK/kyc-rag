@@ -16,6 +16,13 @@ Distinguish four states: (a) field exists on form, (b) field applies to a specif
 4. Supporting reference material
 Newer ≠ automatically overriding; consider issuing authority, scope, amendment relationships. **Conflicts -> flag + human review.**
 
+## Evidence, gaps and associations (M3 S4)
+- **Evidence status:** retrieval reports `found` / `partial` / `none` / `retrieval_failed` (`retrieval_meta.evidence_status`).
+  - `found` means eligible, entity-scope, primary-capable evidence was **retrieved**, not that it is relevant or correct. Retrieval scores are uncalibrated, and the synthesis and verification stages judge support.
+- **Absence is not a negative finding.** A requirement with no retrieved evidence is unknown, never "not required" or "not applicable".
+- **Entity-group evidence** (found only through a taxonomy group, docs/15) can never on its own establish MANDATORY, and neither can form, supporting or OCR-uncertain evidence.
+- **Form/evidence links are relationships, not obligations.** The links (`same_chunk`, `same_section`, `topic_match`) only say that a passage is related to a field. They are not citations, never establish an obligation, and never set `mandatory_under_policy`.
+
 ## Verification pipeline
 1. **Claim extraction** — split draft into atomic claims `{claim_id, claim}`.
 2. **Evidence matching** — best supporting passages per claim (reuse retrieval).

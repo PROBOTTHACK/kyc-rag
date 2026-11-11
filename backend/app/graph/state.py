@@ -175,6 +175,11 @@ class EvidenceItem(_Model):
     score_kind: str
     text: str
     expanded_parent_id: str | None = None
+    # "entity": the chunk is tagged with the customer's entity type. "entity_group": found
+    # only through the entity's taxonomy group (docs/15: a retrieval convenience); such
+    # evidence can never on its own establish MANDATORY (enforced in S5). M3 S4.
+    match_scope: Literal["entity", "entity_group"] = "entity"
+    text_truncated: bool = False
 
     @model_validator(mode="after")
     def _mandatory_rule(self) -> "EvidenceItem":
@@ -194,6 +199,14 @@ class RetrievalMeta(_Model):
     failure_kinds: list[str] = Field(default_factory=list)  # exception class names only
     timings_ms: dict[str, float] = Field(default_factory=dict)
     score_kind: str | None = None
+    # M3 S4 ("no evidence, no answer"): which of four distinct results occurred.
+    # found: entity-scope primary-capable evidence was RETRIEVED (not verified as relevant
+    #   or correct: scores are uncalibrated; S5 judges support). partial: eligible evidence,
+    #   but none entity-scope primary-capable. none: the search ran and returned nothing
+    #   eligible. retrieval_failed: a technical failure. Absence is a gap, never "not required".
+    evidence_status: Literal["found", "partial", "none", "retrieval_failed"] | None = None
+    gaps: list[str] = Field(default_factory=list)  # codes only, never a negative finding
+    dropped_count: int = Field(default=0, ge=0)  # dense hits with no Postgres row (not cited)
 
 
 class FormFieldRef(_Model):
@@ -201,6 +214,7 @@ class FormFieldRef(_Model):
 
     printed_label: str
     label: str
+    section: str | None = None
     page_number: int = Field(ge=1)
     chunk_id: str | None = None
     required_as_shown: bool | None = None
@@ -208,12 +222,17 @@ class FormFieldRef(_Model):
 
 
 class FormRef(_Model):
+    """A stored form schema the run used: which row (method, version, id, hash), a bounded
+    subset of its fields, and reviewer-relevant flags. Nothing here is generated."""
+
     form_key: str
     method: Literal["m1_chunks", "gemini_multimodal"]
     version: int = Field(ge=1)
     row_id: str
     schema_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     fields: list[FormFieldRef] = Field(default_factory=list)
+    flags: list[str] = Field(default_factory=list)
+    section_chunk_ids: dict[str, list[str]] = Field(default_factory=dict)
 
 
 class FieldEvidenceLink(_Model):

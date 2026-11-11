@@ -28,6 +28,11 @@ Detect prompt injection, jailbreaks, system-prompt extraction, disguised malicio
   - The real controls are the synthetic-data-only policy, delimited prompts, the absence of tools for the model, and the deterministic output validator (S5).
   - A caller that skips the gate is still screened inside the graph. But LangGraph checkpoints graph input and resume values, so the API must always go through the gate.
 
+## No evidence, no answer (owner requirement)
+- **What the prototype is:** an independent prototype, not an HDFC Bank system. It never fabricates evidence, requirements or answers.
+- **When evidence is missing or retrieval failed:** the response says so plainly and refers the user to https://www.hdfcbank.com/ or HDFC Bank customer service (S5).
+- **What S4 records:** which case occurred (`found` / `partial` / `none` / `retrieval_failed`), plus gap codes. There is no LLM-based gap filling.
+
 ## B. Document security
 Retrieved PDF text is **untrusted evidence**. E.g. a chunk saying "Ignore previous instructions…" must be treated as content, never obeyed.
 - Wrap evidence in clear delimiters; system prompt states evidence is data only.

@@ -21,6 +21,30 @@ The roadmap M3 (docs/12) asks for KYCState, the security, intake, retrieval, for
 
 M3 builds a traceable, human-supervised workflow, not an autonomous agent. M4 keeps claim-level NLI, review cases, Prompt Guard and the rules table. M3 leaves a seam for each.
 
+## Core principle: no evidence, no answer (owner requirement, 2026-11-11)
+This is an independent educational/portfolio prototype, **not** an HDFC Bank product, service or compliance system. It never invents information, policy requirements, regulatory obligations or answers to satisfy a query.
+
+1. **Relevant evidence found:** keep it, with document, page and chunk references.
+2. **Partial evidence:** keep what is supported and name what remains unknown.
+3. **No relevant evidence:** say that there is not enough information to answer.
+4. **Retrieval failure:** report it as a technical failure, distinct from a search that found nothing.
+5. **Ambiguous query:** ask for clarification (S3).
+6. **Unverified HDFC-specific information:** refer the user to https://www.hdfcbank.com/ or HDFC Bank customer service.
+
+**Fallback text** (used by S5): "I don't have sufficient verified information in my available knowledge base to answer this query. Please visit https://www.hdfcbank.com/ or contact HDFC Bank customer service for accurate information."
+
+**What S4 records (`retrieval_meta.evidence_status`):**
+
+| Status | Meaning |
+|---|---|
+| `found` | Eligible, entity-scope, primary-capable evidence was **retrieved**. This is not proof that the evidence is relevant or correct: scores are uncalibrated, and S5 judges support. |
+| `partial` | Eligible evidence exists but none is entity-scope primary-capable. The gap codes are in `gaps`. |
+| `none` | The search ran and returned nothing eligible. |
+| `retrieval_failed` | A technical failure. |
+
+- **Absence is not a finding:** missing evidence is a gap, never "not required".
+- **Entity-group evidence:** it can never on its own establish MANDATORY.
+
 ## 2. Verified starting point
 - **Git:** `main` = `origin/main` = `a288b09` (checked with `git ls-remote`), so the M2 merge is pushed, and the tree is clean. `M2_HANDOFF.md` still says "not merged into main"; S0 fixes that line.
 - **Reused:**
@@ -258,7 +282,7 @@ Each stage is one commit, with its tests, lint and docs; M1/M2 behaviour stays u
 | **S2** State, routing, skeleton | `state.py`, `routing.py`, `builder.py`, `GraphDeps`, stub nodes, MemorySaver; public `retriever_from_settings` (the CLI uses it) | every routing edge table-tested; **outcome precedence table-tested**; no approve/reject value in any enum; recursion limit enforced; state JSON round-trip; CLI `search` output byte-identical |
 | **S3** Screening, security, intake, clarification | `app/security/screen.py`, `input_security`, `entity_intake`, `clarify`, structured answers | synthetic Aadhaar (Verhoeff-valid), PAN and card (Luhn) → 422 on **both** `/messages` and `/resume`, with nothing in state, checkpoint, logs or the fake LLM's recorded inputs; email/phone redacted; legitimate "what is a system prompt?" passes; an LLP query lacking an account type → interrupt with enum questions (residency is asked only of individuals, S3); a non-individual's residency is never assumed; a non-enum answer → 422; a third round → `INSUFFICIENT_INFORMATION`; the LLM never sets a value the user didn't state (its evidence span must occur in the question and name the value, S3.1) |
 | **S4** Retrieval, forms, association | `policy_retrieval`, `form_analysis`, `evidence_association` | partial retriever failure → a recorded degradation; all fail → `INSUFFICIENT_EVIDENCE`; integration: a TRUST query gives RBI ¶35 with doc and page; the form node makes **zero Gemini calls** (spy) and records method and version; OCR-uncertain fields keep their status; every link is typed as a relationship; `mandatory_under_policy is None` everywhere |
-| **S5** Synthesis, validation, reports | versioned synthesis prompt, `ChecklistDraft`, `output_validation`, `finalize`, migration 0006 | MANDATORY with only form, supporting, dated or OCR-uncertain citations → downgraded with a finding; MANDATORY with an association link but no primary citation → downgraded; a fabricated id → stripped; an injection string inside an evidence chunk changes nothing (adversarial fixture); invalid JSON twice → `DEGRADED` without a checklist; a degraded retriever plus a valid synthesis → `DEGRADED` with a labelled checklist; report insert-only; `human_review_required` CHECK; migration up/down/up; check-schema clean; a BLOCKED report carries reason codes only, never `query` or other user text (S3.1 carry-forward) |
+| **S5** Synthesis, validation, reports | versioned synthesis prompt, `ChecklistDraft`, `output_validation`, `finalize`, migration 0006 | MANDATORY with only form, supporting, dated or OCR-uncertain citations → downgraded with a finding; MANDATORY with an association link but no primary citation → downgraded; a fabricated id → stripped; an injection string inside an evidence chunk changes nothing (adversarial fixture); invalid JSON twice → `DEGRADED` without a checklist; a degraded retriever plus a valid synthesis → `DEGRADED` with a labelled checklist; report insert-only; `human_review_required` CHECK; migration up/down/up; check-schema clean; a BLOCKED report carries reason codes only, never `query` or other user text (S3.1 carry-forward); **no evidence, no answer (S4 carry-forward):** `none` / `retrieval_failed`, or nothing surviving validation, gives the plain fallback text with the hdfcbank.com referral; a retrieval failure is reported as a failure, not as "no information"; missing evidence is never turned into a negative compliance conclusion; unverified HDFC-specific points refer to HDFC Bank; every response carries the independence disclaimer; `entity_group` evidence (and form, supporting or OCR-uncertain evidence) cannot alone establish MANDATORY |
 | **S6** Checkpointer, API, recovery | migration 0007; `POST /sessions`, `GET /sessions/{id}`, `/messages`, `/resume`, `/retry`, `GET /reports/{id}`; lease, heartbeat, idempotency, error envelope | interrupt → **new app instance** → resume continues from the checkpoint; injected crash mid-run → retry before lease expiry 409, after expiry resumes from the last checkpoint, the old row `abandoned`, exactly one report; crash inside finalize → one report; duplicate key → same response, no second run; same key with a different body → 409; two concurrent resumes → exactly one 202; stale `checkpoint_id` → 409; secret and PII scan over checkpoint rows; every `Command(resume)` is built only by `resume_command(..., asked=<pending question fields>)` and a PII resume attempt leaves nothing in `checkpoint_writes`; the API adds the `checkpoint_id` stale-check outside the graph (the graph payload stays `{answers}`) (S3.1 carry-forward) |
 | **S7** Events & SSE | `app/core/events.py`; `GET /sessions/{id}/events` with a Postgres snapshot and `Last-Event-ID` | event order = node order with gap-free seq; publish dropped (Redis down) → the run is unaffected and a reconnect snapshot fills the gap; crash after checkpoint and before publish → snapshot shows the node; disconnect frees the subscription; events carry node, status, seq and timestamp only |
 | **S8** Retention, E2E, handoff | `workflow purge`, `make purge`; the LLP demo via the API (fake LLM in CI, one opt-in live Groq run with a synthetic script); docs 01/02/03/07/08 and README; `M3_HANDOFF.md` | purge phase 1 deletes the checkpoint thread and idempotency rows and makes the session non-resumable (410); phase 2 cascades; orphan threads removed; dry-run writes nothing. **Done when:** the LLP question pauses, resumes and returns `CHECKLIST_REVIEW_REQUIRED` (or an honestly labelled outcome) in which every item cites doc, page and chunk, no MANDATORY lacks a primary citation, and unresolved items are listed. Full suites, lint, check-schema, check-dense-golden, ingest no-op and a secret scan are all green |
@@ -359,6 +383,44 @@ A self-review of S3 against this plan found gaps. All were fixed before S4 (owne
   - **Checks:** lint (strict mypy, 95 files), check-schema and dense golden are green.
   - **Unchanged:** the topology snapshot.
   - **No live Groq call.**
+
+### S4 outcome (2026-11-11)
+- **Built:**
+  - `app/graph/corpus.py`: `CorpusReader`, `PostgresCorpusReader` (existing repository and forms functions only, plus one `form_documents` helper) and `SupportsRetrieve`;
+  - `app/graph/evidence.py`: pure helpers (evidence items, `classify_evidence`, candidate forms, schema choice, field subset, links);
+  - real `policy_retrieval`, `form_analysis` and `evidence_association` nodes;
+  - `GraphDeps.corpus`, `retrieval_mode` and `rerank` (from `RETRIEVAL_MODE` / `RERANK_ENABLED`).
+- **Retrieval:**
+  - an entity pass, plus the approved entity-group pass (S4-D1) when the entity pass has no primary-capable chunk;
+  - items are labelled `match_scope`;
+  - parent expansion and a 1,500-character cap (`text_truncated`);
+  - dropped hits are counted, never cited.
+  - **Four statuses** (`found`, `partial` with gap codes, `none`, `retrieval_failed`). `none` and `retrieval_failed` both end `INSUFFICIENT_EVIDENCE`, but stay distinct in `evidence_status`, `failed`, `failure_kinds` and degradations.
+- **Forms:**
+  - **Selection:** KYC forms listing the entity; for INDIVIDUAL also the stated residency, while for other entities residency is unused (approved rule). The reference document is never selected.
+  - **Schema:** the latest complete Gemini row, else m1.
+  - **Fields:** at most 60, copied with their extraction status.
+  - A missing schema is a gap and a degradation.
+  - **No Gemini calls:** this is verified with spies.
+- **Association:** `same_chunk` / `same_section` / `topic_match` links, `relationship_only=True`, at most 3 per field and 200 in total, deterministic.
+- **Approved decisions are only consumed:**
+  - the profile is read through `EntityProfile`, with no new vocabulary (a test checks this);
+  - `account_type` is unused, because no corpus document is tagged by account type;
+  - residency is used only for individual form selection.
+- **Measured on the dev stack (real BGE dense, read-only):**
+  - **TRUST:** `found`, with RBI ¶35 (p. 38) first; the non-individual form uses Gemini v2, with `scanned_document` visible.
+  - **LLP:** `partial`. The only entity-scope evidence is the scanned form; RBI ¶34/¶35 arrive as `entity_group`.
+  - **NRI individual:** `partial` (forms and the FAQ only in the top 5); three NRI forms are selected.
+- **Tests:**
+  - 43 new unit tests on a synthetic corpus built from real chunk and schema models;
+  - 4 integration tests on the ingested throwaway corpus (BM25: ¶35 for a trust, form selection, the LLP end to end with fields traced to stored schemas);
+  - 2 read-only dev-stack tests (real dense, Gemini rows).
+  - The S2/S3 graph tests now run their post-intake paths through the real S4 nodes with the fakes.
+- **Results:**
+  - **Tests:** unit 865 and integration 210 passed.
+  - **Checks:** lint (strict mypy, 97 files), check-schema and dense golden are green.
+  - **Unchanged:** the topology snapshot (no new edges).
+  - **No live Groq or Gemini call.**
 
 ## 13. Dependencies and configuration
 - **New packages (D2):** `langgraph`, `langgraph-checkpoint-postgres` (pulls in `psycopg-pool`, `langchain-core` and `langsmith`) and `groq` (imported lazily).

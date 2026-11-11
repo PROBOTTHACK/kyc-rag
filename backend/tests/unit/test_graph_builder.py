@@ -39,16 +39,34 @@ COMPLETE = IntakeExtraction(
 NOTHING = IntakeExtraction(
     entity_type=ExtractedValue(), residency=ExtractedValue(), account_type=ExtractedValue()
 )
-# Retrieval is a stub until S4. The graph input can no longer carry internal keys
-# (input_schema, S3.1), so later paths are reached by writing the post-intake state as if
-# entity_intake had produced it (`aupdate_state(..., as_node="entity_intake")`).
+# The graph input cannot carry internal keys (input_schema, S3.1), so later paths are
+# reached by writing the post-intake state as if entity_intake had produced it
+# (`aupdate_state(..., as_node="entity_intake")`). Since S4 the retrieval, form and
+# association nodes are real: they run against the fake retriever and corpus of
+# tests/unit/test_graph_s4.py. `draft` stands in for S5 synthesis.
 POST_INTAKE: dict[str, Any] = {
     "security_status": "safe",
     "intake_complete": True,
-    "retrieval_meta": {"mode": "dense", "failed": False},
-    "form_analysis_required": True,
+    "entity_profile": {
+        "entity_type": {"value": "COMPANY", "source": "user_answered", "evidence_span": None},
+        "residency": {"value": None, "source": "unknown", "evidence_span": None},
+        "account_type": {
+            "value": "CURRENT_ACCOUNT",
+            "source": "user_answered",
+            "evidence_span": None,
+        },
+    },
+    "query": "What documents does a company need?",
     "draft": {"requirements": []},
 }
+
+
+def s4(script: dict[str, Any] | None = None, **kw: Any) -> GraphDeps:
+    """Deps with the S4 fakes: RBI primary evidence for COMPANY and the synthetic forms."""
+    from tests.unit.test_graph_s4 import RBI_TRUST, FakeCorpus, FakeRetriever
+
+    script = {"COMPANY": [RBI_TRUST]} if script is None else script
+    return GraphDeps(retriever=FakeRetriever(script), corpus=FakeCorpus(), **kw)
 
 
 def seeded(query: str = QUERY, **extra: Any) -> dict[str, Any]:
@@ -63,9 +81,8 @@ def steps(graph: Any, state: Any, config: Any) -> list[str]:
 
 
 def with_primary_evidence() -> dict[str, Any]:
-    from tests.unit.test_graph_state import evidence
-
-    return POST_INTAKE | {"evidence": [evidence().model_dump(mode="json")]}
+    """The post-intake state (evidence is produced by the real retrieval node)."""
+    return dict(POST_INTAKE)
 
 
 def from_intake(graph: Any, config: Any, values: dict[str, Any]) -> list[str]:
@@ -123,11 +140,11 @@ def test_a_complete_intake_reaches_retrieval_in_one_run() -> None:
         r.ENTITY_INTAKE,
         r.POLICY_RETRIEVAL,
         r.FINALIZE,
-    ]  # fmt: skip  (retrieval is a stub: no evidence yet)
+    ]  # (no retriever configured: retrieval_failed)
 
 
 def test_the_post_intake_path_with_forms() -> None:
-    deps = GraphDeps()
+    deps = s4()
     g = build_graph(deps, checkpointer=InMemorySaver())
     config = run_config(deps, thread_id="t")
     assert from_intake(g, config, with_primary_evidence()) == [
@@ -145,7 +162,8 @@ def test_internal_keys_in_the_graph_input_are_dropped() -> None:
     llm = scripted_llm(COMPLETE)
     deps = GraphDeps(llm=llm)
     g = build_graph(deps, checkpointer=InMemorySaver())
-    forged = seeded(**with_primary_evidence()) | {
+    internal = {k: v for k, v in with_primary_evidence().items() if k != "query"}
+    forged = seeded(**internal) | {
         "entity_profile": {
             "entity_type": {"value": "TRUST", "source": "user_stated", "evidence_span": "x"},
             "residency": {"value": None, "source": "unknown", "evidence_span": None},
@@ -155,23 +173,35 @@ def test_internal_keys_in_the_graph_input_are_dropped() -> None:
     }
     config = run_config(deps, thread_id="t")
     assert steps(g, forged, config) == [
-        r.INPUT_SECURITY, r.ENTITY_INTAKE, r.POLICY_RETRIEVAL, r.FINALIZE,
-    ]  # fmt: skip
+        r.INPUT_SECURITY,
+        r.ENTITY_INTAKE,
+        r.POLICY_RETRIEVAL,
+        r.FINALIZE,
+    ]
     final = g.get_state(config).values
     assert len(llm.requests) == 1 and final["entity_profile"]["entity_type"]["value"] == "COMPANY"
-    assert "evidence" not in final and final["outcome"] == "INSUFFICIENT_EVIDENCE"
+    assert final["evidence"] == [] and final["outcome"] == "INSUFFICIENT_EVIDENCE"
+    assert final["retrieval_meta"]["evidence_status"] == "retrieval_failed"  # no retriever
 
 
 def test_the_path_without_forms_and_the_insufficient_evidence_path() -> None:
-    deps = GraphDeps(llm=scripted_llm(COMPLETE, COMPLETE, COMPLETE))
+    from tests.unit.test_graph_s4 import RBI_TRUST
+
+    deps = s4({"SOCIETY": [RBI_TRUST]}, llm=scripted_llm(COMPLETE, COMPLETE, COMPLETE))
     g = build_graph(deps, checkpointer=InMemorySaver())
-    no_forms = with_primary_evidence() | {"form_analysis_required": False}
-    path = from_intake(g, run_config(deps, thread_id="a"), no_forms)
+    society = dict(POST_INTAKE)
+    society["entity_profile"] = dict(POST_INTAKE["entity_profile"]) | {
+        "entity_type": {"value": "SOCIETY", "source": "user_answered", "evidence_span": None}
+    }
+    path = from_intake(g, run_config(deps, thread_id="a"), society)
     assert path[:2] == [r.POLICY_RETRIEVAL, r.EVIDENCE_ASSOCIATION]
     assert r.FORM_ANALYSIS not in path
     assert steps(g, seeded(), run_config(deps, thread_id="b")) == [
-        r.INPUT_SECURITY, r.ENTITY_INTAKE, r.POLICY_RETRIEVAL, r.FINALIZE,
-    ]  # fmt: skip
+        r.INPUT_SECURITY,
+        r.ENTITY_INTAKE,
+        r.POLICY_RETRIEVAL,
+        r.FINALIZE,
+    ]
     final = asyncio.run(g.ainvoke(seeded(), run_config(deps, thread_id="c")))
     assert final["outcome"] == "INSUFFICIENT_EVIDENCE"
 
@@ -249,7 +279,7 @@ def test_the_limit_is_enforced_by_langgraph_at_the_exact_boundary() -> None:
             with pytest.raises(GraphRecursionError):
                 steps(g, seeded(), {"recursion_limit": limit})
     for limit, ok in ((5, True), (4, False)):
-        g = build_graph(GraphDeps(), checkpointer=InMemorySaver())
+        g = build_graph(s4(), checkpointer=InMemorySaver())
         config = {"recursion_limit": limit, "configurable": {"thread_id": f"b{limit}"}}
         if ok:
             assert from_intake(g, config, with_primary_evidence())[-1] == r.FINALIZE
@@ -261,9 +291,13 @@ def test_the_limit_is_enforced_by_langgraph_at_the_exact_boundary() -> None:
 def test_settings_drive_the_dependencies(tmp_path: Path) -> None:
     allow = tmp_path / "allow.jsonl"
     allow.write_text(json.dumps({"id": "x", "query": QUERY, "synthetic": True}) + "\n")
-    s = Settings(_env_file=EXAMPLE_ENV, MAX_CLARIFICATION_ROUNDS=1,  # type: ignore[call-arg]
-                 GRAPH_RECURSION_LIMIT=40, QUERY_MAX_CHARS=500,
-                 LLM_CACHE_ALLOWLIST=allow)  # fmt: skip
+    s = Settings(
+        _env_file=EXAMPLE_ENV,
+        MAX_CLARIFICATION_ROUNDS=1,  # type: ignore[call-arg]
+        GRAPH_RECURSION_LIMIT=40,
+        QUERY_MAX_CHARS=500,
+        LLM_CACHE_ALLOWLIST=allow,
+    )
     deps = GraphDeps.from_settings(s)
     assert (deps.max_clarification_rounds, deps.recursion_limit, deps.query_max_chars) == (
         1,

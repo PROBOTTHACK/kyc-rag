@@ -35,6 +35,16 @@ def get_document(session: Session, document_key: str) -> Document | None:
     return session.scalar(select(Document).where(Document.document_key == document_key))
 
 
+def form_documents(session: Session) -> list[Document]:
+    """The KYC form documents (`document_type = form`), by key. Reference documents
+    (e.g. the NetBanking application) are not forms and are never returned (M3 S4)."""
+    return list(
+        session.scalars(
+            select(Document).where(Document.document_type == "form").order_by(Document.document_key)
+        )
+    )
+
+
 def load_chunking_result(session: Session, document: Document) -> ChunkingResult:
     """All stored chunks of `document` in `chunk_index` order, as Stage C records."""
     rows = session.scalars(
