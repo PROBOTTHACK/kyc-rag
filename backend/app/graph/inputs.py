@@ -70,8 +70,14 @@ def start_input(
     }
 
 
-def resume_command(payload: Any, *, max_chars: int = DEFAULT_MAX_CHARS) -> Command[Any]:
-    """`Command(resume=payload)` for a clarification answer, or an exception."""
+def resume_command(
+    payload: Any, *, asked: list[str] | None = None, max_chars: int = DEFAULT_MAX_CHARS
+) -> Command[Any]:
+    """`Command(resume=payload)` for a clarification answer, or an exception.
+
+    `asked`: the fields of the pending interrupt's questions (the S6 API passes them).
+    When given, an answer to any other field is rejected here, matching the `clarify`
+    node, which ignores unasked fields. Screening always runs first, numbers included."""
     for text in flatten_strings(payload):
         result = screen_text(text, max_chars=max_chars)
         if result.sensitive:
@@ -79,6 +85,8 @@ def resume_command(payload: Any, *, max_chars: int = DEFAULT_MAX_CHARS) -> Comma
     problems = answer_problems(payload)
     if problems:
         raise InvalidAnswer("; ".join(sorted(set(problems))))
+    if asked is not None and set(payload["answers"]) - set(asked):
+        raise InvalidAnswer("answer to a field that was not asked")
     for text in flatten_strings(payload):
         if screen_text(text, max_chars=max_chars).action != "allow":
             raise InvalidAnswer("answer failed screening")

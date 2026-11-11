@@ -46,7 +46,11 @@ REDACT_PII = ("email", "phone")
 
 # --- input hygiene ----------------------------------------------------------------------
 _ALLOWED_CONTROL = {"\n", "\r", "\t"}
-_HIDDEN = re.compile("[​-‏‪-‮⁠-⁤⁦-⁩﻿]")
+# Invisible or direction-overriding characters. ZWNJ/ZWJ (U+200C/U+200D) and LRM/RLM
+# (U+200E/U+200F) are deliberately NOT here: Indic scripts and Urdu use them normally.
+# Kept: zero-width space, word joiner and invisible operators, BOM, and the bidi
+# embedding/override/isolate controls ("Trojan Source").
+_HIDDEN = re.compile("[\u200b\u2060-\u2064\ufeff\u202a-\u202e\u2066-\u2069]")
 
 # --- narrow injection phrases (matched on NFKC-normalised, case-folded text) ---------------
 _OVERRIDE = [

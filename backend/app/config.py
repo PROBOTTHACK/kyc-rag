@@ -118,6 +118,8 @@ class Settings(BaseSettings):
     GRAPH_RECURSION_LIMIT: int = Field(default=25, ge=1, le=100)
     # Longest accepted user question (characters); longer input is rejected at the gate.
     QUERY_MAX_CHARS: int = Field(default=2000, ge=100, le=10000)
+    # Overall cap on an LLM node's work (calls, re-ask, retries, waits, fallback model).
+    NODE_TIMEOUT_S: float = Field(default=180.0, gt=0, le=600)
     MAX_UPLOAD_MB: int = Field(default=20, gt=0)
     RATE_LIMIT_GROQ_RPM: int = Field(default=20, gt=0)
     RATE_LIMIT_GEMINI_RPM: int = Field(default=10, gt=0)

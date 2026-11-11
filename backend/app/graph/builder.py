@@ -40,7 +40,7 @@ from app.graph.nodes.form_analysis import form_analysis
 from app.graph.nodes.input_security import input_security
 from app.graph.nodes.output_validation import output_validation
 from app.graph.nodes.policy_retrieval import policy_retrieval
-from app.graph.state import KYCState
+from app.graph.state import KYCInput, KYCState
 from app.llm.cache import SyntheticAllowlist
 from app.llm.provider import LLMProvider
 from app.retrieval.retrieve import Retriever
@@ -74,11 +74,14 @@ class GraphDeps:
     llm: LLMProvider | None = None
     retriever: Retriever | None = None
     query_max_chars: int = 2000
+    node_timeout_s: float = 180.0
     synthetic_allowlist: SyntheticAllowlist = SyntheticAllowlist()
 
     def __post_init__(self) -> None:
         if not 0 <= self.max_clarification_rounds <= 2:
             raise ValueError("max_clarification_rounds must be 0..2")
+        if not 0 < self.node_timeout_s <= 600:
+            raise ValueError("node_timeout_s must be in (0, 600]")
         if self.query_max_chars <= 0:
             raise ValueError("query_max_chars must be positive")
         needed = required_recursion_limit(self.max_clarification_rounds)
@@ -102,14 +105,16 @@ class GraphDeps:
             llm=llm,
             retriever=retriever,
             query_max_chars=settings.QUERY_MAX_CHARS,
+            node_timeout_s=settings.NODE_TIMEOUT_S,
             synthetic_allowlist=SyntheticAllowlist.load(settings.LLM_CACHE_ALLOWLIST),
         )
 
 
 def build_graph(
     deps: GraphDeps, *, checkpointer: BaseCheckpointSaver[Any] | None = None
-) -> CompiledStateGraph[KYCState, None, KYCState, KYCState]:
-    g: StateGraph[KYCState, None, KYCState, KYCState] = StateGraph(KYCState)
+) -> CompiledStateGraph[KYCState, None, KYCInput, KYCState]:
+    # input_schema: a caller can set only what `start_input` produces (M3 S3.1).
+    g: StateGraph[KYCState, None, KYCInput, KYCState] = StateGraph(KYCState, input_schema=KYCInput)
     g.add_node(r.INPUT_SECURITY, partial(input_security, deps=deps))
     g.add_node(r.ENTITY_INTAKE, partial(entity_intake, deps=deps))
     g.add_node(r.CLARIFY, partial(clarify, deps=deps))

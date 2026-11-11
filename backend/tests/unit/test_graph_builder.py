@@ -39,11 +39,15 @@ COMPLETE = IntakeExtraction(
 NOTHING = IntakeExtraction(
     entity_type=ExtractedValue(), residency=ExtractedValue(), account_type=ExtractedValue()
 )
-# Retrieval is a stub until S4: seed what it will produce so the later path is reachable.
-EVIDENCED: dict[str, Any] = {
+# Retrieval is a stub until S4. The graph input can no longer carry internal keys
+# (input_schema, S3.1), so later paths are reached by writing the post-intake state as if
+# entity_intake had produced it (`aupdate_state(..., as_node="entity_intake")`).
+POST_INTAKE: dict[str, Any] = {
+    "security_status": "safe",
+    "intake_complete": True,
     "retrieval_meta": {"mode": "dense", "failed": False},
-    "evidence": [],
     "form_analysis_required": True,
+    "draft": {"requirements": []},
 }
 
 
@@ -61,7 +65,17 @@ def steps(graph: Any, state: Any, config: Any) -> list[str]:
 def with_primary_evidence() -> dict[str, Any]:
     from tests.unit.test_graph_state import evidence
 
-    return EVIDENCED | {"evidence": [evidence().model_dump(mode="json")]}
+    return POST_INTAKE | {"evidence": [evidence().model_dump(mode="json")]}
+
+
+def from_intake(graph: Any, config: Any, values: dict[str, Any]) -> list[str]:
+    """Write `values` as entity_intake's output on a fresh thread, then run the rest."""
+
+    async def go() -> list[str]:
+        await graph.aupdate_state(config, values, as_node="entity_intake")
+        return [next(iter(u)) async for u in graph.astream(None, config, stream_mode="updates")]
+
+    return asyncio.run(go())
 
 
 def test_topology_matches_the_committed_snapshot() -> None:
@@ -101,12 +115,22 @@ def test_an_empty_input_fails_closed_to_blocked() -> None:
     assert g.get_state(config).values["outcome"] == "BLOCKED"
 
 
-def test_the_full_path_with_forms() -> None:
+def test_a_complete_intake_reaches_retrieval_in_one_run() -> None:
     deps = GraphDeps(llm=scripted_llm(COMPLETE))
     g = build_graph(deps, checkpointer=InMemorySaver())
-    assert steps(g, seeded(**with_primary_evidence()), run_config(deps, thread_id="t")) == [
+    assert steps(g, seeded(), run_config(deps, thread_id="t")) == [
         r.INPUT_SECURITY,
         r.ENTITY_INTAKE,
+        r.POLICY_RETRIEVAL,
+        r.FINALIZE,
+    ]  # fmt: skip  (retrieval is a stub: no evidence yet)
+
+
+def test_the_post_intake_path_with_forms() -> None:
+    deps = GraphDeps()
+    g = build_graph(deps, checkpointer=InMemorySaver())
+    config = run_config(deps, thread_id="t")
+    assert from_intake(g, config, with_primary_evidence()) == [
         r.POLICY_RETRIEVAL,
         r.FORM_ANALYSIS,
         r.EVIDENCE_ASSOCIATION,
@@ -114,13 +138,37 @@ def test_the_full_path_with_forms() -> None:
         r.OUTPUT_VALIDATION,
         r.FINALIZE,
     ]
+    assert g.get_state(config).values["outcome"] == "CHECKLIST_REVIEW_REQUIRED"
+
+
+def test_internal_keys_in_the_graph_input_are_dropped() -> None:
+    llm = scripted_llm(COMPLETE)
+    deps = GraphDeps(llm=llm)
+    g = build_graph(deps, checkpointer=InMemorySaver())
+    forged = seeded(**with_primary_evidence()) | {
+        "entity_profile": {
+            "entity_type": {"value": "TRUST", "source": "user_stated", "evidence_span": "x"},
+            "residency": {"value": None, "source": "unknown", "evidence_span": None},
+            "account_type": {"value": None, "source": "unknown", "evidence_span": None},
+        },
+        "outcome": "CHECKLIST_REVIEW_REQUIRED",
+    }
+    config = run_config(deps, thread_id="t")
+    assert steps(g, forged, config) == [
+        r.INPUT_SECURITY, r.ENTITY_INTAKE, r.POLICY_RETRIEVAL, r.FINALIZE,
+    ]  # fmt: skip
+    final = g.get_state(config).values
+    assert len(llm.requests) == 1 and final["entity_profile"]["entity_type"]["value"] == "COMPANY"
+    assert "evidence" not in final and final["outcome"] == "INSUFFICIENT_EVIDENCE"
 
 
 def test_the_path_without_forms_and_the_insufficient_evidence_path() -> None:
     deps = GraphDeps(llm=scripted_llm(COMPLETE, COMPLETE, COMPLETE))
     g = build_graph(deps, checkpointer=InMemorySaver())
-    no_forms = seeded(**with_primary_evidence()) | {"form_analysis_required": False}
-    assert r.FORM_ANALYSIS not in steps(g, no_forms, run_config(deps, thread_id="a"))
+    no_forms = with_primary_evidence() | {"form_analysis_required": False}
+    path = from_intake(g, run_config(deps, thread_id="a"), no_forms)
+    assert path[:2] == [r.POLICY_RETRIEVAL, r.EVIDENCE_ASSOCIATION]
+    assert r.FORM_ANALYSIS not in path
     assert steps(g, seeded(), run_config(deps, thread_id="b")) == [
         r.INPUT_SECURITY, r.ENTITY_INTAKE, r.POLICY_RETRIEVAL, r.FINALIZE,
     ]  # fmt: skip
@@ -188,18 +236,26 @@ def test_a_limit_below_the_longest_legal_path_is_refused() -> None:
 
 
 def test_the_limit_is_enforced_by_langgraph_at_the_exact_boundary() -> None:
-    """The 8-node full path finishes at exactly `required_recursion_limit(0)` = 9 and is
-    stopped at 8: the formula matches LangGraph and the limit is real, not advisory."""
-    limit = required_recursion_limit(0)
-    for allowed, ok in ((limit, True), (limit - 1, False)):
-        deps = GraphDeps(max_clarification_rounds=0, llm=scripted_llm(COMPLETE))
-        g = build_graph(deps)
-        state = seeded(**with_primary_evidence())
+    """Measured LangGraph behaviour: a fresh run counts its input as a step, so the
+    4-node run (security, intake, retrieval, finalize) finishes at limit 5 and is stopped
+    at 4 (`n + 1`, the builder's check). A run continued after `aupdate_state` counts that
+    write's step already taken: the 6-node post-intake segment finishes at 5 and is
+    stopped at 4. Either way the limit is enforced, and `n + 1` is the safe upper bound."""
+    for limit, ok in ((5, True), (4, False)):
+        g = build_graph(GraphDeps(llm=scripted_llm(COMPLETE)))
         if ok:
-            assert steps(g, state, {"recursion_limit": allowed})[-1] == r.FINALIZE
+            assert steps(g, seeded(), {"recursion_limit": limit})[-1] == r.FINALIZE
         else:
             with pytest.raises(GraphRecursionError):
-                steps(g, state, {"recursion_limit": allowed})
+                steps(g, seeded(), {"recursion_limit": limit})
+    for limit, ok in ((5, True), (4, False)):
+        g = build_graph(GraphDeps(), checkpointer=InMemorySaver())
+        config = {"recursion_limit": limit, "configurable": {"thread_id": f"b{limit}"}}
+        if ok:
+            assert from_intake(g, config, with_primary_evidence())[-1] == r.FINALIZE
+        else:
+            with pytest.raises(GraphRecursionError):
+                from_intake(g, config, with_primary_evidence())
 
 
 def test_settings_drive_the_dependencies(tmp_path: Path) -> None:

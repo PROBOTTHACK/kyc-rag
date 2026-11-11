@@ -187,7 +187,15 @@ def test_state_survives_a_checkpoint_round_trip() -> None:
             )
         )
     }
-    final = asyncio.run(graph.ainvoke(state, config))
+
+    # The graph input accepts only start-of-run keys (S3.1 input_schema), so the full
+    # state is written as if `clarify` had just finished; the run then continues through
+    # input_security, intake (profile present: no LLM call), retrieval ... finalize.
+    async def run() -> Any:
+        await graph.aupdate_state(config, state, as_node="clarify")
+        return await graph.ainvoke(None, config)
+
+    final = asyncio.run(run())
     saved = graph.get_state(config).values
     assert saved == final
     assert {k: v for k, v in saved.items() if k not in RECOMPUTED} == {

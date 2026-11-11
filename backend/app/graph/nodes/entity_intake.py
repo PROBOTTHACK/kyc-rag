@@ -16,6 +16,7 @@ LLM is missing or fails, every field stays unknown, the failure is recorded as a
 degradation (outcome DEGRADED) and the clarification questions take over.
 """
 
+import asyncio
 from typing import TYPE_CHECKING, Any
 
 from app.graph.intake import (
@@ -67,11 +68,14 @@ async def _call_llm(
         digest = candidate if candidate in deps.synthetic_allowlist else None
     request = intake_request(query, synthetic_input_digest=digest)
     try:
-        call = await generate_validated(deps.llm, request, IntakeExtraction)
-    except ProviderError as exc:
+        # An overall cap on the node's LLM work (calls, re-ask, retries, rate-limit waits,
+        # fallback model): M3 plan §4 "per-node timeouts" (S3.1).
+        async with asyncio.timeout(deps.node_timeout_s):
+            call = await generate_validated(deps.llm, request, IntakeExtraction)
+    except (ProviderError, TimeoutError) as exc:
         record = LLMCallRecord(node=NODE, provider=deps.llm.name, model_id=deps.llm.model_id,
                                latency_ms=0, attempts=0, result="error")  # fmt: skip
-        reason = type(exc).__name__
+        reason = "node_timeout" if isinstance(exc, TimeoutError) else type(exc).__name__
         degradation = Degradation(component="llm", reason=reason)
         return EntityProfile(), [], [dump(record)], [dump(degradation)]
 

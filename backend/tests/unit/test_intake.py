@@ -225,3 +225,93 @@ def test_resume_command_accepts_only_structured_enum_answers() -> None:
 def test_resume_command_stops_identifiers_before_a_command_exists(payload: Any) -> None:
     with pytest.raises(SensitiveDataDetected):
         resume_command(payload)
+
+
+# --- S3.1: evidence spans must name the value -------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "span", "query"),
+    [
+        ("entity_type", "TRUST", "account", "What does an LLP need to open an account?"),
+        ("entity_type", "TRUST", "a", "What does an LLP need to open an account?"),
+        ("entity_type", "PARTNERSHIP", "limited liability partnership",
+         "KYC for a limited liability partnership?"),  # fmt: skip
+        ("residency", "RESIDENT", "non-resident", "What does a non-resident need?"),
+        ("account_type", "CURRENT_ACCOUNT", "current rules", "What are the current rules?"),
+        ("entity_type", "INDIVIDUAL", "body of individuals", "Is a body of individuals a BOI?"),
+    ],
+)
+def test_a_span_that_does_not_name_the_value_is_unsupported(
+    field: str, value: str, span: str, query: str
+) -> None:
+    profile, notes = interpret(
+        extraction(**{field: ExtractedValue(value=value, evidence_span=span)}), query
+    )
+    assert getattr(profile, field).value is None and notes == [f"{field}:unsupported"]
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "span", "query"),
+    [
+        ("entity_type", "LLP", "an LLP", QUERY),
+        ("entity_type", "COMPANY", "XYZ Pvt. Ltd.", "Documents for XYZ Pvt. Ltd.?"),
+        ("entity_type", "SOCIETY", "co-operative society", "KYC for a co-operative society"),
+        ("residency", "NRI", "non-resident", "What does a non-resident need?"),
+        ("account_type", "TERM_DEPOSIT", "fixed deposit", "Open a fixed deposit?"),
+    ],
+)
+def test_a_span_that_names_the_value_is_accepted(
+    field: str, value: str, span: str, query: str
+) -> None:
+    profile, notes = interpret(
+        extraction(**{field: ExtractedValue(value=value, evidence_span=span)}), query
+    )
+    assert getattr(profile, field).value == value and notes == []
+
+
+def test_every_vocabulary_value_has_keywords() -> None:
+    from app.graph.intake import VALUE_KEYWORDS, VOCABULARY
+
+    for field, vocab in VOCABULARY.items():
+        assert set(VALUE_KEYWORDS[field]) == {m.value for m in vocab}, field
+        assert all(VALUE_KEYWORDS[field][m.value] for m in vocab)
+
+
+def test_an_nri_question_gives_individual_and_nri() -> None:
+    q = "What KYC is needed for an NRI to open an NRO account?"
+    profile, notes = interpret(
+        extraction(
+            entity_type=ExtractedValue(value="INDIVIDUAL", evidence_span="an NRI"),
+            residency=ExtractedValue(value="NRI", evidence_span="an NRI"),
+            account_type=ExtractedValue(value="NRO_ACCOUNT", evidence_span="an NRO account"),
+        ),
+        q,
+    )
+    assert notes == []
+    assert (profile.entity_type.value, profile.residency.value, profile.account_type.value) == (
+        "INDIVIDUAL",
+        "NRI",
+        "NRO_ACCOUNT",
+    )
+
+
+# --- S3.1: the gate screens numbers and knows which fields were asked ------------------------
+
+
+@pytest.mark.parametrize(
+    "value",
+    [int(aadhaar()), 4111111111111111, float(aadhaar())],
+)
+def test_identifiers_sent_as_numbers_are_still_sensitive(value: Any) -> None:
+    with pytest.raises(SensitiveDataDetected):
+        resume_command({"answers": {"entity_type": value}})
+
+
+def test_the_gate_rejects_answers_to_fields_that_were_not_asked() -> None:
+    payload = {"answers": {"account_type": "CURRENT_ACCOUNT", "residency": "NRI"}}
+    with pytest.raises(InvalidAnswer, match="not asked"):
+        resume_command(payload, asked=["account_type"])
+    assert resume_command(payload).resume == payload  # without `asked`: unchanged behaviour
+    ok = resume_command({"answers": {"account_type": "CURRENT_ACCOUNT"}}, asked=["account_type"])
+    assert ok.resume == {"answers": {"account_type": "CURRENT_ACCOUNT"}}

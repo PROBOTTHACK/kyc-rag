@@ -34,7 +34,7 @@ Group membership is a retrieval convenience only. It does **not** mean an RBI pa
 **Which intake fields are required:** `entity_type` and `account_type` always; `residency` only for `INDIVIDUAL`.
 - Residency is defined for individuals only, so for other entities it stays `unknown` and is never assumed.
 - Each value records its source:
-  - `user_stated`: read from the question by the intake model, with the exact supporting words in `evidence_span`;
+  - `user_stated`: read from the question by the intake model, with the exact supporting words in `evidence_span`. Those words must occur in the question and contain a keyword for that value (`VALUE_KEYWORDS` in `app/graph/intake.py`, S3.1); other wording fails safe to a clarification question;
   - `user_answered`: a structured clarification answer;
   - `unknown`.
 

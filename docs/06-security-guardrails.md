@@ -11,7 +11,7 @@ Detect prompt injection, jailbreaks, system-prompt extraction, disguised malicio
 - **Input hygiene:**
   - Empty, over-long (`QUERY_MAX_CHARS`, default 2000) or invalid text is rejected at the gate.
   - Control characters block.
-  - Invisible or bidirectional formatting characters go to review.
+  - Invisible or bidirectional formatting characters go to review: zero-width space, word joiners, BOM, and bidi embedding/override/isolate controls. ZWNJ/ZWJ and LRM/RLM are allowed, because Indic scripts and Urdu use them (S3.1).
 - **Injection phrases:** the list is deliberately narrow.
   - Imperative override phrases ("ignore all previous instructions") and system-prompt extraction requests block.
   - Role-override phrases ("you are now…", "developer mode") go to review. In M3, review ends `BLOCKED`.
@@ -19,7 +19,8 @@ Detect prompt injection, jailbreaks, system-prompt extraction, disguised malicio
 - **Personal data:**
   - **Blocked:** PAN, Aadhaar (Verhoeff-checked), passport-like numbers, card numbers (Luhn-checked), and long digit runs shortly after account/IFSC wording. The gate rejects these (the API maps this to `422 SENSITIVE_DATA_DETECTED`), and nothing is stored or sent.
   - **Redacted:** email and phone are replaced with `[REDACTED_EMAIL]` / `[REDACTED_PHONE]`, and the request proceeds.
-- **Clarification answers:** they are enum values only (no free text) and are screened like the question. After every answer the graph returns to `input_security`.
+- **Clarification answers:** they are enum values only (no free text) and are screened like the question. Numbers are screened too, and the gate can be told which fields were asked (S3.1). After every answer the graph returns to `input_security`.
+- **Graph input:** only the keys `start_input` produces are accepted (the graph's `input_schema`, S3.1). Anything else a caller sends, such as a pre-filled profile, a security status or an outcome, is dropped.
 - **What is recorded:** screening records hold category codes and counts only, never the matched text.
 - **The intake prompt:** it delimits the question and states that its contents are data, not instructions.
 - **Limits:** this is a best-effort pattern filter.

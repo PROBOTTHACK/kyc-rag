@@ -4,6 +4,7 @@ tests/integration/test_graph_checkpoint_postgres.py."""
 
 import asyncio
 import json
+import logging
 from typing import Any
 
 import pytest
@@ -301,3 +302,68 @@ def test_clarification_state_survives_the_checkpoint_round_trip() -> None:
                                       run.config))  # fmt: skip
     assert final["intake_complete"] is True
     assert [a["round"] for a in final["clarification_answers"]] == [1, 1, 2]
+
+
+# --- S3.1 -------------------------------------------------------------------------------------
+
+
+def test_an_invented_value_with_a_generic_span_is_asked_about_not_stored() -> None:
+    invented = IntakeExtraction(
+        entity_type=ExtractedValue(value="TRUST", evidence_span="account"),
+        residency=ExtractedValue(),
+        account_type=ExtractedValue(value="CURRENT_ACCOUNT", evidence_span="an account"),
+    )
+    run = Run(scripted_llm(invented))
+    out = run.start(LLP_QUERY)
+    assert out["entity_profile"]["entity_type"]["value"] is None
+    assert out["entity_profile"]["account_type"]["value"] is None
+    assert sorted(out["ambiguities"]) == ["account_type:unsupported", "entity_type:unsupported"]
+    assert [q["field"] for q in questions(out)] == ["entity_type", "account_type"]
+
+
+def test_a_numeric_identifier_in_an_answer_that_skips_the_gate_is_blocked() -> None:
+    run = Run(scripted_llm(LLP_ONLY))
+    run.start(LLP_QUERY)
+    final = run.invoke(Command(resume={"answers": {"account_type": int(aadhaar())}}))
+    assert final["outcome"] == "BLOCKED" and "aadhaar" in final["security_reasons"]
+    assert aadhaar() not in json.dumps(run.state) and len(run.llm.requests) == 1
+
+
+class SlowLLM:
+    """An LLM that never answers in time (for the node time limit)."""
+
+    name = "slow"
+    model_id = "slow-1"
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def generate_structured(self, request: Any, schema: Any) -> Any:
+        self.calls += 1
+        await asyncio.sleep(30)
+        raise AssertionError("unreachable")
+
+
+def test_the_llm_node_has_an_overall_time_limit() -> None:
+    slow = SlowLLM()
+    run = Run(slow, node_timeout_s=0.05)  # type: ignore[arg-type]
+    out = run.start(LLP_QUERY)
+    assert slow.calls == 1
+    assert out["degradations"] == [{"component": "llm", "reason": "node_timeout"}]
+    assert out["llm_calls"][0]["result"] == "error"
+    assert [q["field"] for q in questions(out)] == ["entity_type", "account_type"]
+
+
+def test_no_personal_data_reaches_the_logs(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.DEBUG)
+    secrets = ["test.user@example.com", "9876543210", PAN, aadhaar()]
+    run = Run(scripted_llm(LLP_ONLY, LLP_ONLY))
+    run.start(f"{LLP_QUERY} Mail test.user@example.com or call 9876543210.")
+    with pytest.raises(SensitiveDataDetected):
+        run.start(f"PAN {PAN}")
+    with pytest.raises(SensitiveDataDetected):
+        resume_command({"answers": {"account_type": aadhaar()}})
+    run.invoke(Command(resume={"answers": {"account_type": f"PAN {PAN}"}}))  # in-graph block
+    assert run.state["outcome"] == "BLOCKED"
+    logged = caplog.text + "".join(str(r.args) for r in caplog.records)
+    assert all(s not in logged for s in secrets)

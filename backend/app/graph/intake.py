@@ -7,7 +7,8 @@ The intake model only *proposes* values. This module decides what is accepted:
   anything else become missing (recorded as `<field>:invalid_value`);
 - a value the model marks `ambiguous` becomes missing (`<field>:ambiguous`);
 - a value must come with `evidence_span`, words that really occur in the screened
-  question; otherwise it is treated as invented and becomes missing (`<field>:unsupported`);
+  question AND name that value (a keyword from `VALUE_KEYWORDS`, S3.1); otherwise it is
+  treated as invented and becomes missing (`<field>:unsupported`);
 - nothing is ever defaulted: a field nobody stated stays `unknown` and is asked about.
 
 Clarification answers are structured enum choices, merged deterministically with source
@@ -121,8 +122,67 @@ def intake_request(query: str, *, synthetic_input_digest: str | None = None) -> 
     )
 
 
+# Words that must appear in a model's evidence span for it to support a value (M3 S3.1).
+# Grounded in the taxonomy (docs/15) and the corpus wording. Matching is on whole words
+# after case-folding, with punctuation (hyphens, dots) treated as spaces. Wording not
+# listed here fails safe: the value is treated as unsupported and the user is asked.
+VALUE_KEYWORDS: dict[str, dict[str, tuple[str, ...]]] = {
+    "entity_type": {
+        "INDIVIDUAL": ("individual", "person", "nri", "pio", "oci", "resident individual"),
+        "SOLE_PROPRIETORSHIP": ("sole proprietor", "sole proprietorship", "proprietorship",
+                                "proprietary concern"),  # fmt: skip
+        "PARTNERSHIP": ("partnership", "partnership firm", "partners"),
+        "LLP": ("llp", "limited liability partnership"),
+        "COMPANY": ("company", "private limited", "public limited", "pvt ltd", "ltd"),
+        "TRUST": ("trust",),
+        "HUF": ("huf", "hindu undivided family"),
+        "SOCIETY": ("society", "co operative", "cooperative"),
+        "UNINCORPORATED_ASSOCIATION": ("association of persons", "aop", "body of individuals",
+                                       "boi", "club", "unincorporated association"),  # fmt: skip
+        "OTHER_JURIDICAL_PERSON": ("juridical person", "local body", "university",
+                                   "government body"),  # fmt: skip
+    },
+    "residency": {
+        "RESIDENT": ("resident",),
+        "NRI": ("nri", "non resident indian", "non resident"),
+        "PIO": ("pio", "person of indian origin", "oci"),
+    },
+    "account_type": {
+        "SAVINGS_ACCOUNT": ("savings",),
+        "CURRENT_ACCOUNT": ("current account",),
+        "NRE_ACCOUNT": ("nre",),
+        "NRO_ACCOUNT": ("nro",),
+        "TERM_DEPOSIT": ("term deposit", "fixed deposit", "fd"),
+    },
+}
+# A keyword hit inside one of these phrases does not count for that value.
+KEYWORD_EXCLUSIONS: dict[str, tuple[str, ...]] = {
+    "RESIDENT": ("non resident",),
+    "PARTNERSHIP": ("limited liability partnership",),
+    "INDIVIDUAL": ("body of individuals",),
+}
+MIN_SPAN_CHARS = 2
+
+
+def _words(text: str) -> str:
+    """Case-folded words separated by single spaces, padded for whole-word matching."""
+    folded = unicodedata.normalize("NFKC", text).casefold()
+    return " " + " ".join("".join(ch if ch.isalnum() else " " for ch in folded).split()) + " "
+
+
+def span_supports(field: str, value: str, span: str) -> bool:
+    """True when the span names `value` with one of its keywords, as a whole word or
+    phrase, outside any phrase excluded for that value."""
+    words = _words(span)
+    for phrase in KEYWORD_EXCLUSIONS.get(value, ()):
+        words = words.replace(f" {phrase} ", " ")
+    return any(f" {kw} " in words for kw in VALUE_KEYWORDS[field][value])
+
+
 def interpret(extraction: IntakeExtraction, query: str) -> tuple[EntityProfile, list[str]]:
-    """Accept only enum-valid, unambiguous values whose span occurs in the question."""
+    """Accept only enum-valid, unambiguous values whose evidence span occurs in the
+    question AND names that value (`VALUE_KEYWORDS`). A span that merely occurs in the
+    question (e.g. "account") does not make an invented value `user_stated`."""
     haystack = _norm(query)
     values: dict[str, ProfileValue] = {}
     ambiguities: list[str] = []
@@ -137,7 +197,11 @@ def interpret(extraction: IntakeExtraction, query: str) -> tuple[EntityProfile, 
             ambiguities.append(f"{name}:invalid_value")
             continue
         span = (proposed.evidence_span or "").strip()
-        if not span or _norm(span) not in haystack:
+        if (
+            len(span) < MIN_SPAN_CHARS
+            or _norm(span) not in haystack
+            or not span_supports(name, proposed.value, span)
+        ):
             ambiguities.append(f"{name}:unsupported")
             continue
         values[name] = ProfileValue(value=proposed.value, source="user_stated", evidence_span=span)
@@ -244,7 +308,8 @@ def parse_answers(
 
 
 def flatten_strings(raw: object) -> list[str]:
-    """Every string (keys included) in a resume payload, for screening."""
+    """Every string, and every number as text, in a resume payload (keys included), for
+    screening. Booleans and nulls carry no data and are skipped."""
     out: list[str] = []
     if isinstance(raw, str):
         out.append(raw)
@@ -255,6 +320,8 @@ def flatten_strings(raw: object) -> list[str]:
     elif isinstance(raw, list | tuple):
         for v in raw:
             out.extend(flatten_strings(v))
-    elif raw is not None and not isinstance(raw, bool | int | float):
+    elif isinstance(raw, bool) or raw is None:
+        pass
+    else:  # numbers too: an identifier sent as a JSON number must still be screened
         out.append(str(raw))
     return out

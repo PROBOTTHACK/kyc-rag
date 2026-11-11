@@ -187,3 +187,25 @@ def test_strictest() -> None:
     assert strictest("allow", "redact") == "redact"
     assert strictest("redact", "review", "allow") == "review"
     assert strictest("review", "block") == "block"
+
+
+# --- S3.1: Indian-language text is not mistaken for hidden formatting -----------------------
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "एलएलपी के लिए केवाईसी दस्तावेज़ क्या हैं? क्‍ष",  # Hindi with ZWJ
+        "ಕೆವೈಸಿ ದಾಖಲೆಗಳು‌ ಯಾವುವು?",  # Kannada with ZWNJ
+        "کے وائی سی ‏ دستاویزات",  # Urdu with RLM
+    ],
+)
+def test_indic_and_urdu_joiners_and_marks_are_allowed(text: str) -> None:
+    r = screen_text(text)
+    assert r.action == "allow" and r.categories == ()
+
+
+@pytest.mark.parametrize("ch", ["​", "⁠", "﻿", "‮", "⁦"])
+def test_invisible_and_bidi_override_characters_still_go_to_review(ch: str) -> None:
+    r = screen_text(f"what does an LLP need{ch}?")
+    assert r.action == "review" and r.categories == ("hidden_formatting",)

@@ -317,7 +317,22 @@ class KYCState(TypedDict, total=False):
     report_id: str | None
 
 
+class KYCInput(TypedDict, total=False):
+    """What a caller may put into a new run: exactly what `app.graph.inputs.start_input`
+    produces (M3 S3.1). The graph's `input_schema`, so every other key in the input
+    (a pre-filled profile, evidence, a security status, an outcome) is dropped and can
+    never short-cut a node."""
+
+    session_id: str
+    run_id: str
+    data_class: Annotated[str, OneOf(DataClass)]
+    query: str
+    clarification_rounds: int
+    screening: Annotated[list[JSON], Validates(ScreenRecord, each=True)]
+
+
 STATE_KEYS: frozenset[str] = frozenset(KYCState.__annotations__)
+INPUT_KEYS: frozenset[str] = frozenset(KYCInput.__annotations__)
 
 
 def dump(model: BaseModel) -> JSON:
