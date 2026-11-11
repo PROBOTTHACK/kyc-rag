@@ -384,7 +384,7 @@ A self-review of S3 against this plan found gaps. All were fixed before S4 (owne
   - **Unchanged:** the topology snapshot.
   - **No live Groq call.**
 
-### S4 outcome (2026-11-11)
+### S4 outcome (2026-11-11): COMPLETE, accepted by the owner (commit `0583b23a2d48214c6b013407cc1d773d76b0defd`, branch `feat/m3-s4-retrieval-forms`)
 - **Built:**
   - `app/graph/corpus.py`: `CorpusReader`, `PostgresCorpusReader` (existing repository and forms functions only, plus one `form_documents` helper) and `SupportsRetrieve`;
   - `app/graph/evidence.py`: pure helpers (evidence items, `classify_evidence`, candidate forms, schema choice, field subset, links);
@@ -421,6 +421,16 @@ A self-review of S3 against this plan found gaps. All were fixed before S4 (owne
   - **Checks:** lint (strict mypy, 97 files), check-schema and dense golden are green.
   - **Unchanged:** the topology snapshot (no new edges).
   - **No live Groq or Gemini call.**
+
+#### S4 acceptance and carry-forward (owner review, 2026-11-11)
+S4 is accepted as implemented. These observations carry forward without reopening S4; later stages must preserve them:
+1. **NRI retrieval returns partial evidence.** The dev-stack top 5 are HDFC forms and an RBI FAQ, with no entity-scope primary-capable chunk. This limitation stays visible (`evidence_status="partial"` with its gap). It must not be "fixed" by inventing evidence or by broadening retrieval scope.
+2. **LLP policy evidence arrives only through the entity group** (`match_scope="entity_group"`). In S5 it must never on its own establish MANDATORY (already in the S5 acceptance row).
+3. **The 60-field cap stays visible.** `fields_capped` in `FormRef.flags` and `form_flags` must reach every downstream output, so no later stage implies the whole form was analysed.
+4. **A missing schema stays distinct from a retrieval failure.**
+   - **A missing or unloadable form schema:** recorded as `no_stored_schema` / `schema_load_failed`, in `form_flags`, `retrieval_meta.gaps` and a `forms` degradation.
+   - **A technical retrieval failure:** recorded as `evidence_status="retrieval_failed"`, `failed=true`, `failure_kinds` and a `retrieval` degradation.
+   - S5 reports must keep the two apart.
 
 ## 13. Dependencies and configuration
 - **New packages (D2):** `langgraph`, `langgraph-checkpoint-postgres` (pulls in `psycopg-pool`, `langchain-core` and `langsmith`) and `groq` (imported lazily).
