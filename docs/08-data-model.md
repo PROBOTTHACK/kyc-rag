@@ -34,6 +34,7 @@ M1 tables (Alembic `0001_m1_corpus` + `0002_m1_persistence`; ORM `app/db/models.
   - **Read cache (M2 G4):** reads can go through the Redis cache keyed by (form_key, method, version). Postgres decides the current row and validates every cached entry (docs/02); the table is unchanged.
   - **Not stored:** review status and entity applicability. These belong to later human-review and rules stages, and are not inferred from forms.
 - `rules`(rule_id PK, entity_type, topic, source_document FK, source_page, conditions jsonb, applicability, verification_status)
+- **M3 workflow tables (planned, `docs/milestones/M3_PLAN.md` §11; supersede the `sessions`/`reports`/`graph_runs` sketches below):** `kyc_sessions`, `graph_runs` (run lifecycle + Postgres run lease, one active run per session via a partial unique index), `reports` (insert-only, one `outcome` each, `human_review_required` always true), `api_idempotency`. The one-run-per-session lock is the Postgres lease, **not** a Redis key (M3 decision D6).
 - `sessions`(id, entity_type, account_type, status, created_at, expires_at)
 - `reports`(id, session_id FK, final_json jsonb, verification_status, created_at)
 - `claims`(id, report_id FK, claim_text, evidence_refs jsonb, nli_label, nli_scores jsonb, confidence, review_status)
@@ -52,7 +53,7 @@ Use a separate schema or prefix for checkpoint tables. Apply retention (delete e
 | `cache:emb:{sha256(text)}` | embedding cache | 7d |
 | `cache:form:{file_hash}:{version}` | form schema cache | 7d |
 | `chan:session:{id}` | pub/sub progress channel | n/a |
-| `lock:ingest:{sha256}` / `lock:run:{session}` | idempotency / one-run lock | minutes |
+| `lock:ingest:{sha256}` | ingestion idempotency lock | minutes |
 | `arq:*` | job queue | managed |
 
 ## Qdrant

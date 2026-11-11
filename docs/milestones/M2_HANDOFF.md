@@ -1,6 +1,6 @@
 # M2 Handoff: Retrieval and Form Intelligence
 
-> Status: **complete, pending owner review (2026-11-11).** Branch `feat/m2-g-gemini-forms`, not merged into `main`. This is an independent portfolio prototype, not an HDFC Bank or RBI system. Synthetic and public data only.
+> Status: **complete; approved and merged into `main` (merge commit `a288b09`, pushed to `origin/main`).** Final branch `feat/m2-g-gemini-forms`. This is an independent portfolio prototype, not an HDFC Bank or RBI system. Synthetic and public data only.
 
 ## 1. Roadmap requirements → implementation → evidence → status
 
@@ -127,8 +127,8 @@ main  d8d8b7b  Merge M1: document ingestion foundation
          └─ feat/m2-g-gemini-forms   92d81e5 … (D commit = this branch tip)  (G1–G4, follow-ups, D)
 ```
 
-`feat/m2-g-gemini-forms` contains every M2 commit. Merging it into `main` merges M2. That awaits owner approval.
+`feat/m2-g-gemini-forms` contains every M2 commit. It was merged into `main` as `a288b09` ("Merge M2: KYC intelligence and Gemini forms") and pushed to `origin/main`.
 
 ## 9. Next: M3
 
-M3 is the LangGraph end-to-end workflow, per the roadmap. A separate M3 plan will be written for review before any code.
+M3 is the LangGraph end-to-end workflow, per the roadmap. Its approved plan is `docs/milestones/M3_PLAN.md`.

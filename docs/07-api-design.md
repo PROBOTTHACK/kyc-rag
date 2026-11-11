@@ -5,7 +5,8 @@
 | POST | `/sessions` | Create session |
 | GET | `/sessions/{id}` | Get session |
 | POST | `/sessions/{id}/messages` | Submit query (starts graph) |
-| POST | `/sessions/{id}/resume` | Resume after clarification / review |
+| POST | `/sessions/{id}/resume` | Resume after clarification: structured enum answers + `checkpoint_id` only, no free text (M3 decision D7) |
+| POST | `/sessions/{id}/retry` | Explicitly resume a run whose lease expired after a crash, from its last checkpoint (M3) |
 | GET | `/sessions/{id}/events` | **SSE** progress stream |
 | POST | `/documents/upload` | Upload PDF |
 | GET | `/documents` , `/documents/{id}` | List / details |
@@ -42,4 +43,4 @@ data: {"node":"retrieval","status":"running"}
 event: report
 data: {"report_id":"report_001"}
 ```
-Rules: versioned from day one, Pydantic request/response models, consistent error envelope `{error:{code,message}}`, idempotency key on message POST.
+Rules: versioned from day one, Pydantic request/response models, consistent error envelope `{error:{code,message}}`, `Idempotency-Key` header required on `/messages`, `/resume` and `/retry`. `/messages` and `/resume` are PII-screened before anything is stored or sent (`422 SENSITIVE_DATA_DETECTED`). Report outcomes and run statuses: `docs/milestones/M3_PLAN.md` §5; no endpoint ever returns an approve/reject decision.
