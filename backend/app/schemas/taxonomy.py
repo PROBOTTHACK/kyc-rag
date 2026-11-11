@@ -209,6 +209,23 @@ class ResidencyStatus(StrEnum):
     PIO = "PIO"  # Person of Indian Origin; the HDFC forms group OCI cardholders here
 
 
+class AccountType(StrEnum):
+    """The account a KYC question is about (M3 S3; workflow intake only).
+
+    A closed vocabulary so intake never accepts free-form model output. Grounded in the
+    corpus and the API spec: current and savings accounts (docs/07; the HDFC
+    non-individual and resident forms), NRE/NRO accounts and term deposits (the HDFC NRI
+    "NRE/NRO Account-cum-Term Deposit" form). It is not stored in any database column, so
+    adding a value needs no migration; it says nothing about which rules apply.
+    """
+
+    SAVINGS_ACCOUNT = "SAVINGS_ACCOUNT"
+    CURRENT_ACCOUNT = "CURRENT_ACCOUNT"
+    NRE_ACCOUNT = "NRE_ACCOUNT"
+    NRO_ACCOUNT = "NRO_ACCOUNT"
+    TERM_DEPOSIT = "TERM_DEPOSIT"
+
+
 def expand_entity_terms(terms: list[str]) -> frozenset[EntityType]:
     """Resolve entity types and/or group names to the specific types they denote."""
     out: set[EntityType] = set()

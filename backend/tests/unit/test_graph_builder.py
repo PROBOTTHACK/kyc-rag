@@ -1,5 +1,11 @@
-"""M3 S2: graph topology snapshot, dependency injection, stubs and the recursion limit."""
+"""M3 S2/S3: graph topology snapshot, dependency injection and the recursion limit.
 
+S3 replaced the security, intake and clarification stubs with real nodes and moved the
+post-clarification edge to `clarify -> input_security`, so these tests drive the real
+nodes (with the scripted fake LLM) instead of presetting their outputs.
+"""
+
+import asyncio
 import json
 from pathlib import Path
 from typing import Any
@@ -18,26 +24,54 @@ from app.graph.builder import (
     run_config,
     topology,
 )
-from app.llm.fake import FakeLLMProvider
+from app.graph.inputs import resume_command, start_input
+from app.graph.intake import ExtractedValue, IntakeExtraction
+from app.llm.fake import FakeLLMProvider, scripted_llm
 
 SNAPSHOT = Path(__file__).parents[1] / "fixtures" / "m3_graph_topology.json"
 EXAMPLE_ENV = REPO_ROOT / "infra" / ".env.example"
-COMPLETE: dict[str, Any] = {
-    "security_status": "safe",
-    "intake_complete": True,
+QUERY = "What KYC documents does a company need to open a current account?"
+COMPLETE = IntakeExtraction(
+    entity_type=ExtractedValue(value="COMPANY", evidence_span="a company"),
+    residency=ExtractedValue(),
+    account_type=ExtractedValue(value="CURRENT_ACCOUNT", evidence_span="a current account"),
+)
+NOTHING = IntakeExtraction(
+    entity_type=ExtractedValue(), residency=ExtractedValue(), account_type=ExtractedValue()
+)
+# Retrieval is a stub until S4: seed what it will produce so the later path is reachable.
+EVIDENCED: dict[str, Any] = {
     "retrieval_meta": {"mode": "dense", "failed": False},
-    "evidence": [{"evidence_eligibility": "primary"}],
+    "evidence": [],
     "form_analysis_required": True,
-    "draft": {"requirements": []},
 }
 
 
-def steps(graph: Any, state: dict[str, Any], config: Any) -> list[str]:
-    return [next(iter(u)) for u in graph.stream(state, config, stream_mode="updates")]
+def seeded(query: str = QUERY, **extra: Any) -> dict[str, Any]:
+    return dict(start_input(query, session_id="s", run_id="r")) | extra
+
+
+def steps(graph: Any, state: Any, config: Any) -> list[str]:
+    async def go() -> list[str]:
+        return [next(iter(u)) async for u in graph.astream(state, config, stream_mode="updates")]
+
+    return asyncio.run(go())
+
+
+def with_primary_evidence() -> dict[str, Any]:
+    from tests.unit.test_graph_state import evidence
+
+    return EVIDENCED | {"evidence": [evidence().model_dump(mode="json")]}
 
 
 def test_topology_matches_the_committed_snapshot() -> None:
     assert topology(build_graph(GraphDeps())) == json.loads(SNAPSHOT.read_text("utf-8"))
+
+
+def test_answers_return_through_input_security() -> None:
+    edges = topology(build_graph(GraphDeps()))["edges"]
+    assert [r.CLARIFY, r.INPUT_SECURITY, False] in edges
+    assert [r.CLARIFY, r.ENTITY_INTAKE, False] not in edges
 
 
 def test_topology_is_deterministic_and_independent_of_dependencies() -> None:
@@ -56,10 +90,10 @@ def test_memory_saver_is_the_in_memory_checkpointer() -> None:
     assert MemorySaver is InMemorySaver
 
 
-# --- stub behaviour along the paths ---------------------------------------------------------
+# --- paths through the real S3 nodes ------------------------------------------------------
 
 
-def test_an_empty_state_fails_closed_to_blocked() -> None:
+def test_an_empty_input_fails_closed_to_blocked() -> None:
     deps = GraphDeps()
     g = build_graph(deps, checkpointer=InMemorySaver())
     config = run_config(deps, thread_id="t")
@@ -68,9 +102,9 @@ def test_an_empty_state_fails_closed_to_blocked() -> None:
 
 
 def test_the_full_path_with_forms() -> None:
-    deps = GraphDeps()
-    g = build_graph(deps)
-    assert steps(g, COMPLETE, run_config(deps, thread_id="t")) == [
+    deps = GraphDeps(llm=scripted_llm(COMPLETE))
+    g = build_graph(deps, checkpointer=InMemorySaver())
+    assert steps(g, seeded(**with_primary_evidence()), run_config(deps, thread_id="t")) == [
         r.INPUT_SECURITY,
         r.ENTITY_INTAKE,
         r.POLICY_RETRIEVAL,
@@ -83,37 +117,44 @@ def test_the_full_path_with_forms() -> None:
 
 
 def test_the_path_without_forms_and_the_insufficient_evidence_path() -> None:
-    deps = GraphDeps()
-    g = build_graph(deps)
-    no_forms = COMPLETE | {"form_analysis_required": False}
+    deps = GraphDeps(llm=scripted_llm(COMPLETE, COMPLETE, COMPLETE))
+    g = build_graph(deps, checkpointer=InMemorySaver())
+    no_forms = seeded(**with_primary_evidence()) | {"form_analysis_required": False}
     assert r.FORM_ANALYSIS not in steps(g, no_forms, run_config(deps, thread_id="a"))
-    no_evidence = COMPLETE | {"evidence": []}
-    assert steps(g, no_evidence, run_config(deps, thread_id="b")) == [
+    assert steps(g, seeded(), run_config(deps, thread_id="b")) == [
         r.INPUT_SECURITY, r.ENTITY_INTAKE, r.POLICY_RETRIEVAL, r.FINALIZE,
     ]  # fmt: skip
-    assert g.invoke(no_evidence, run_config(deps, thread_id="c"))["outcome"] == (
-        "INSUFFICIENT_EVIDENCE"
-    )
+    final = asyncio.run(g.ainvoke(seeded(), run_config(deps, thread_id="c")))
+    assert final["outcome"] == "INSUFFICIENT_EVIDENCE"
 
 
 @pytest.mark.parametrize("rounds", [0, 1, 2])
 def test_the_clarification_loop_is_bounded(rounds: int) -> None:
-    deps = GraphDeps(max_clarification_rounds=rounds)
-    g = build_graph(deps)
-    state = {"security_status": "safe", "intake_complete": False}
+    """Every round is answered with something unusable, so intake never completes."""
+    deps = GraphDeps(max_clarification_rounds=rounds, llm=scripted_llm(NOTHING))
+    g = build_graph(deps, checkpointer=InMemorySaver())
+    config = run_config(deps, thread_id="t")
+    seen = steps(g, seeded(), config)
+    for _ in range(rounds):
+        seen += steps(g, resume_command({"answers": {"account_type": "SAVINGS_ACCOUNT"}}), config)
+    nodes = [s for s in seen if s != "__interrupt__"]
     expected = [r.INPUT_SECURITY, r.ENTITY_INTAKE]
-    expected += [r.CLARIFY, r.ENTITY_INTAKE] * rounds + [r.FINALIZE]
-    assert steps(g, state, run_config(deps, thread_id="t")) == expected
-    final = g.invoke(state, run_config(deps, thread_id="u"))
+    expected += [r.CLARIFY, r.INPUT_SECURITY, r.ENTITY_INTAKE] * rounds + [r.FINALIZE]
+    assert nodes == expected
+    final = g.get_state(config).values
     assert final.get("clarification_rounds", 0) == rounds
     assert final["outcome"] == "INSUFFICIENT_INFORMATION"
+    assert not g.get_state(config).next  # finished: no further interrupt
 
 
-def test_stub_nodes_never_call_the_injected_llm() -> None:
-    llm = FakeLLMProvider([])  # raises if called
-    deps = GraphDeps(llm=llm)
-    build_graph(deps).invoke(COMPLETE, run_config(deps, thread_id="t"))
-    assert llm.requests == []
+def test_without_an_llm_intake_degrades_and_asks_instead_of_guessing() -> None:
+    deps = GraphDeps(llm=None)
+    g = build_graph(deps, checkpointer=InMemorySaver())
+    config = run_config(deps, thread_id="t")
+    out = asyncio.run(g.ainvoke(seeded(), config))
+    questions = out["__interrupt__"][0].value["questions"]
+    assert [q["field"] for q in questions] == ["entity_type", "account_type"]
+    assert out["degradations"] == [{"component": "llm", "reason": "not_configured"}]
 
 
 # --- the recursion limit ----------------------------------------------------------------------
@@ -128,49 +169,54 @@ def test_run_config_always_carries_the_explicit_limit_and_thread() -> None:
 
 
 def test_longest_legal_path_formula() -> None:
-    assert [longest_path_nodes(n) for n in (0, 1, 2)] == [8, 10, 12]
-    assert [required_recursion_limit(n) for n in (0, 1, 2)] == [9, 11, 13]
+    assert [longest_path_nodes(n) for n in (0, 1, 2)] == [8, 11, 14]
+    assert [required_recursion_limit(n) for n in (0, 1, 2)] == [9, 12, 15]
     assert GraphDeps().recursion_limit >= required_recursion_limit(2)
 
 
 def test_a_limit_below_the_longest_legal_path_is_refused() -> None:
     with pytest.raises(ValueError, match="below what the longest legal path needs"):
-        GraphDeps(max_clarification_rounds=2, recursion_limit=12)
-    GraphDeps(max_clarification_rounds=2, recursion_limit=13)
+        GraphDeps(max_clarification_rounds=2, recursion_limit=14)
+    GraphDeps(max_clarification_rounds=2, recursion_limit=15)
     GraphDeps(max_clarification_rounds=0, recursion_limit=9)
     with pytest.raises(ValueError):
         GraphDeps(max_clarification_rounds=0, recursion_limit=8)
     with pytest.raises(ValueError):
         GraphDeps(max_clarification_rounds=3)
+    with pytest.raises(ValueError):
+        GraphDeps(query_max_chars=0)
 
 
 def test_the_limit_is_enforced_by_langgraph_at_the_exact_boundary() -> None:
-    """The 8-node full path (the longest the stubs can reach) finishes at exactly
-    `required_recursion_limit(0)` = 9 and is stopped at 8: the formula matches LangGraph
-    and the limit is real, not advisory."""
+    """The 8-node full path finishes at exactly `required_recursion_limit(0)` = 9 and is
+    stopped at 8: the formula matches LangGraph and the limit is real, not advisory."""
     limit = required_recursion_limit(0)
-    g = build_graph(GraphDeps(max_clarification_rounds=0, recursion_limit=limit))
-    assert steps(g, COMPLETE, {"recursion_limit": limit})[-1] == r.FINALIZE
-    with pytest.raises(GraphRecursionError):
-        steps(g, COMPLETE, {"recursion_limit": limit - 1})
+    for allowed, ok in ((limit, True), (limit - 1, False)):
+        deps = GraphDeps(max_clarification_rounds=0, llm=scripted_llm(COMPLETE))
+        g = build_graph(deps)
+        state = seeded(**with_primary_evidence())
+        if ok:
+            assert steps(g, state, {"recursion_limit": allowed})[-1] == r.FINALIZE
+        else:
+            with pytest.raises(GraphRecursionError):
+                steps(g, state, {"recursion_limit": allowed})
 
 
-def test_the_clarification_path_also_matches_the_formula() -> None:
-    """With 2 rounds and intake never completing, the stub path is security,
-    (intake, clarify) x 2, intake, finalize = 7 nodes, so it needs a limit of 8."""
-    g = build_graph(GraphDeps())
-    state = {"security_status": "safe", "intake_complete": False}
-    assert steps(g, state, {"recursion_limit": 8})[-1] == r.FINALIZE
-    with pytest.raises(GraphRecursionError):
-        steps(g, state, {"recursion_limit": 7})
-
-
-def test_settings_drive_the_dependencies() -> None:
+def test_settings_drive_the_dependencies(tmp_path: Path) -> None:
+    allow = tmp_path / "allow.jsonl"
+    allow.write_text(json.dumps({"id": "x", "query": QUERY, "synthetic": True}) + "\n")
     s = Settings(_env_file=EXAMPLE_ENV, MAX_CLARIFICATION_ROUNDS=1,  # type: ignore[call-arg]
-                 GRAPH_RECURSION_LIMIT=40)  # fmt: skip
+                 GRAPH_RECURSION_LIMIT=40, QUERY_MAX_CHARS=500,
+                 LLM_CACHE_ALLOWLIST=allow)  # fmt: skip
     deps = GraphDeps.from_settings(s)
-    assert (deps.max_clarification_rounds, deps.recursion_limit) == (1, 40)
+    assert (deps.max_clarification_rounds, deps.recursion_limit, deps.query_max_chars) == (
+        1,
+        40,
+        500,
+    )
+    assert len(deps.synthetic_allowlist.digests) == 1
     default = Settings(_env_file=EXAMPLE_ENV)  # type: ignore[call-arg]
     assert (default.MAX_CLARIFICATION_ROUNDS, default.GRAPH_RECURSION_LIMIT) == (2, 25)
+    assert default.QUERY_MAX_CHARS == 2000
     with pytest.raises(ValueError):
         Settings(_env_file=EXAMPLE_ENV, MAX_CLARIFICATION_ROUNDS=3)  # type: ignore[call-arg]

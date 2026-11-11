@@ -309,6 +309,31 @@ Each stage is one commit, with its tests, lint and docs; M1/M2 behaviour stays u
   - factory wiring and laziness.
 - **Results:** unit 684 and integration 202 passed. `lint` (strict mypy, 92 files), `check-schema` and `check-dense-golden` are green.
 
+### S3 outcome (2026-11-11)
+- **Built:**
+  - `app/security/screen.py`;
+  - `app/graph/inputs.py`: the gate, `start_input` and `resume_command`. They raise `SensitiveDataDetected`, `InputRejected` or `InvalidAnswer`, carrying codes only;
+  - `app/graph/intake.py`: `IntakeExtraction`, a versioned prompt, and the rules for interpreting the model's answer and parsing clarification answers;
+  - real `input_security`, `entity_intake` (async) and `clarify` (`interrupt()`) nodes;
+  - `AccountType` in the taxonomy;
+  - `ProfileValue.evidence_span`;
+  - `KYCState.data_class`;
+  - the `QUERY_MAX_CHARS` setting;
+  - the committed synthetic allowlist `data/eval/m3_synthetic_inputs.jsonl` (6 demo questions).
+- **Deviations from the S2 graph (both follow this plan):**
+  - **Re-screening after answers:** the fixed edge `clarify -> entity_intake` became `clarify -> input_security`, so every resumed answer is screened again (§3 diagram: a resume passes the gate and SEC). The longest path is now 8 + 3 x rounds nodes, so a limit of 15 for 2 rounds; the default stays 25. The topology snapshot changed by that one edge.
+  - **Async execution:** `entity_intake` is async because the S1 LLM layer is async. The graph now runs with `ainvoke`/`astream`, and the sync nodes run in LangGraph's worker thread. The S2 graph tests were rewritten to drive the real nodes with the fake LLM; their path, outcome and limit assertions are kept.
+- **Decisions taken while building:**
+  - **Account-type vocabulary:** `SAVINGS_ACCOUNT`, `CURRENT_ACCOUNT`, `NRE_ACCOUNT`, `NRO_ACCOUNT`, `TERM_DEPOSIT`, grounded in docs/07 and the HDFC forms. It is not stored in any database column.
+  - **Required fields:** entity type and account type; residency only for `INDIVIDUAL`. For other entities it stays unknown and is never assumed.
+  - **Quotes required:** a model-proposed value is accepted only with an `evidence_span` that occurs in the screened question. Otherwise it is `unsupported` and asked about.
+  - **One LLM call per run:** intake calls the LLM on the first pass only; clarification answers are merged without one. If the LLM is missing or fails, every field is asked and a degradation is recorded.
+  - **Gate before graph:** the gate rejects identifiers before the graph exists, because LangGraph checkpoints graph input and `Command(resume=...)` values. The in-graph checks are a second line: they block, remove identifier-bearing text from state and never call the LLM, but a raw resume value that skipped the gate would still be in the checkpoint writes. S6 must build every resume through `resume_command`.
+  - **Text still passed on after a block:** a block for injection or hygiene reasons still passes on the email/phone-redacted text, so a `BLOCKED` report can exist without contact details. Identifier-bearing text is never passed on.
+  - **Fix to account-number detection:** it is proximity-based (account/IFSC wording within 40 characters before the digits, phone numbers removed first). Without this, any KYC question containing "account" plus a phone number was blocked; a regression test covers it.
+- **Tests:** 107 new unit tests (screening 49, intake rules and gate 36, graph interrupt/resume flows 22), and 2 Postgres integration tests (`AsyncPostgresSaver` on a throwaway database; the paused run resumes in a new saver and graph instance; no email or PAN in any checkpoint table).
+- **Results:** unit 791 and integration 204 passed. `lint` (strict mypy, 95 files), `check-schema` and `check-dense-golden` are green. No live Groq call was made.
+
 ## 13. Dependencies and configuration
 - **New packages (D2):** `langgraph`, `langgraph-checkpoint-postgres` (pulls in `psycopg-pool`, `langchain-core` and `langsmith`) and `groq` (imported lazily).
 - **Not added:** sse-starlette (`StreamingResponse` is enough) and arq (§9).

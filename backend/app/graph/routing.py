@@ -8,7 +8,7 @@ Edges (the builder registers exactly these):
 - START -> input_security
 - input_security -> entity_intake | finalize            (`route_after_security`)
 - entity_intake -> policy_retrieval | clarify | finalize (`route_after_intake`)
-- clarify -> entity_intake
+- clarify -> input_security   (a resumed answer is always screened again; M3 S3)
 - policy_retrieval -> form_analysis | evidence_association | finalize
                                                           (`route_after_retrieval`)
 - form_analysis -> evidence_association -> compliance_synthesis -> output_validation

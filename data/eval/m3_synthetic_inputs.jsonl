@@ -1,0 +1,6 @@
+{"id": "m3-demo-01", "query": "What KYC documents does an LLP need to open an account?", "synthetic": true, "note": "M3 done-when demo: LLP with missing account type (clarification expected)"}
+{"id": "m3-demo-02", "query": "What KYC documents does an LLP need to open a current account?", "synthetic": true, "note": "LLP with account type stated"}
+{"id": "m3-demo-03", "query": "What documents are required to open a current account for a trust?", "synthetic": true, "note": "trust (RBI para 35 expected in S4)"}
+{"id": "m3-demo-04", "query": "Which documents does a partnership firm submit for a current account?", "synthetic": true, "note": "partnership (RBI para 34 expected in S4)"}
+{"id": "m3-demo-05", "query": "What KYC is needed for an NRI to open an NRO account?", "synthetic": true, "note": "individual NRI, NRO account"}
+{"id": "m3-demo-06", "query": "What does a resident individual need to open a savings account?", "synthetic": true, "note": "resident individual, savings"}

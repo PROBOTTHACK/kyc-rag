@@ -116,6 +116,8 @@ class Settings(BaseSettings):
     MAX_CLARIFICATION_ROUNDS: int = Field(default=2, ge=0, le=2)
     # LangGraph super-step limit per invocation; must cover the longest path (builder check).
     GRAPH_RECURSION_LIMIT: int = Field(default=25, ge=1, le=100)
+    # Longest accepted user question (characters); longer input is rejected at the gate.
+    QUERY_MAX_CHARS: int = Field(default=2000, ge=100, le=10000)
     MAX_UPLOAD_MB: int = Field(default=20, gt=0)
     RATE_LIMIT_GROQ_RPM: int = Field(default=20, gt=0)
     RATE_LIMIT_GEMINI_RPM: int = Field(default=10, gt=0)

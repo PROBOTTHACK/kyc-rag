@@ -24,6 +24,7 @@ from typing import Annotated, Any, Literal, TypedDict, TypeVar, get_type_hints
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 
 from app.schemas.taxonomy import (
+    AccountType,
     EntityType,
     EvidenceEligibility,
     ResidencyStatus,
@@ -61,6 +62,11 @@ class RunStatus(StrEnum):
     ABANDONED = "abandoned"  # lease expired and taken over by /retry, or session expired
 
 
+class DataClass(StrEnum):
+    SYNTHETIC_DEMO = "synthetic_demo"
+    UNSPECIFIED = "unspecified"
+
+
 class LinkKind(StrEnum):
     """How a form field relates to a policy passage. A relationship, never an obligation
     (M3_PLAN §7): links are not citations and never establish MANDATORY."""
@@ -81,7 +87,7 @@ class ScreenRecord(_Model):
     """What screening did: categories and counts only, never the matched text."""
 
     stage: Literal["messages", "resume", "input_security"]
-    action: Literal["allow", "redact", "block"]
+    action: Literal["allow", "redact", "review", "block"]
     categories: list[str] = Field(default_factory=list)
     counts: dict[str, int] = Field(default_factory=dict)
 
@@ -98,22 +104,32 @@ class ClarificationAnswer(_Model):
 
 
 class ProfileValue(_Model):
-    """A value the user stated or answered, or nothing. Never an inferred default."""
+    """A value the user stated or answered, or nothing. Never an inferred default.
+
+    The two sources stay distinguishable (M3 S3):
+    - `user_stated`: read from the user's question by the intake model. It must carry
+      `evidence_span`, the exact words of the (screened) question that state it; the
+      intake node checks the span really occurs there. It is still an interpretation.
+    - `user_answered`: a structured clarification answer chosen by the user. No span.
+    """
 
     value: str | None = None
     source: Literal["user_stated", "user_answered", "unknown"] = "unknown"
+    evidence_span: str | None = Field(default=None, min_length=1, max_length=200)
 
     @model_validator(mode="after")
     def _known_iff_valued(self) -> "ProfileValue":
         if (self.value is None) != (self.source == "unknown"):
             raise ValueError("a value must have a user source, and only a value may")
+        if (self.evidence_span is not None) != (self.source == "user_stated"):
+            raise ValueError("exactly the user_stated values carry an evidence span")
         return self
 
 
 class EntityProfile(_Model):
     entity_type: ProfileValue = ProfileValue()
     residency: ProfileValue = ProfileValue()
-    account_type: ProfileValue = ProfileValue()  # vocabulary fixed in S3
+    account_type: ProfileValue = ProfileValue()
 
     @model_validator(mode="after")
     def _taxonomy(self) -> "EntityProfile":
@@ -121,6 +137,8 @@ class EntityProfile(_Model):
             EntityType(self.entity_type.value)
         if self.residency.value is not None:
             ResidencyStatus(self.residency.value)
+        if self.account_type.value is not None:
+            AccountType(self.account_type.value)
         return self
 
 
@@ -262,6 +280,9 @@ class KYCState(TypedDict, total=False):
     # request
     session_id: str
     run_id: str
+    # `synthetic_demo` only for sessions created as such (S6); it is what lets the intake
+    # node offer an allowlisted synthetic input to the opt-in LLM cache (M3 D8).
+    data_class: Annotated[str, OneOf(DataClass)]
     query: str  # screened text only
     clarification_rounds: int
     clarification_answers: Annotated[list[JSON], Validates(ClarificationAnswer, each=True)]

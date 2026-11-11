@@ -8,6 +8,13 @@ Single state machine, specialized nodes. A node may use an LLM, deterministic Py
 > - **Outcome vocabulary:** `final_status` is replaced by the single report `outcome` (`BLOCKED`, `INSUFFICIENT_INFORMATION`, `INSUFFICIENT_EVIDENCE`, `DEGRADED`, `CHECKLIST_REVIEW_REQUIRED`, in precedence order), plus the separate run lifecycle `RunStatus`.
 > - **Claim fields:** they arrive with M4.
 > - **Routing:** `app/graph/routing.py`. A blocked or review security status goes to `finalize`, not to a separate refusal node (M3 plan revision 2).
+> - **Security, intake and clarification (M3 S3):** these are real nodes.
+>   - **`input_security`:** deterministic and monotonic. An input cannot declare itself safe, and a block is never relaxed.
+>   - **`entity_intake`:** async. It makes one LLM call on the first pass only.
+>   - **What intake accepts:** values in the closed vocabularies, backed by words in the question; nothing is defaulted.
+>   - **`clarify`:** uses `interrupt()` and `Command(resume=...)`, with enum-only answers. Every round counts, up to `MAX_CLARIFICATION_ROUNDS`.
+>   - **After an answer:** the graph returns to `input_security`.
+>   - **Running it:** the graph runs with `ainvoke`/`astream`.
 
 ```python
 class KYCState(TypedDict, total=False):

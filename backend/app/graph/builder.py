@@ -11,7 +11,13 @@
   while a loop bug always does (LangGraph raises `GraphRecursionError`). LangGraph counts
   the input as a super-step too, so a path of n nodes needs a limit of n + 1.
 - Checkpointing: callers pass a checkpointer. Tests use LangGraph's `InMemorySaver`
-  (`MemorySaver`); the Postgres checkpointer arrives in S6.
+  (`MemorySaver`) and, in integration tests, `AsyncPostgresSaver`; the production
+  Postgres checkpointer is wired in S6. A checkpointer is required for clarification
+  (`interrupt()`).
+- Execution is async (`ainvoke` / `astream`): `entity_intake` awaits the LLM layer;
+  LangGraph runs the sync nodes in a worker thread.
+- After a clarification answer the graph returns to `input_security` (M3 S3), so a
+  resumed answer is always screened again before intake sees it.
 """
 
 from dataclasses import dataclass
@@ -35,6 +41,7 @@ from app.graph.nodes.input_security import input_security
 from app.graph.nodes.output_validation import output_validation
 from app.graph.nodes.policy_retrieval import policy_retrieval
 from app.graph.state import KYCState
+from app.llm.cache import SyntheticAllowlist
 from app.llm.provider import LLMProvider
 from app.retrieval.retrieve import Retriever
 
@@ -46,9 +53,9 @@ _INPUT_STEP = 1  # LangGraph counts the input as a super-step
 
 
 def longest_path_nodes(max_clarification_rounds: int) -> int:
-    """Nodes on the longest legal path: each clarification round adds clarify plus
-    another entity_intake."""
-    return _FIXED_PATH_NODES + 2 * max_clarification_rounds
+    """Nodes on the longest legal path: each clarification round adds clarify, another
+    input_security and another entity_intake."""
+    return _FIXED_PATH_NODES + 3 * max_clarification_rounds
 
 
 def required_recursion_limit(max_clarification_rounds: int) -> int:
@@ -59,16 +66,21 @@ def required_recursion_limit(max_clarification_rounds: int) -> int:
 @dataclass(frozen=True)
 class GraphDeps:
     """Dependencies bound into the nodes. Optional services stay None until the stage
-    that uses them (S3 intake: `llm`; S4 retrieval: `retriever`)."""
+    that uses them (S3 intake: `llm`; S4 retrieval: `retriever`). Without an `llm`,
+    intake records a degradation and clarification asks for every field."""
 
     max_clarification_rounds: int = 2
     recursion_limit: int = 25
     llm: LLMProvider | None = None
     retriever: Retriever | None = None
+    query_max_chars: int = 2000
+    synthetic_allowlist: SyntheticAllowlist = SyntheticAllowlist()
 
     def __post_init__(self) -> None:
         if not 0 <= self.max_clarification_rounds <= 2:
             raise ValueError("max_clarification_rounds must be 0..2")
+        if self.query_max_chars <= 0:
+            raise ValueError("query_max_chars must be positive")
         needed = required_recursion_limit(self.max_clarification_rounds)
         if self.recursion_limit < needed:
             raise ValueError(
@@ -89,6 +101,8 @@ class GraphDeps:
             recursion_limit=settings.GRAPH_RECURSION_LIMIT,
             llm=llm,
             retriever=retriever,
+            query_max_chars=settings.QUERY_MAX_CHARS,
+            synthetic_allowlist=SyntheticAllowlist.load(settings.LLM_CACHE_ALLOWLIST),
         )
 
 
@@ -117,7 +131,7 @@ def build_graph(
         partial(r.route_after_intake, max_rounds=deps.max_clarification_rounds),
         {r.POLICY_RETRIEVAL: r.POLICY_RETRIEVAL, r.CLARIFY: r.CLARIFY, r.FINALIZE: r.FINALIZE},
     )
-    g.add_edge(r.CLARIFY, r.ENTITY_INTAKE)
+    g.add_edge(r.CLARIFY, r.INPUT_SECURITY)  # answers are always re-screened
     g.add_conditional_edges(
         r.POLICY_RETRIEVAL,
         r.route_after_retrieval,

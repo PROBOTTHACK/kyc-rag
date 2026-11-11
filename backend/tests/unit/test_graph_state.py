@@ -1,5 +1,6 @@
 """M3 S2: `KYCState` is JSON-safe, round-trips losslessly and validates its nested models."""
 
+import asyncio
 import json
 from typing import Any
 
@@ -58,7 +59,7 @@ def evidence(**kw: Any) -> EvidenceItem:
 def full_state() -> KYCState:
     """Every key populated, nested values as their JSON dumps."""
     profile = EntityProfile(
-        entity_type=ProfileValue(value="TRUST", source="user_stated"),
+        entity_type=ProfileValue(value="TRUST", source="user_stated", evidence_span="trust"),
         residency=ProfileValue(value="RESIDENT", source="user_answered"),
     )
     form = FormRef(
@@ -81,6 +82,7 @@ def full_state() -> KYCState:
     return {
         "session_id": "s-1",
         "run_id": "run-1",
+        "data_class": "synthetic_demo",
         "query": "What does a synthetic trust need? [REDACTED_EMAIL]",
         "clarification_rounds": 1,
         "clarification_answers": dump_list(
@@ -166,18 +168,33 @@ def test_nested_values_read_back_into_their_models() -> None:
     assert read_list({}, "evidence", EvidenceItem) == []
 
 
+# Keys the S3 nodes recompute on every run (security, intake) and the outcome.
+RECOMPUTED = {"screening", "security_status", "security_reasons", "entity_profile",
+              "missing_fields", "ambiguities", "intake_complete", "outcome"}  # fmt: skip
+
+
 def test_state_survives_a_checkpoint_round_trip() -> None:
     deps = GraphDeps()
     graph = build_graph(deps, checkpointer=InMemorySaver())
     config = run_config(deps, thread_id="s-1")
-    state = full_state()
-    final = graph.invoke(state, config)
+    state = full_state() | {
+        "entity_profile": dump(
+            EntityProfile(
+                entity_type=ProfileValue(
+                    value="TRUST", source="user_stated", evidence_span="trust"
+                ),
+                account_type=ProfileValue(value="CURRENT_ACCOUNT", source="user_answered"),
+            )
+        )
+    }
+    final = asyncio.run(graph.ainvoke(state, config))
     saved = graph.get_state(config).values
     assert saved == final
-    assert {k: v for k, v in saved.items() if k != "outcome"} == {
-        k: v for k, v in state.items() if k != "outcome"
+    assert {k: v for k, v in saved.items() if k not in RECOMPUTED} == {
+        k: v for k, v in state.items() if k not in RECOMPUTED
     }
-    assert saved["outcome"] == "DEGRADED"  # recomputed by the finalize stub
+    assert saved["security_status"] == "safe" and saved["intake_complete"] is True
+    assert saved["outcome"] == "DEGRADED"  # the fixture carries a degradation
     validate_state(saved)
 
 
