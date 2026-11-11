@@ -1,6 +1,6 @@
 # 03 — LangGraph Design
 
-Single state machine, specialized nodes. A node may use an LLM, deterministic Python, or an external service. Checkpointer: Postgres. Progress events (M3 S7): the durable `graph_runs.node_events` in Postgres, streamed over SSE, with Redis pub/sub as a best-effort wake-up only. Tracing: LangSmith.
+Single state machine, specialized nodes. A node may use an LLM, deterministic Python, or an external service. Checkpointer: Postgres. Status (M3 complete, 2026-11-12): the workflow runs end to end through the API; claim verification (NLI), Prompt Guard and review cases are M4 and are not built. Progress events (M3 S7): the durable `graph_runs.node_events` in Postgres, streamed over SSE, with Redis pub/sub as a best-effort wake-up only. Tracing: LangSmith.
 
 ## State
 > **As implemented (M3 S2): `app/graph/state.py`.** It follows `docs/milestones/M3_PLAN.md` §4–§5, which supersedes the sketch below:

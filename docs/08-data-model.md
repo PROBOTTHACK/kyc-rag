@@ -47,7 +47,25 @@ M1 tables (Alembic `0001_m1_corpus` + `0002_m1_persistence`; ORM `app/db/models.
   - **Downgrade:** it refuses while any checkpoint exists.
   - **Threads:** one per question (`graph_runs.thread_id`).
 
-Use a separate schema or prefix for checkpoint tables. Apply retention (delete expired sessions/uploads).
+Use a separate schema or prefix for checkpoint tables.
+
+**Retention (implemented in M3 S8, `app/workflow/retention.py`; `make purge`, `make purge-dry`, `make check-workflow`):**
+
+| Phase | When | What happens | What stays |
+|---|---|---|---|
+| 1 | `expires_at` | checkpoint data for every thread of the session (all `langgraph` tables with a `thread_id` column), the idempotency rows; open runs → `abandoned`; `status=expired`, `checkpoints_purged_at` set | session, runs, reports (readable) |
+| 2 | `expires_at + REPORT_RETENTION_D` | checkpoint data deleted and verified first, then the session row; the FKs cascade to `graph_runs`, `reports`, `api_idempotency` | nothing |
+| orphans | any time | checkpoint data whose thread has no `graph_runs` row | — |
+| idempotency TTL | `created_at + IDEMPOTENCY_TTL_H` | old idempotency rows | — |
+
+- **One transaction per session:**
+  1. lock `kyc_sessions` and `graph_runs` (`FOR UPDATE`, `lock_timeout` 5 s);
+  2. recheck the state;
+  3. delete the checkpoint data and verify it is gone;
+  4. change or delete the session.
+- **Skipped, with a reason, and retried by the next purge:** a valid run lease (`live_lease`), a held lock (`locked`), or a state that changed since planning (`not_expired`, `gone`). Any error rolls back.
+- **Stale writers:** checkpoint data written after phase 1 by a writer whose lease had already expired is reported by `check` and removed by the next purge.
+- **Dry run:** `--dry-run` is one read-only transaction.
 
 ## Redis key conventions (all with TTL)
 | Key | Purpose | TTL |

@@ -48,6 +48,9 @@
 - **Threads:** one LangGraph thread per question (S6-D1).
 - **Cancellation:** there is no cancel endpoint. A client disconnect never cancels a run, and shutdown is treated like a crash (S6-D2).
 - **Ownership:** possession of the session id (S6-D4). There are no user accounts in M3.
+- **Retention (M3 S8):**
+  - **Phase 1 (`make purge`, at `expires_at`):** the checkpoints and idempotency rows are deleted and any open run is `abandoned`. Writes return `410 SESSION_EXPIRED`. `GET /sessions/{id}`, `GET /reports/{id}` and the SSE replay still work.
+  - **Phase 2 (after `REPORT_RETENTION_D` days):** the session, its runs and its reports are deleted, and every endpoint returns `404`.
 - **Progress:** `node_events` are recorded in Postgres and streamed over SSE (`GET /sessions/{id}/events`, implemented in M3 S7; see below).
 
 ## Request

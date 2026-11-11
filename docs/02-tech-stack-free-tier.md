@@ -94,6 +94,19 @@ The official pages were read on 2026-11-11. Quotes are verbatim. **No live Groq 
 - **Live gate:** live calls stay off unless `GROQ_LIVE_ENABLED=true` and `GROQ_DATA_TERMS_VERIFIED_ON=2026-11-11` (this review) are set, alongside `GROQ_API_KEY`. The repo-root `.env` holds a Groq key (checked by length only, never printed). It is unused until S1 adds the gate.
 - **Before a live run:** optionally enable ZDR, or opt out of log storage, in the console Data Controls.
 
+## Groq live run (2026-11-12, M3 S8; the only live Groq session in M3)
+- **Authorisation:** the owner opened the gate (`GROQ_LIVE_ENABLED`, `GROQ_DATA_TERMS_VERIFIED_ON` set by the owner) and explicitly authorised one run. Settings were checked by presence only.
+- **Model check:** one metadata-only `models.list` call. `openai/gpt-oss-120b` and `openai/gpt-oss-20b` were both available (11 models listed).
+- **The run:** `make demo-live` (synthetic `m3-demo-01`, enum answer `account_type=CURRENT_ACCOUNT`, public corpus text). **2 calls**, both on `openai/gpt-oss-120b` and both `ok`, with no cache hit and no fallback:
+  - intake: 2153 ms, 623 input / 312 output tokens;
+  - synthesis: 3154 ms, 2886 input / 1093 output tokens.
+  - Far below every published limit.
+- **Gemini:** not called. Forms came from stored schemas (D4).
+- **Found:** in dev (`APP_ENV=dev`, root logger at DEBUG), `groq._base_client` logged the full request options, prompt included, to the API log. No key appeared. Fixed in `app/core/logging.py`: payload-logging libraries are held at WARNING in every environment, with a regression test. The local log file was deleted.
+
+## Retention settings (M3 S8)
+`REPORT_RETENTION_D=30` (days after session expiry) and `IDEMPOTENCY_TTL_H=24`. The purge is a CLI (`make purge`); there is no background worker.
+
 ## Where Postgres is used
 - **LangGraph checkpointer** (replaces SQLite) -> pause/resume for clarification & human review.
 - Sessions, documents, reports, claims, review cases, form schemas, rules, evaluation runs (see `08-data-model.md`).

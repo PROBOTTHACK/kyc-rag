@@ -592,6 +592,19 @@ S4 is accepted as implemented. These observations carry forward without reopenin
   - **No live Groq or Gemini call.**
 - **Pending (owner gate):** the single live Groq run, then docs 01/02/03/07/08, the README and `M3_HANDOFF.md`.
 
+### S8 outcome, part 2 (2026-11-12): the live Groq run, docs, handoff; M3 complete
+- **Owner authorisation:** after the owner set the gate, presence was confirmed only (no values printed). One metadata-only `models.list` call confirmed `openai/gpt-oss-120b` and `-20b` were available.
+- **`make demo-live` (one session):**
+  - **Calls:** 2 Groq calls (intake 2.2 s, 623/312 tokens; synthesis 3.2 s, 2886/1093 tokens). No fallback, no cache, no Gemini.
+  - **Clarification:** `account_type` only.
+  - **Outcome:** **CHECKLIST_REVIEW_REQUIRED**, evidence partial, with 2 items citing `hdfc_non_individual_account_opening` p.1. The model proposed both as MANDATORY and the validator downgraded both to CONDITIONAL. 3 unresolved items. Acceptance passed. Recorded as-is.
+- **Found and fixed:** in dev, the DEBUG root level let `groq._base_client` write the full request (the prompt) to the API log. No key was logged. `configure_logging` now holds payload-logging libraries at WARNING in every environment (3 unit tests). The local log file was deleted.
+- **Docs:** README (M3 quick-start: demo, retention, limits, roadmap), docs 01/02/03/07/08, and `M3_HANDOFF.md`.
+- **Results (final run):**
+  - **Tests:** integration 267 passed. Unit 968 passed, plus 1 failure that depends on `.env`: `test_app_imports_without_the_groq_sdk_or_a_key` reads the repo `.env`, where the owner's live gate is still `true`. It passes once the gate is closed.
+  - **Checks:** lint (strict mypy, 112 files), check-schema, dense golden and the ingest dry run are green.
+- **Next:** the owner sets `GROQ_LIVE_ENABLED=false`. Merging into `main` waits for owner approval.
+
 ## 13. Dependencies and configuration
 - **New packages (D2):** `langgraph`, `langgraph-checkpoint-postgres` (pulls in `psycopg-pool`, `langchain-core` and `langsmith`) and `groq` (imported lazily).
 - **Not added:** sse-starlette (`StreamingResponse` is enough) and arq (§9).

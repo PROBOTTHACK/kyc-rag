@@ -40,6 +40,9 @@ flowchart TD
   G -. progress events: node_events in Postgres, Redis pub/sub wake-up, SSE .-> RD[(Redis pub/sub)] --> FE
 ```
 
+## Workflow lifecycle and retention (M3)
+API → in-process run (Postgres lease, checkpoint after every node) → `node_events` in Postgres → SSE (Redis wake-up only) → report (insert-only). Expired sessions are purged by the CLI (`make purge`): phase 1 removes checkpoints and idempotency rows at expiry; phase 2 removes the session, runs and reports after `REPORT_RETENTION_D`. Demo path: `make api`, then `make demo` (or `make demo-live` with the owner's Groq gate).
+
 ## Document ingestion (implemented in M1)
 Pipeline A runs offline from the CLI (`make ingest`), one document at a time. Postgres is the source of truth; Qdrant is a derived index built from committed rows, and the two are reconciled rather than written in one transaction.
 ```mermaid
