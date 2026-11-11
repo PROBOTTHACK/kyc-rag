@@ -141,6 +141,8 @@ def full_state() -> KYCState:
         ),
         "outcome": "DEGRADED",
         "report_id": None,
+        "checklist": None,
+        "report": None,
     }
 
 
@@ -188,6 +190,13 @@ RECOMPUTED = {
     "form_flags",
     "associations",
     "degradations",
+    "draft",
+    "synthesis_attempts",
+    "llm_calls",
+    "validation_findings",
+    "checklist",
+    "report",
+    "report_id",
 }
 
 

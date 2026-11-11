@@ -22,6 +22,11 @@ Single state machine, specialized nodes. A node may use an LLM, deterministic Py
 >   - **Forms:** stored schemas only, never Gemini.
 >   - **Links:** relationships only.
 >   - **No new edges.**
+> - **Synthesis, validation and finalize (M3 S5):** these are real nodes.
+>   - **`compliance_synthesis`:** async, one call plus one re-ask, under the node time limit. Its prompt holds profile values, delimited evidence, bounded form labels and gap codes, and fits the Groq token budget.
+>   - **`output_validation`:** deterministic and authoritative.
+>   - **`finalize`:** writes one insert-only report per run (id = uuid5 of session and run) through `GraphDeps.reports`, with a deterministic user message: the fallback text when nothing is supported, failure reported apart from "no information", and the disclaimer.
+>   - **No new edges.**
 
 ```python
 class KYCState(TypedDict, total=False):

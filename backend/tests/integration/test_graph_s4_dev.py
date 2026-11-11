@@ -19,6 +19,7 @@ from app.graph.builder import GraphDeps, build_graph, run_config
 from app.graph.corpus import PostgresCorpusReader
 from app.graph.inputs import start_input
 from app.graph.intake import ExtractedValue, IntakeExtraction
+from app.graph.synthesis import ChecklistDraft
 from app.llm.fake import scripted_llm
 from app.retrieval.factory import retriever_from_settings
 from app.retrieval.qdrant_store import store_from_settings
@@ -64,7 +65,7 @@ def run(dev: GraphDeps, query: str, extraction: IntakeExtraction) -> dict[str, A
         retriever=dev.retriever,
         corpus=dev.corpus,
         retrieval_mode="dense",
-        llm=scripted_llm(extraction),
+        llm=scripted_llm(extraction, ChecklistDraft()),  # S5 synthesis: an empty draft
     )
     graph = build_graph(deps, checkpointer=InMemorySaver())
     out = asyncio.run(

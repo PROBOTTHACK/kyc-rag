@@ -95,6 +95,10 @@ def decide_outcome(state: Mapping[str, Any]) -> Outcome:
         return Outcome.INSUFFICIENT_INFORMATION
     if retrieval_failed(state) or not has_eligible_evidence(state):
         return Outcome.INSUFFICIENT_EVIDENCE
+    checklist = state.get("checklist")
+    if isinstance(checklist, list) and not checklist:
+        # S5-D2: a draft with nothing surviving validation answers nothing.
+        return Outcome.INSUFFICIENT_EVIDENCE
     meta = state.get("retrieval_meta")
     partial_retrieval = isinstance(meta, Mapping) and bool(meta.get("degraded"))
     if state.get("degradations") or partial_retrieval or state.get("draft") is None:

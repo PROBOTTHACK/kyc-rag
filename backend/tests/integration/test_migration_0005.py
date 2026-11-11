@@ -79,7 +79,6 @@ def test_0005_widens_only_the_method_check_and_is_reversible(temp_db: str) -> No
     assert revision(engine) == "0005_m2_gemini_method"
     assert checks(engine) == names and snapshot(engine) == before  # same names, rows intact
     assert "gemini_multimodal" in check_def(engine)
-    command.check(cfg)  # ORM mirrors the widened check
     insert_gemini(engine, base)
 
     with pytest.raises(RuntimeError, match="refusing to downgrade"):
@@ -94,4 +93,5 @@ def test_0005_widens_only_the_method_check_and_is_reversible(temp_db: str) -> No
         insert_gemini(engine, base)
 
     command.upgrade(cfg, "head")
+    command.check(cfg)  # ORM mirrors the widened check (at head; 0005 is no longer the head)
     insert_gemini(engine, base)

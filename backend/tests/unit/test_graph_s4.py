@@ -682,7 +682,19 @@ LLP_COMPLETE = IntakeExtraction(
 
 
 def test_llp_end_to_end_with_clarification_partial_evidence_forms_and_links() -> None:
-    llm = scripted_llm(LLP_COMPLETE)
+    from app.graph.synthesis import ChecklistDraft, DraftRequirement
+
+    draft = ChecklistDraft(
+        requirements=[
+            DraftRequirement(
+                name="Partnership deed",
+                explanation="From the cited group-scope paragraph.",
+                applicability="MANDATORY",
+                evidence_ids=[cid(RBI_LEGAL)],
+            )
+        ]
+    )
+    llm = scripted_llm(LLP_COMPLETE, draft)
     retriever = FakeRetriever({"LLP": [NI_FIELDS, NI_TEXT], "LEGAL_ENTITY": [RBI_LEGAL, RBI_TRUST]})
     d = deps(retriever, FakeCorpus(), llm=llm)
     g = build_graph(d, checkpointer=InMemorySaver())
@@ -699,8 +711,10 @@ def test_llp_end_to_end_with_clarification_partial_evidence_forms_and_links() ->
     assert scopes == {"entity", "entity_group"}
     assert [f["form_key"] for f in final["forms"]] == ["hdfc_ni_form"]
     assert final["associations"]
-    assert final["outcome"] == "DEGRADED"  # no draft until S5
-    assert len(llm.requests) == 1  # S4 makes no LLM call
+    # S5: entity-group evidence can never establish MANDATORY on its own
+    assert [r["applicability"] for r in final["checklist"]] == ["CONDITIONAL"]
+    assert final["outcome"] == "CHECKLIST_REVIEW_REQUIRED"
+    assert len(llm.requests) == 2  # intake + synthesis; the S4 nodes make none
     validate_state(final)
     assert "mandatory_under_policy" not in json.dumps(final)
 

@@ -143,8 +143,25 @@ def test_a_complete_intake_reaches_retrieval_in_one_run() -> None:
     ]  # (no retriever configured: retrieval_failed)
 
 
+def rbi_draft() -> Any:
+    """A synthesis draft citing the synthetic RBI chunk (S5 runs the real synthesis)."""
+    from app.graph.synthesis import ChecklistDraft, DraftRequirement
+    from tests.unit.test_graph_s4 import RBI_TRUST, cid
+
+    return ChecklistDraft(
+        requirements=[
+            DraftRequirement(
+                name="Certified copy of the trust deed",
+                explanation="Stated in the cited paragraph.",
+                applicability="MANDATORY",
+                evidence_ids=[cid(RBI_TRUST)],
+            )
+        ]
+    )
+
+
 def test_the_post_intake_path_with_forms() -> None:
-    deps = s4()
+    deps = s4(llm=scripted_llm(rbi_draft()))
     g = build_graph(deps, checkpointer=InMemorySaver())
     config = run_config(deps, thread_id="t")
     assert from_intake(g, config, with_primary_evidence()) == [
@@ -187,7 +204,7 @@ def test_internal_keys_in_the_graph_input_are_dropped() -> None:
 def test_the_path_without_forms_and_the_insufficient_evidence_path() -> None:
     from tests.unit.test_graph_s4 import RBI_TRUST
 
-    deps = s4({"SOCIETY": [RBI_TRUST]}, llm=scripted_llm(COMPLETE, COMPLETE, COMPLETE))
+    deps = s4({"SOCIETY": [RBI_TRUST]}, llm=scripted_llm(rbi_draft(), COMPLETE, COMPLETE))
     g = build_graph(deps, checkpointer=InMemorySaver())
     society = dict(POST_INTAKE)
     society["entity_profile"] = dict(POST_INTAKE["entity_profile"]) | {

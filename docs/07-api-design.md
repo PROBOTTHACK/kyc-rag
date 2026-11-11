@@ -23,6 +23,17 @@
  "entity_context":{"entity_type":"LLP","account_type":"CURRENT_ACCOUNT"}}
 ```
 ## Report response (illustrative)
+> **As implemented (M3 S5): `ComplianceReport` in `app/graph/state.py`. It supersedes the sketch below.**
+> - **Fields:**
+>   - `report_id`, `outcome` (one of five; no approve or reject value exists) and `human_review_required: true`;
+>   - the fixed `notice` and the independence `disclaimer`;
+>   - a deterministic `user_message`;
+>   - `profile` (values and sources only, never the user's words);
+>   - `evidence_status` / `gaps`, `checklist` (validated requirements with citations copied from stored chunks), `dropped_requirements`, `unresolved_items`, `findings`, `degradations`;
+>   - `forms`, where `subset_only` marks a capped field analysis;
+>   - `security_reasons` (BLOCKED only: codes, never text).
+> - **Requirement fields:** `applicability` (the validator's) beside `proposed_applicability` (the model's), `uncertainty_label`, `verification_status: not_claim_verified`.
+
 ```json
 {"report_id":"report_001","entity_type":"LLP","account_type":"CURRENT_ACCOUNT",
  "status":"REVIEW_REQUIRED",

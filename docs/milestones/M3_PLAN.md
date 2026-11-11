@@ -432,6 +432,44 @@ S4 is accepted as implemented. These observations carry forward without reopenin
    - **A technical retrieval failure:** recorded as `evidence_status="retrieval_failed"`, `failed=true`, `failure_kinds` and a `retrieval` degradation.
    - S5 reports must keep the two apart.
 
+### S5 outcome (2026-11-11)
+- **Built:**
+  - `app/graph/synthesis.py`: `ChecklistDraft`, the versioned, delimited and budgeted prompt;
+  - `app/graph/validation.py`: the authoritative gate;
+  - `app/graph/report.py`: `ComplianceReport` builder, deterministic messages, `ReportStore`;
+  - real `compliance_synthesis`, `output_validation` and `finalize` nodes;
+  - `app/db/workflow.py`: `create_session`, `PostgresReportStore`;
+  - migration `0006_m3_workflow` with ORM rows;
+  - state keys `checklist` / `report`, `GraphDeps.reports`, and the `decide_outcome` rule S5-D2.
+- **Owner decisions applied:**
+  - **S5-D1:** uncited requirements are dropped.
+  - **S5-D2:** nothing surviving gives `INSUFFICIENT_EVIDENCE` / `no_supported_requirements` plus the fallback text.
+  - **S5-D3:** report id = uuid5(session/run).
+  - **S5-D4:** all four tables are created now.
+- **Carry-forward commitments met:**
+  - entity-group evidence never establishes MANDATORY (finding `only_entity_group`);
+  - NRI partial evidence stays `partial`, with its gap in the report;
+  - `fields_capped` is shown as `subset_only` and in the message;
+  - a missing schema has its own message line, never the retrieval-failure text;
+  - `none` gives the fallback verbatim, while `retrieval_failed` gives a distinct technical-failure message plus the referral;
+  - BLOCKED reports carry codes only;
+  - every message ends with the disclaimer;
+  - no message says "not required" or "not applicable".
+- **Measured on the dev stack** (real BGE dense, scripted adversarial drafts proposing MANDATORY for every top citation):
+  - **TRUST:** the RBI ¶35 item stays MANDATORY; the FAQ and form items are downgraded.
+  - **LLP and NRI:** every item becomes CONDITIONAL; the status stays `partial`.
+- **Tests:**
+  - 37 new unit tests: the MANDATORY gate, no invention, the prompt and budget, synthesis failures, outcomes, every message case, report invariants;
+  - 10 table and migration integration tests: up/down/up, CHECKs, the insert-only trigger, the partial unique index, store idempotency;
+  - 2 end-to-end integration tests on the ingested corpus, with reports stored in Postgres;
+  - S2/S4 graph tests updated where synthesis now consumes a scripted draft. The S4 integration tests script an empty draft, so their retrieval assertions are unchanged and the honest outcome is `INSUFFICIENT_EVIDENCE`.
+  - **One test moved:** the 0005 migration test now runs its ORM drift check at head (as the 0003/0004 tests do), because the ORM now includes 0006.
+- **Results:**
+  - **Tests:** unit 902 and integration 222 passed.
+  - **Checks:** lint (strict mypy, 101 files), check-schema and dense golden are green.
+  - **Unchanged:** the topology snapshot.
+  - **No live Groq or Gemini call.**
+
 ## 13. Dependencies and configuration
 - **New packages (D2):** `langgraph`, `langgraph-checkpoint-postgres` (pulls in `psycopg-pool`, `langchain-core` and `langsmith`) and `groq` (imported lazily).
 - **Not added:** sse-starlette (`StreamingResponse` is enough) and arq (§9).

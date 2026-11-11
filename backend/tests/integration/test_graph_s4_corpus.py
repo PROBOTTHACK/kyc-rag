@@ -25,6 +25,7 @@ from app.graph.intake import ExtractedValue, IntakeExtraction
 from app.graph.nodes.form_analysis import form_analysis
 from app.graph.nodes.policy_retrieval import policy_retrieval
 from app.graph.state import EntityProfile, ProfileValue, dump, validate_state
+from app.graph.synthesis import ChecklistDraft
 from app.llm.fake import scripted_llm
 from app.retrieval.factory import retriever_from_settings
 from app.retrieval.qdrant_store import ChunkStore
@@ -133,7 +134,7 @@ def test_llp_end_to_end_on_the_real_corpus(
         residency=ExtractedValue(),
         account_type=ExtractedValue(),
     )
-    llm = scripted_llm(extraction)
+    llm = scripted_llm(extraction, ChecklistDraft())  # S5 synthesis: an empty draft
     deps = bm25(world, llm=llm)
     graph = build_graph(deps, checkpointer=InMemorySaver())
     config = run_config(deps, thread_id="llp-corpus")
@@ -164,5 +165,6 @@ def test_llp_end_to_end_on_the_real_corpus(
     assert all((f["printed_label"], f["chunk_id"]) in stored_fields for f in form["fields"])
     assert all(a["relationship_only"] is True for a in final["associations"])
     assert "mandatory_under_policy" not in json.dumps(final)
-    assert final["outcome"] in ("DEGRADED", "INSUFFICIENT_EVIDENCE")  # no draft until S5
-    assert len(llm.requests) == 1
+    # S5: the empty draft supports nothing, so the honest outcome is INSUFFICIENT_EVIDENCE
+    assert final["outcome"] == "INSUFFICIENT_EVIDENCE"
+    assert len(llm.requests) == 2  # intake + synthesis; the S4 nodes make none

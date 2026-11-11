@@ -27,6 +27,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from app.graph.state import DataClass, Outcome, RunStatus
 from app.schemas.taxonomy import (
     AttributionBasis,
     Bank,
@@ -48,6 +49,11 @@ from app.schemas.taxonomy import (
 
 class Base(DeclarativeBase):
     pass
+
+
+class SessionStatus(StrEnum):
+    ACTIVE = "active"
+    EXPIRED = "expired"
 
 
 def _in(column: str, enum: type[StrEnum], *, nullable: bool = False) -> str:
@@ -513,4 +519,135 @@ class IngestionRun(Base):
         CheckConstraint("sha256 ~ '^[0-9a-f]{64}$'", name="ck_ingestion_runs_sha256"),
         Index("ix_ingestion_runs_document_key", "document_key", "started_at"),
         Index("ix_ingestion_runs_status", "status"),
+    )
+
+
+# --- M3 workflow (migration 0006_m3_workflow; M3_PLAN §5, §9, §11) ---------------------------
+
+
+class KycSession(Base):
+    """A workflow session. Busy-ness comes from its runs, not from `status`."""
+
+    __tablename__ = "kyc_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'active'"))
+    data_class: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'unspecified'")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    checkpoints_purged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint(_in("status", SessionStatus), name="ck_kyc_sessions_status"),
+        CheckConstraint(_in("data_class", DataClass), name="ck_kyc_sessions_data_class"),
+        CheckConstraint("expires_at > created_at", name="ck_kyc_sessions_expiry"),
+    )
+
+
+class GraphRun(Base):
+    """One graph run (execution lifecycle and the Postgres run lease; used from S6)."""
+
+    __tablename__ = "graph_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("kyc_sessions.id", ondelete="CASCADE"), nullable=False
+    )
+    thread_id: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    owner_id: Mapped[str | None] = mapped_column(Text)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    node_events: Mapped[list[Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'[]'::jsonb")
+    )
+    llm_calls: Mapped[list[Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'[]'::jsonb")
+    )
+    retries: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    latency_ms: Mapped[int | None] = mapped_column(Integer)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint(_in("status", RunStatus), name="ck_graph_runs_status"),
+        CheckConstraint("retries >= 0", name="ck_graph_runs_retries"),
+        Index(
+            "uq_graph_runs_active",
+            "session_id",
+            unique=True,
+            postgresql_where=text("status IN ('running', 'awaiting_clarification')"),
+        ),
+        Index("ix_graph_runs_session", "session_id", "started_at"),
+    )
+
+
+class ReportRow(Base):
+    """One report per run: insert-only (a trigger rejects UPDATE; DELETE is the S8 purge).
+    Every report requires human review; no column or value can express approval."""
+
+    __tablename__ = "reports"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("kyc_sessions.id", ondelete="CASCADE"), nullable=False
+    )
+    run_id: Mapped[str] = mapped_column(Text, nullable=False)
+    outcome: Mapped[str] = mapped_column(Text, nullable=False)
+    human_review_required: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("true")
+    )
+    evidence_status: Mapped[str | None] = mapped_column(Text)
+    report_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(_in("outcome", Outcome), name="ck_reports_outcome"),
+        CheckConstraint("human_review_required IS TRUE", name="ck_reports_human_review"),
+        CheckConstraint(
+            "evidence_status IS NULL OR evidence_status IN "
+            "('found', 'partial', 'none', 'retrieval_failed')",
+            name="ck_reports_evidence_status",
+        ),
+        CheckConstraint(
+            "report_json->>'outcome' IS NOT DISTINCT FROM outcome "
+            "AND report_json->>'report_id' IS NOT DISTINCT FROM id::text "
+            "AND (report_json->'human_review_required') = 'true'::jsonb",
+            name="ck_reports_json_identity",
+        ),
+        UniqueConstraint("session_id", "run_id", name="uq_reports_session_run"),
+    )
+
+
+class ApiIdempotency(Base):
+    """Idempotency records for POST /messages, /resume, /retry (used from S6)."""
+
+    __tablename__ = "api_idempotency"
+
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("kyc_sessions.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    key: Mapped[str] = mapped_column(Text, primary_key=True)
+    endpoint: Mapped[str] = mapped_column(Text, nullable=False)
+    request_sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    response_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("request_sha256 ~ '^[0-9a-f]{64}$'", name="ck_api_idempotency_sha256"),
+        CheckConstraint(
+            "endpoint IN ('messages', 'resume', 'retry')", name="ck_api_idempotency_endpoint"
+        ),
     )

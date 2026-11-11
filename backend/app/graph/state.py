@@ -19,12 +19,13 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Annotated, Any, Literal, TypedDict, TypeVar, get_type_hints
+from typing import Annotated, Any, Final, Literal, TypedDict, TypeVar, get_type_hints
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 
 from app.schemas.taxonomy import (
     AccountType,
+    Applicability,
     EntityType,
     EvidenceEligibility,
     ResidencyStatus,
@@ -272,6 +273,106 @@ class ValidationFinding(_Model):
     detail: str = Field(max_length=500)
 
 
+# --- validated checklist and report (M3 S5) -----------------------------------------------------
+
+NOTICE: Final = "Decision support only. Not a KYC decision. Not claim-verified (M4)."
+DISCLAIMER = (
+    "Independent educational prototype. Not affiliated with, endorsed by, or an official "
+    "system of HDFC Bank."
+)
+
+
+class Citation(_Model):
+    """A cited stored chunk, copied from Postgres (never from model output)."""
+
+    evidence_id: str
+    document_key: str
+    page: int = Field(ge=1)
+    page_end: int | None = Field(default=None, ge=1)
+    paragraph: str | None = None
+    match_scope: Literal["entity", "entity_group"]
+    evidence_eligibility: EvidenceEligibility
+    text_reliability: TextReliability
+    source_status: SourceStatus
+    can_support_mandatory: bool
+
+
+class RelatedField(_Model):
+    """A form field linked (S4) to a cited passage: a relationship, never an obligation."""
+
+    form_key: str
+    field_label: str
+    link_kind: LinkKind
+    note: Literal["related form field (relationship only)"] = (
+        "related form field (relationship only)"
+    )
+
+
+class ValidatedRequirement(_Model):
+    """A requirement that survived `output_validation`. Its applicability is the
+    validator's (never above the model's proposal); its explanation is model prose."""
+
+    requirement_id: str
+    name: str = Field(min_length=1, max_length=120)
+    explanation: str = Field(max_length=600)
+    explanation_status: Literal["model_drafted_not_verified"] = "model_drafted_not_verified"
+    applicability: Applicability
+    proposed_applicability: Applicability
+    citations: list[Citation] = Field(min_length=1)
+    related_form_fields: list[RelatedField] = Field(default_factory=list)
+    uncertainty_label: str
+    verification_status: Literal["not_claim_verified"] = "not_claim_verified"
+
+
+class FormSummary(_Model):
+    form_key: str
+    method: Literal["m1_chunks", "gemini_multimodal"]
+    version: int = Field(ge=1)
+    flags: list[str] = Field(default_factory=list)
+    fields_analysed: int = Field(ge=0)
+    subset_only: bool  # True when `fields_capped`: the whole form was NOT analysed
+
+
+class ProfileSummary(_Model):
+    """A profile value and its source for the report (never the user's own words)."""
+
+    value: str | None
+    source: Literal["user_stated", "user_answered", "unknown"]
+
+
+class ComplianceReport(_Model):
+    """One report per run (M3_PLAN §5). Every report requires human review; no field can
+    express an approval or rejection. Holds codes and stored-source citations only:
+    never the question text, quoted user words or matched sensitive text."""
+
+    report_id: str
+    session_id: str | None = None
+    run_id: str | None = None
+    outcome: Outcome
+    human_review_required: Literal[True] = True
+    notice: Literal["Decision support only. Not a KYC decision. Not claim-verified (M4)."] = NOTICE
+    disclaimer: str = DISCLAIMER
+    user_message: str
+    profile: dict[str, ProfileSummary] = Field(default_factory=dict)
+    missing_fields: list[str] = Field(default_factory=list)
+    evidence_status: Literal["found", "partial", "none", "retrieval_failed"] | None = None
+    gaps: list[str] = Field(default_factory=list)
+    checklist: list[ValidatedRequirement] | None = None
+    dropped_requirements: int = Field(default=0, ge=0)
+    unresolved_items: list[str] = Field(default_factory=list)
+    findings: list[ValidationFinding] = Field(default_factory=list)
+    degradations: list[Degradation] = Field(default_factory=list)
+    forms: list[FormSummary] = Field(default_factory=list)
+    security_reasons: list[str] = Field(default_factory=list)
+    verification: Literal["not_claim_verified"] = "not_claim_verified"
+
+    @model_validator(mode="after")
+    def _disclaimer_present(self) -> "ComplianceReport":
+        if self.disclaimer != DISCLAIMER or DISCLAIMER not in self.user_message:
+            raise ValueError("every report and message carries the independence disclaimer")
+        return self
+
+
 # --- the state ---------------------------------------------------------------------------
 
 
@@ -334,6 +435,9 @@ class KYCState(TypedDict, total=False):
     validation_findings: Annotated[list[JSON], Validates(ValidationFinding, each=True)]
     outcome: Annotated[str, OneOf(Outcome)]
     report_id: str | None
+    # M3 S5: the validated checklist (None until validation ran) and the report.
+    checklist: Annotated[list[JSON] | None, Validates(ValidatedRequirement, each=True)]
+    report: Annotated[JSON | None, Validates(ComplianceReport)]
 
 
 class KYCInput(TypedDict, total=False):
@@ -389,6 +493,8 @@ def validate_state(state: Mapping[str, Any]) -> None:
             TypeAdapter(base).validate_python(value, strict=True)
             for marker in meta:
                 if isinstance(marker, Validates):
+                    if value is None:
+                        continue
                     items = value if marker.each else [value]
                     for item in items:
                         marker.model.model_validate(item)

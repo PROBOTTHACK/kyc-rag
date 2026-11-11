@@ -228,6 +228,12 @@ M2-specific limits:
 - The RECITATION→OCR fallback is tested but has not yet occurred live.
 - Details: [`docs/milestones/M2_HANDOFF.md`](docs/milestones/M2_HANDOFF.md).
 
+M3 (in progress) limits:
+- The workflow drafts a checklist only from retrieved, cited sources, and a deterministic validator checks every citation and every MANDATORY.
+- When the knowledge base does not support an answer, it says so and refers you to HDFC Bank. It never treats missing evidence as "not required".
+- Explanations are model-drafted and not yet claim-verified (M4).
+- Every result requires human review.
+
 ## Roadmap
 
 - [x] Document ingestion and retrieval foundation (M1: see [`docs/milestones/M1_HANDOFF.md`](docs/milestones/M1_HANDOFF.md))

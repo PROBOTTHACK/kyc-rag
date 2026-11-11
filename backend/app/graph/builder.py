@@ -41,6 +41,7 @@ from app.graph.nodes.form_analysis import form_analysis
 from app.graph.nodes.input_security import input_security
 from app.graph.nodes.output_validation import output_validation
 from app.graph.nodes.policy_retrieval import policy_retrieval
+from app.graph.report import ReportStore
 from app.graph.state import KYCInput, KYCState
 from app.llm.cache import SyntheticAllowlist
 from app.llm.provider import LLMProvider
@@ -76,6 +77,7 @@ class GraphDeps:
     llm: LLMProvider | None = None
     retriever: SupportsRetrieve | None = None
     corpus: CorpusReader | None = None
+    reports: ReportStore | None = None  # S5 finalize; without one, the report stays in state
     retrieval_mode: str = "dense"
     rerank: bool = False
     query_max_chars: int = 2000
@@ -104,6 +106,7 @@ class GraphDeps:
         llm: LLMProvider | None = None,
         retriever: SupportsRetrieve | None = None,
         corpus: CorpusReader | None = None,
+        reports: ReportStore | None = None,
     ) -> "GraphDeps":
         return cls(
             max_clarification_rounds=settings.MAX_CLARIFICATION_ROUNDS,
@@ -111,6 +114,7 @@ class GraphDeps:
             llm=llm,
             retriever=retriever,
             corpus=corpus,
+            reports=reports,
             retrieval_mode=settings.RETRIEVAL_MODE,
             rerank=settings.RERANK_ENABLED,
             query_max_chars=settings.QUERY_MAX_CHARS,
