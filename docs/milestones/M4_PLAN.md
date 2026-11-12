@@ -406,3 +406,66 @@ Findings:
   Per-model attribution is not recoverable from the v1 record without re-scoring.
 - **Integrity.** The dev SHA in the record equals the committed file. The held-out file is byte-identical (hashed only). The record and summary are committed as produced. No threshold change, relabelling, new protocol or dependency.
 - **Consequence for S5.** The graph node ships with NLI off: claims are `not_verified`, with the `verification` degradation and the DEGRADED outcome. The never-upgrade invariant holds. Any later protocol is a new version, disclosed as post-hoc, and needs the owner's approval.
+
+## S5 outcome (2026-11-12): `claim_verification` in the graph, NLI disabled
+**Graph** (`builder.py`, `routing.py`):
+- `output_validation -> claim_verification | finalize` (`route_after_validation`): only a non-empty validated checklist is verified; a missing, empty or malformed checklist finalizes as in M3. Then `claim_verification -> finalize`.
+- The longest path gains one node: `_FIXED_PATH_NODES = 9`, required recursion limit 10/13/16 for 0/1/2 clarification rounds (the default 25 is unchanged).
+- The topology change is snapshotted in `tests/fixtures/m4_graph_topology.json`. A test proves the only difference from the M3 snapshot is the planned node and its three edges.
+
+**Dependencies:**
+- `GraphDeps` gains `nli`, `nli_thresholds` (both or neither) and `nli_max_pairs`.
+- `from_settings` never builds, loads or calls an NLI model, whatever `NLI_MODEL` says; this is tested with `CrossEncoderNLI` and `nli_from_settings` patched to raise.
+- No model was downloaded or run in S5. No dependency was added.
+
+**Node** (`graph/nodes/claim_verification.py`):
+- Claims are extracted per item (`claims.extract`; roles from the stored chunks).
+- **NLI disabled (default):**
+  - every claim is `not_verified` with reason `nli_not_configured` (`decide.not_verified_requirement`);
+  - there are no judgements, nothing is scored, and no rule-based reading is applied (a negated explanation is NOT turned into a contradiction);
+  - applicability is lowered to at most CONDITIONAL, flag `not_verified`;
+  - `VerificationMeta.status = not_configured`;
+  - `Degradation(component="verification", reason="nli_not_configured")` → outcome DEGRADED.
+- **With a scorer (tests only, `FakeNLI`):**
+  - premises are built from the stored chunks and judged with `verify_requirement`;
+  - an unbuildable premise → that item is `not_verified`;
+  - a corpus failure → status `failed`, every item `not_verified`, degradation `corpus_unavailable:<class>`.
+- The M3 checklist in state is never modified.
+
+**Report** (`graph/report.py`):
+- A report is v2 when the stage ran (`NOTICE_V2`, `verification` mapped from the status, `verification_meta`, `claim_verification`).
+- Checklist items show `applicability_after` and their requirement verdict. Citations, names, explanations, form links and proposed applicability are unchanged; the M3 applicability is `applicability_before`.
+- `unsupported` items move to `unverified_items` (D2), never "not required".
+- New unresolved codes: `claims_not_verified:<n>` and `applicability_lowered_by_verification:<id>`.
+- The NLI-off message says checking is not enabled, that this is not a finding that any item is wrong or unsupported, and that sources and pages are unchanged.
+- Reports from paths where the stage did not run (blocked, missing information, no evidence, nothing surviving validation, failed synthesis) stay v1, exactly as in M3. Stored v1 reports still validate.
+- **Acceptance:** `check_report` accepts `NOTICE_V2` only on a v2 report (M3 notice for v1). The other M3 checks are unchanged. The M4-specific `check_report` rules remain for S8.
+
+**Tests:**
+- New: `tests/unit/test_m4_graph_s5.py` (23). It covers:
+  - NLI-disabled behaviour: not_verified, nothing scored, no contradiction, MANDATORY never established, never upgraded for every proposed applicability;
+  - DEGRADED with the M3 results kept;
+  - the v2 report and message;
+  - M3 gaps kept;
+  - form evidence never bearing an obligation;
+  - no model built from settings;
+  - GraphDeps validation;
+  - unchanged v1 paths;
+  - the scripted-scorer path (ran / contradicted / unsupported → unverified item);
+  - corpus failure;
+  - acceptance and the v1 builder.
+- Deliberately updated for the planned behaviour change, each keeping its M3 assertion on the M3 result:
+  - unit: graph builder path and recursion limit, routing coverage, the S4 LLP end-to-end, the S5 report test (its privacy check now strips only template claim texts, asserted to be template output), the S1 v1-builder test;
+  - integration: `test_graph_s5_corpus`, `test_m3_e2e`, `test_workflow_api`, `test_workflow_events` (the Redis-down run must add no degradation beyond `verification`), `test_workflow_recovery`. Their outcome is now DEGRADED with only the `verification` degradation, and the M3 MANDATORY basis is checked through `applicability_before`.
+
+**Deferred, not fixed in S5** (from the S4.2 diagnosis; any fix needs a separately approved, versioned protocol):
+- the MANDATORY gate does not encode labelling rule 10 (no entity → no obligation);
+- modality and polarity are analysed per window, not per sentence naming the item;
+- the claim's own polarity is not part of the MANDATORY gate;
+- labelling rule 1 (abbreviations) is invisible to the gate;
+- the determinism tolerance is tighter than float32 batch noise;
+- N4 runs in float16 on the CPU.
+
+These do not affect S5 behaviour: with NLI disabled, no claim can be supported, so the gate never sees a supported claim.
+
+**Next (S6, after owner approval):** the bounded contradiction / conflict scan.

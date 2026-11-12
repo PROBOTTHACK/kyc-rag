@@ -32,6 +32,7 @@ from langgraph.graph.state import CompiledStateGraph
 from app.config import Settings
 from app.graph import routing as r
 from app.graph.corpus import CorpusReader, SupportsRetrieve
+from app.graph.nodes.claim_verification import claim_verification
 from app.graph.nodes.clarify import clarify
 from app.graph.nodes.compliance_synthesis import compliance_synthesis
 from app.graph.nodes.entity_intake import entity_intake
@@ -45,11 +46,13 @@ from app.graph.report import ReportStore
 from app.graph.state import KYCInput, KYCState
 from app.llm.cache import SyntheticAllowlist
 from app.llm.provider import LLMProvider
+from app.verification.decide import Thresholds
+from app.verification.nli import NLIScorer
 
 # Nodes on the longest path apart from the clarification loop:
 # input_security, entity_intake, policy_retrieval, form_analysis, evidence_association,
-# compliance_synthesis, output_validation, finalize.
-_FIXED_PATH_NODES = 8
+# compliance_synthesis, output_validation, claim_verification (M4), finalize.
+_FIXED_PATH_NODES = 9
 _INPUT_STEP = 1  # LangGraph counts the input as a super-step
 
 
@@ -83,6 +86,12 @@ class GraphDeps:
     query_max_chars: int = 2000
     node_timeout_s: float = 180.0
     synthetic_allowlist: SyntheticAllowlist = SyntheticAllowlist()
+    # M4 claim verification. Both None = NLI disabled (the S4 outcome `m4-s4-v1`: no
+    # configuration qualified): every claim is `not_verified` and the run is DEGRADED.
+    # `from_settings` never sets them; only tests inject a scripted scorer.
+    nli: NLIScorer | None = None
+    nli_thresholds: Thresholds | None = None
+    nli_max_pairs: int = 400
 
     def __post_init__(self) -> None:
         if not 0 <= self.max_clarification_rounds <= 2:
@@ -91,6 +100,10 @@ class GraphDeps:
             raise ValueError("node_timeout_s must be in (0, 600]")
         if self.query_max_chars <= 0:
             raise ValueError("query_max_chars must be positive")
+        if (self.nli is None) != (self.nli_thresholds is None):
+            raise ValueError("an NLI scorer and its thresholds are configured together")
+        if self.nli_max_pairs < 0:
+            raise ValueError("nli_max_pairs must be >= 0")
         needed = required_recursion_limit(self.max_clarification_rounds)
         if self.recursion_limit < needed:
             raise ValueError(
@@ -120,6 +133,11 @@ class GraphDeps:
             query_max_chars=settings.QUERY_MAX_CHARS,
             node_timeout_s=settings.NODE_TIMEOUT_S,
             synthetic_allowlist=SyntheticAllowlist.load(settings.LLM_CACHE_ALLOWLIST),
+            # NLI stays disabled (M4 S5): no model is built, loaded or called from
+            # settings, whatever NLI_MODEL says, until a selection record selects one.
+            nli=None,
+            nli_thresholds=None,
+            nli_max_pairs=settings.NLI_MAX_PAIRS,
         )
 
 
@@ -136,6 +154,7 @@ def build_graph(
     g.add_node(r.EVIDENCE_ASSOCIATION, partial(evidence_association, deps=deps))
     g.add_node(r.COMPLIANCE_SYNTHESIS, partial(compliance_synthesis, deps=deps))
     g.add_node(r.OUTPUT_VALIDATION, partial(output_validation, deps=deps))
+    g.add_node(r.CLAIM_VERIFICATION, partial(claim_verification, deps=deps))
     g.add_node(r.FINALIZE, partial(finalize, deps=deps))
 
     g.add_edge(START, r.INPUT_SECURITY)
@@ -161,9 +180,14 @@ def build_graph(
     )
     g.add_edge(r.FORM_ANALYSIS, r.EVIDENCE_ASSOCIATION)
     g.add_edge(r.EVIDENCE_ASSOCIATION, r.COMPLIANCE_SYNTHESIS)
-    # M4 seam: claim_verification will sit between synthesis and output validation.
     g.add_edge(r.COMPLIANCE_SYNTHESIS, r.OUTPUT_VALIDATION)
-    g.add_edge(r.OUTPUT_VALIDATION, r.FINALIZE)
+    # M4 (D8): claim verification after the M3 gate, only for a non-empty checklist.
+    g.add_conditional_edges(
+        r.OUTPUT_VALIDATION,
+        r.route_after_validation,
+        {r.CLAIM_VERIFICATION: r.CLAIM_VERIFICATION, r.FINALIZE: r.FINALIZE},
+    )
+    g.add_edge(r.CLAIM_VERIFICATION, r.FINALIZE)
     g.add_edge(r.FINALIZE, END)
     return g.compile(checkpointer=checkpointer)
 

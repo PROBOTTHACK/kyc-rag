@@ -24,7 +24,7 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
 from app.graph.report import FALLBACK
-from app.graph.state import DISCLAIMER, NOTICE, Outcome
+from app.graph.state import DISCLAIMER, NOTICE, NOTICE_V2, Outcome
 
 
 @dataclass(frozen=True)
@@ -83,7 +83,9 @@ def check_report(report: dict[str, Any], lookup: ChunkLookup) -> Acceptance:
         problems.append("unknown_outcome")
     if report.get("human_review_required") is not True:
         problems.append("human_review_not_required")
-    if report.get("notice") != NOTICE or report.get("disclaimer") != DISCLAIMER:
+    # M4: a v2 report (claim verification ran) carries the M4 notice; v1 keeps the M3 one.
+    notice = NOTICE_V2 if report.get("report_version") == 2 else NOTICE
+    if report.get("notice") != notice or report.get("disclaimer") != DISCLAIMER:
         problems.append("notice_or_disclaimer_missing")
     if not isinstance(report.get("unresolved_items"), list):
         problems.append("unresolved_items_not_listed")

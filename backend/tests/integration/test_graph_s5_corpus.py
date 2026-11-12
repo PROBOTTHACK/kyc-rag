@@ -100,10 +100,15 @@ def test_trust_report_is_stored_with_rbi_para_35_as_the_only_mandatory_basis(
     )
     stored = store.get(out["report_id"])
     assert stored is not None and stored.model_dump(mode="json") == out["report"]
-    assert stored.outcome == "CHECKLIST_REVIEW_REQUIRED" and stored.human_review_required
+    # M4 S5: NLI is disabled, so claims are not verified: DEGRADED, nothing shown MANDATORY.
+    # The M3 gate's own result is kept as `applicability_before` and checked as before.
+    assert stored.outcome == "DEGRADED" and stored.human_review_required
+    assert [d.component for d in stored.degradations] == ["verification"]
+    m3 = {r.requirement_id: r.applicability_before for r in stored.claim_verification or []}
     for item in stored.checklist or []:
         cited = item.citations[0]
-        if item.applicability == "MANDATORY":
+        assert item.applicability != "MANDATORY"
+        if m3[item.requirement_id] == "MANDATORY":
             assert (cited.document_key, cited.evidence_eligibility, cited.match_scope) == (
                 "rbi_kyc_directions_2025",
                 "primary",
@@ -135,7 +140,11 @@ def test_llp_report_has_no_mandatory_item(
     stored = store.get(out["report_id"])
     assert stored is not None
     assert all(i.applicability != "MANDATORY" for i in stored.checklist or [])
-    assert stored.outcome in ("CHECKLIST_REVIEW_REQUIRED", "INSUFFICIENT_EVIDENCE")
+    assert all(r.applicability_before != "MANDATORY" for r in stored.claim_verification or [])
+    # M4 S5: a checklist means claim verification ran with NLI disabled -> DEGRADED
+    assert stored.outcome in ("DEGRADED", "INSUFFICIENT_EVIDENCE")
+    if stored.outcome == "DEGRADED":
+        assert [d.component for d in stored.degradations] == ["verification"]
     if stored.outcome == "INSUFFICIENT_EVIDENCE":
         assert stored.user_message.startswith(FALLBACK)
     assert "mandatory_under_policy" not in json.dumps(out)

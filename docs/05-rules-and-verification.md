@@ -50,7 +50,7 @@ Example failure to catch: evidence "designated partners must be verified" vs cla
 - Steps 1–3 and 5–6 are implemented deterministically in `backend/app/verification/` (M4 S2).
 - The local NLI scorer (`CrossEncoderNLI`) is implemented in S4.1: pinned revision, label map read from the model config, sanity triplet at load, no truncation.
 - The checkpoint and thresholds were to be chosen on the dev set by the pre-registered rule in S4.2. **Result (`m4-s4-v1`): no configuration qualified (0/140). NLI is disabled by default**, so claims are `not_verified` (docs/10, S4.2 result).
-- The graph node arrives in S5.
+- **S5:** the `claim_verification` graph node runs after `output_validation` for a non-empty checklist, with NLI disabled. Every claim is `not_verified` (`nli_not_configured`): nothing is scored and no rule-based contradiction is applied. Applicability is capped at CONDITIONAL (never upgraded; MANDATORY needs a supported claim), each item is flagged `not_verified`, and the run is DEGRADED (`verification` degradation). The report is v2: M3 citations, gaps and form links are unchanged, and the M3 applicability is kept as `applicability_before`.
 
 ## Human review workflow
 M4 creates **open** review cases (insert-only `review_cases`) for contradicted claims, conflicting sources, unsupported claims, mandatory claims not established, explanations that overstate their source, and items that could not be verified. Conflicting sources are never resolved by publication date: supersession needs a manifest `supersedes` record, an active source and `version_review_status=confirmed`.

@@ -111,9 +111,12 @@ def test_llp_demo_pauses_resumes_and_meets_the_m3_acceptance(
     with corpus_db() as db:
         result = check_report(report, db_chunk_lookup(db))
     assert result.ok, result.problems
-    assert report["outcome"] in ("CHECKLIST_REVIEW_REQUIRED", "INSUFFICIENT_EVIDENCE")
-    if report["outcome"] == "CHECKLIST_REVIEW_REQUIRED":
+    # M4 S5: with a checklist, claim verification runs with NLI disabled -> DEGRADED
+    assert report["outcome"] in ("DEGRADED", "INSUFFICIENT_EVIDENCE")
+    if report["outcome"] == "DEGRADED":
         assert result.items >= 1 and result.citations >= result.items
+        assert [d["component"] for d in report["degradations"]] == ["verification"]
+        assert report["report_version"] == 2
     # the bogus id never survives into a citation
     assert BOGUS not in json.dumps(report["checklist"] or [])
     # the LLP group scope is never MANDATORY (S4 carry-forward)

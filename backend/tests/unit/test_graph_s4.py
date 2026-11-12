@@ -713,7 +713,10 @@ def test_llp_end_to_end_with_clarification_partial_evidence_forms_and_links() ->
     assert final["associations"]
     # S5: entity-group evidence can never establish MANDATORY on its own
     assert [r["applicability"] for r in final["checklist"]] == ["CONDITIONAL"]
-    assert final["outcome"] == "CHECKLIST_REVIEW_REQUIRED"
+    # M4 S5: claim verification ran with NLI disabled: not verified, honestly DEGRADED
+    assert final["outcome"] == "DEGRADED"
+    assert [d["component"] for d in final["degradations"]] == ["verification"]
+    assert {c["requirement_verdict"] for c in final["claim_results"]} == {"not_verified"}
     assert len(llm.requests) == 2  # intake + synthesis; the S4 nodes make none
     validate_state(final)
     assert "mandatory_under_policy" not in json.dumps(final)

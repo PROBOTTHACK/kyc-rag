@@ -42,7 +42,7 @@ Its guiding rule: **a polished but wrong checklist is worse than an incomplete o
 | 🖼️ | **Multimodal form analysis** | A vision-capable model extracts fields, checkboxes, signature blocks, declarations and annexures into validated, versioned JSON. |
 | 🔎 | **Hybrid retrieval** | Entity-aware metadata filtering, dense embeddings and BM25, fused with Reciprocal Rank Fusion. |
 | ✅ | **Compliance synthesis** | Requirements labelled **Mandatory / Conditional / Optional / Unclear**, each with an explanation, source document and page. |
-| 🛡️ | **Claim-level verification** (planned, M4) | Typed atomic claims checked against the stored cited text with a local NLI model and deterministic obligation/negation rules. Unsupported claims are removed from the checklist and listed for review; nothing is upgraded. |
+| 🛡️ | **Claim-level verification** (M4, in progress; NLI disabled: no model qualified on the dev set) | Typed atomic claims checked against the stored cited text with a local NLI model and deterministic obligation/negation rules. Unsupported claims are removed from the checklist and listed for review; nothing is upgraded. |
 | 🔒 | **Security guardrails** | Prompt-injection detection, untrusted-evidence handling, output validation and least-privilege agent tools. |
 | 👩‍⚖️ | **Human-in-the-loop review** | Conflicts and low-confidence items become review cases that a person approves, rejects or leaves unresolved, with a recorded reason. |
 | 📈 | **Observability** | Node-level traces, latency, retries and verification outcomes, in LangSmith and in an in-app view. |
@@ -249,7 +249,7 @@ M3 limits:
 - On the thin LLP evidence in the corpus, the honest result is a short CONDITIONAL checklist with unresolved items; the live Groq demo proposed two MANDATORY items and the validator downgraded both (only supporting-form evidence).
 - Crashed runs are recovered explicitly (`POST /retry`), never automatically. Run-status SSE events are current status only.
 - When the knowledge base does not support an answer, it says so and refers you to HDFC Bank. It never treats missing evidence as "not required".
-- Explanations are model-drafted and not yet claim-verified (M4).
+- Explanations are model-drafted and not claim-verified. The M4 verification step is wired into the workflow, but no NLI model qualified in the S4 selection, so it runs disabled: every claim is marked not verified, nothing is shown as MANDATORY, and the result is labelled DEGRADED.
 - Every result requires human review.
 - Details: [`docs/milestones/M3_HANDOFF.md`](docs/milestones/M3_HANDOFF.md).
 

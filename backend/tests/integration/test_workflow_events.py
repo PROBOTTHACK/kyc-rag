@@ -154,7 +154,10 @@ def test_redis_down_changes_nothing_but_speed(engine: sa.Engine) -> None:
     publisher, subscriber = redis_wiring(CLOSED_PORT)
     with api(SchemaLLM(), publisher=publisher, subscriber=subscriber) as client:
         text, wf, _ = stream_while_driving(client)
-        assert wf["outcome"] == "CHECKLIST_REVIEW_REQUIRED" and wf["report_id"]
+        # M4 S5: NLI disabled -> DEGRADED by claim verification only; Redis adds nothing
+        assert wf["outcome"] == "DEGRADED" and wf["report_id"]
+        report = client.get(f"/api/v1/reports/{wf['report_id']}").json()
+        assert [d["component"] for d in report["degradations"]] == ["verification"]
     assert_matches_postgres(parse(text), wf)  # every event, by PostgreSQL polling
     assert publisher.stats.dropped > 0 and publisher.stats.published == 0
 

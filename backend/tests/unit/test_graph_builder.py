@@ -28,7 +28,9 @@ from app.graph.inputs import resume_command, start_input
 from app.graph.intake import ExtractedValue, IntakeExtraction
 from app.llm.fake import FakeLLMProvider, scripted_llm
 
-SNAPSHOT = Path(__file__).parents[1] / "fixtures" / "m3_graph_topology.json"
+# M4 S5 deliberately added `claim_verification`; the M3 snapshot stays as the baseline.
+SNAPSHOT = Path(__file__).parents[1] / "fixtures" / "m4_graph_topology.json"
+M3_SNAPSHOT = Path(__file__).parents[1] / "fixtures" / "m3_graph_topology.json"
 EXAMPLE_ENV = REPO_ROOT / "infra" / ".env.example"
 QUERY = "What KYC documents does a company need to open a current account?"
 COMPLETE = IntakeExtraction(
@@ -97,6 +99,20 @@ def from_intake(graph: Any, config: Any, values: dict[str, Any]) -> list[str]:
 
 def test_topology_matches_the_committed_snapshot() -> None:
     assert topology(build_graph(GraphDeps())) == json.loads(SNAPSHOT.read_text("utf-8"))
+
+
+def test_m4_changes_the_m3_topology_only_by_the_planned_claim_verification_step() -> None:
+    old = json.loads(M3_SNAPSHOT.read_text("utf-8"))
+    new = topology(build_graph(GraphDeps()))
+    assert set(new["nodes"]) - set(old["nodes"]) == {r.CLAIM_VERIFICATION}
+    assert set(old["nodes"]) <= set(new["nodes"])
+    before, after = ({tuple(e) for e in t["edges"]} for t in (old, new))
+    assert after - before == {
+        (r.OUTPUT_VALIDATION, r.CLAIM_VERIFICATION, True),
+        (r.OUTPUT_VALIDATION, r.FINALIZE, True),
+        (r.CLAIM_VERIFICATION, r.FINALIZE, False),
+    }
+    assert before - after == {(r.OUTPUT_VALIDATION, r.FINALIZE, False)}
 
 
 def test_answers_return_through_input_security() -> None:
@@ -170,9 +186,13 @@ def test_the_post_intake_path_with_forms() -> None:
         r.EVIDENCE_ASSOCIATION,
         r.COMPLIANCE_SYNTHESIS,
         r.OUTPUT_VALIDATION,
+        r.CLAIM_VERIFICATION,  # M4 S5: after the M3 gate, for a non-empty checklist
         r.FINALIZE,
     ]
-    assert g.get_state(config).values["outcome"] == "CHECKLIST_REVIEW_REQUIRED"
+    # M4 S5: NLI is disabled, so claims are not verified and the run is honestly DEGRADED
+    values = g.get_state(config).values
+    assert values["outcome"] == "DEGRADED"
+    assert [d["component"] for d in values["degradations"]] == ["verification"]
 
 
 def test_internal_keys_in_the_graph_input_are_dropped() -> None:
@@ -264,18 +284,19 @@ def test_run_config_always_carries_the_explicit_limit_and_thread() -> None:
 
 
 def test_longest_legal_path_formula() -> None:
-    assert [longest_path_nodes(n) for n in (0, 1, 2)] == [8, 11, 14]
-    assert [required_recursion_limit(n) for n in (0, 1, 2)] == [9, 12, 15]
+    # M4 S5: claim_verification adds one node to the longest path.
+    assert [longest_path_nodes(n) for n in (0, 1, 2)] == [9, 12, 15]
+    assert [required_recursion_limit(n) for n in (0, 1, 2)] == [10, 13, 16]
     assert GraphDeps().recursion_limit >= required_recursion_limit(2)
 
 
 def test_a_limit_below_the_longest_legal_path_is_refused() -> None:
     with pytest.raises(ValueError, match="below what the longest legal path needs"):
-        GraphDeps(max_clarification_rounds=2, recursion_limit=14)
-    GraphDeps(max_clarification_rounds=2, recursion_limit=15)
-    GraphDeps(max_clarification_rounds=0, recursion_limit=9)
+        GraphDeps(max_clarification_rounds=2, recursion_limit=15)
+    GraphDeps(max_clarification_rounds=2, recursion_limit=16)
+    GraphDeps(max_clarification_rounds=0, recursion_limit=10)
     with pytest.raises(ValueError):
-        GraphDeps(max_clarification_rounds=0, recursion_limit=8)
+        GraphDeps(max_clarification_rounds=0, recursion_limit=9)
     with pytest.raises(ValueError):
         GraphDeps(max_clarification_rounds=3)
     with pytest.raises(ValueError):

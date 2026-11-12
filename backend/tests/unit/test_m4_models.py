@@ -300,15 +300,23 @@ def test_a_v1_checklist_item_cannot_claim_verification() -> None:
 
 
 def test_m3_build_report_output_is_unchanged_v1() -> None:
-    """M3's own report builder still yields v1 reports in S1 (no behaviour change)."""
+    """Without the M4 stage's output, the report builder still yields the exact M3 v1 report
+    (M4 S5: the graph now runs claim_verification, which makes the report v2)."""
+    from app.graph.report import build_report
+    from app.graph.routing import decide_outcome
     from tests.unit.test_graph_s4 import RBI_TRUST, cid
     from tests.unit.test_graph_s5 import TRUST_INTAKE, TRUST_Q, draft, req, run_graph
 
     out = run_graph({"TRUST": [RBI_TRUST]}, draft(req([cid(RBI_TRUST)])), TRUST_INTAKE, TRUST_Q)
-    report = out["report"]
+    m3_state = {k: v for k, v in out.items()
+                if k not in ("claim_results", "verification_meta", "unverified_items")}  # fmt: skip
+    m3_state["degradations"] = [d for d in out["degradations"] if d["component"] != "verification"]
+    report = build_report(m3_state, decide_outcome(m3_state)).model_dump(mode="json")
     assert report["report_version"] == 1 and report["notice"] == NOTICE
-    assert out.get("claim_results") is None and out.get("verification_meta") is None
+    assert report["outcome"] == "CHECKLIST_REVIEW_REQUIRED"
     assert report["checklist"][0]["verification_status"] == "not_claim_verified"
+    assert report["checklist"][0]["applicability"] == "MANDATORY"
+    assert out["report"]["report_version"] == 2  # the graph run itself
 
 
 # --- report v2 --------------------------------------------------------------------------------

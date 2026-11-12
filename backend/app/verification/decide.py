@@ -452,3 +452,30 @@ def judge_claim(
     verdict, judgements = _judge_claim(claim, pairs, thresholds)
     scored = tuple(p.score for p in pairs if p.score is not None)
     return JudgedClaim(verdict, tuple(judgements), len(scored), len(pairs) - len(scored), scored)
+
+
+def not_verified_requirement(
+    req: ValidatedRequirement, claims: Sequence[AtomicClaim], *, reason: str
+) -> RequirementVerification:
+    """Every claim `not_verified` without judging anything (M4 S5): used when semantic
+    verification is unavailable (no selected NLI model) or a premise cannot be built.
+
+    Nothing is scored and no rule-based reading is applied, so a missing check is never
+    turned into a contradiction, an absence of evidence or a finding that a claim is false.
+    The only effect is the `not_verified` cap (MANDATORY cannot be established without a
+    supported claim); applicability is never raised."""
+    verdicts = [
+        ClaimVerdict(claim_id=c.claim_id, verdict="not_verified", reason_codes=[reason])
+        for c in claims
+    ]
+    before = req.applicability
+    return RequirementVerification(
+        requirement_id=req.requirement_id,
+        claims=list(claims),
+        judgements=[],
+        verdicts=verdicts,
+        requirement_verdict="not_verified",
+        applicability_before=before,
+        applicability_after=_lower(before, CAP["not_verified"]),
+        review_flags=[FLAG["not_verified"]],
+    )
