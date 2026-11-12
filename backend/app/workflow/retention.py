@@ -11,6 +11,9 @@ there is no periodic worker.
   reports and idempotency rows (FKs from migration 0006).
 - **Orphans:** checkpoint data whose thread has no `graph_runs` row is deleted.
 - **Idempotency TTL:** records older than `IDEMPOTENCY_TTL_H` are pruned (S8-D3).
+- **Review cases (M4 S7):** they live and die with their report: readable after phase 1,
+  deleted by the phase-2 cascade. `check` verifies that every stored report's cases are
+  exactly those its review flags imply, and that every case is still `open`.
 
 Safety (owner review of the S8 plan):
 - The plan is advisory. Every destructive step re-reads and LOCKS the current state in
@@ -93,10 +96,12 @@ class IntegrityReport:
     pending_phase1: int = 0
     pending_phase2: int = 0
     stale_leases: int = 0
+    review_cases: int = 0
+    review_case_problems: list[str] = field(default_factory=list)  # codes with ids only
 
     @property
     def problems(self) -> bool:
-        return bool(self.orphans or self.residue)
+        return bool(self.orphans or self.residue or self.review_case_problems)
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -106,6 +111,8 @@ class IntegrityReport:
             "pending_phase1_sessions": self.pending_phase1,
             "pending_phase2_sessions": self.pending_phase2,
             "running_runs_with_expired_lease": self.stale_leases,
+            "review_cases": self.review_cases,
+            "review_case_problems": self.review_case_problems,
         }
 
 
@@ -252,13 +259,65 @@ def integrity(db: Session, settings: Settings) -> IntegrityReport:
             )
         ).scalar_one()
     )
+    count, case_problems = review_case_integrity(db)
     return IntegrityReport(
         orphans=orphan_threads(db, tables),
         residue=residue,
         pending_phase1=len(phase1),
         pending_phase2=len(phase2),
         stale_leases=stale,
+        review_cases=count,
+        review_case_problems=case_problems,
     )
+
+
+_CASE_FIELDS = ("session_id", "run_id", "requirement_id", "claim_id", "reason", "status")
+
+
+def review_case_integrity(db: Session) -> tuple[int, list[str]]:
+    """Read-only (M4 S7): stored cases must equal the cases each stored report implies
+    (`app.graph.review`), field for field, and every case must be `open`."""
+    from app.db.workflow import expected_review_cases
+
+    stored: dict[str, dict[str, dict[str, Any]]] = {}
+    count = 0
+    for row in db.execute(
+        sa.text(
+            "SELECT id, report_id, session_id, run_id, requirement_id, claim_id, reason, status "
+            "FROM review_cases"
+        )
+    ).mappings():
+        count += 1
+        stored.setdefault(str(row["report_id"]), {})[str(row["id"])] = {
+            k: (str(row[k]) if k == "session_id" else row[k]) for k in _CASE_FIELDS
+        }
+    problems: list[str] = []
+    for case_id in sorted(cid for cases in stored.values() for cid, c in cases.items()
+                          if c["status"] != "open"):  # fmt: skip
+        problems.append(f"review_case_not_open:{case_id}")
+    reports = db.execute(sa.text("SELECT id, report_json FROM reports")).all()
+    for report_id, report_json in sorted(reports, key=lambda r: str(r[0])):
+        rid = str(report_id)
+        have = stored.pop(rid, {})
+        try:
+            want = {c.id: c for c in expected_review_cases(report_json)}
+        except ValueError:
+            problems.append(f"report_invalid:{rid}")
+            continue
+        for case_id in sorted(set(want) - set(have)):
+            problems.append(f"review_case_missing:{rid}:{case_id}")
+        for case_id in sorted(set(have) - set(want)):
+            problems.append(f"review_case_unexpected:{rid}:{case_id}")
+        for case_id in sorted(set(have) & set(want)):
+            w = want[case_id]
+            expected = {"session_id": w.session_id, "run_id": w.run_id,
+                        "requirement_id": w.requirement_id, "claim_id": w.claim_id,
+                        "reason": w.reason, "status": w.status}  # fmt: skip
+            if have[case_id] != expected:
+                problems.append(f"review_case_mismatch:{rid}:{case_id}")
+    for rid in sorted(stored):  # impossible with the FK; reported if it ever happens
+        problems.append(f"review_cases_without_report:{rid}")
+    return count, problems
 
 
 def _session_threads(db: Session, session_id: Any) -> list[str]:

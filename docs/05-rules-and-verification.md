@@ -56,3 +56,9 @@ Example failure to catch: evidence "designated partners must be verified" vs cla
 ## Human review workflow
 M4 creates **open** review cases (insert-only `review_cases`) for contradicted claims, conflicting sources, unsupported claims, mandatory claims not established, explanations that overstate their source, and items that could not be verified. Conflicting sources are never resolved by publication date: supersession needs a manifest `supersedes` record, an active source and `version_review_status=confirmed`.
 Reviewer decisions (approve / reject / mark unresolved, with a reason) need authentication and arrive in a later milestone (M4 decision D5); until then cases are read-only and reports stay immutable. AI assists; human decides.
+
+**Implementation status (M4 S7):**
+- One open case per (report, requirement, review flag) is written with the report, in the same transaction.
+- It can be read at `GET /api/v1/reports/{id}/review-cases`.
+- `make check-workflow` verifies that stored cases match each stored report's flags and are all `open`.
+- With NLI disabled, every checklist item gets exactly one `not_verified` case.

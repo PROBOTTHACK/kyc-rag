@@ -86,6 +86,12 @@ async def get_report(report_id: str, request: Request) -> dict[str, Any]:
     return await service(request).get_report(report_id)
 
 
+@router.get("/reports/{report_id}/review-cases")
+async def get_review_cases(report_id: str, request: Request) -> dict[str, Any]:
+    """M4 S7: open review cases (read-only; no decision or status route exists)."""
+    return await service(request).get_review_cases(report_id)
+
+
 @router.get("/sessions/{session_id}/events")
 async def session_events(
     session_id: str,

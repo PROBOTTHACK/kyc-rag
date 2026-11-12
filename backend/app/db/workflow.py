@@ -3,7 +3,9 @@
 `PostgresReportStore` is the `ReportStore` the S6 API injects into the graph. Reports are
 written once (`INSERT ... ON CONFLICT DO NOTHING` on the deterministic report id), never
 updated (a database trigger rejects UPDATE), and every one requires human review (a CHECK
-rejects anything else). S6 adds the async run, lease, node-event and idempotency
+rejects anything else). M4 S7: the report's open review cases (`app.graph.review`) are
+inserted in the SAME transaction, also `ON CONFLICT DO NOTHING` on their deterministic ids.
+S6 adds the async run, lease, node-event and idempotency
 functions used by the workflow API.
 """
 
@@ -19,7 +21,8 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.db.models import ApiIdempotency, GraphRun, KycSession, ReportRow
+from app.db.models import ApiIdempotency, GraphRun, KycSession, ReportRow, ReviewCaseRow
+from app.graph.review import ReviewCase, review_cases
 from app.graph.state import ComplianceReport, DataClass
 
 
@@ -66,13 +69,61 @@ class PostgresReportStore:
             )
             .on_conflict_do_nothing(index_elements=["id"])
         )
-        with self.sessions() as session, session.begin():
+        cases = [
+            {
+                "id": uuid.UUID(c.id),
+                "report_id": uuid.UUID(c.report_id),
+                "session_id": uuid.UUID(report.session_id),
+                "run_id": report.run_id,
+                "requirement_id": c.requirement_id,
+                "claim_id": c.claim_id,
+                "reason": c.reason,
+                "status": c.status,
+            }
+            for c in review_cases(report)
+        ]
+        with self.sessions() as session, session.begin():  # report + cases: one transaction
             session.execute(stmt)
+            if cases:
+                session.execute(
+                    insert(ReviewCaseRow)
+                    .values(cases)
+                    .on_conflict_do_nothing(index_elements=["id"])
+                )
 
     def get(self, report_id: str) -> ComplianceReport | None:
         with self.sessions() as session:
             row = session.get(ReportRow, uuid.UUID(report_id))
             return None if row is None else ComplianceReport.model_validate(row.report_json)
+
+    def review_cases_for(self, report_id: str) -> list[dict[str, Any]] | None:
+        """The report's stored open cases (ids and codes only), or None if the report does
+        not exist. Deterministic order: requirement id, reason."""
+        rid = uuid.UUID(report_id)
+        with self.sessions() as session:
+            if session.get(ReportRow, rid) is None:
+                return None
+            rows = session.scalars(
+                select(ReviewCaseRow)
+                .where(ReviewCaseRow.report_id == rid)
+                .order_by(ReviewCaseRow.requirement_id, ReviewCaseRow.reason)
+            ).all()
+            return [
+                {
+                    "id": str(r.id),
+                    "requirement_id": r.requirement_id,
+                    "claim_id": r.claim_id,
+                    "reason": r.reason,
+                    "status": r.status,
+                    "created_at": r.created_at.isoformat(),
+                }
+                for r in rows
+            ]
+
+
+def expected_review_cases(report_json: dict[str, Any]) -> list[ReviewCase]:
+    """What a stored report implies (used by the integrity check)."""
+    return review_cases(ComplianceReport.model_validate(report_json))
 
 
 # --- M3 S6: runs, leases, node events, idempotency (async; M3_PLAN §9) ----------------------

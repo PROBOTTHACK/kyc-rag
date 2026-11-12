@@ -26,6 +26,7 @@
 | POST | `/sessions/{id}/resume` | `{"checkpoint_id": str, "answers": {field: enum value}}` | `202` |
 | POST | `/sessions/{id}/retry` | `{}` | `202` (a new run on the same thread, from the last checkpoint) |
 | GET | `/reports/{id}` | – | `200 ComplianceReport` |
+| GET | `/reports/{id}/review-cases` | – | `200 {report_id, review_cases: [{id, requirement_id, claim_id (null in M4), reason, status ("open"), created_at}]}`, ordered by requirement id, then reason; `[]` for a report without cases; `404 REPORT_NOT_FOUND` for a malformed, unknown or purged report (M4 S7). Read-only: no decision, approval, rejection, resolution, dismissal or status route exists (D5). |
 
 **Rules:**
 - **Idempotency:** `Idempotency-Key` is required on `/messages`, `/resume` and `/retry`.

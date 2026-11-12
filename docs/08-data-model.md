@@ -38,6 +38,14 @@ M1 tables (Alembic `0001_m1_corpus` + `0002_m1_persistence`; ORM `app/db/models.
 - `sessions`(id, entity_type, account_type, status, created_at, expires_at)
 - `reports`(id, session_id FK, final_json jsonb, verification_status, created_at)
 - **Report versions (M4 S1, no migration):** `reports.report_json` holds a `ComplianceReport`. Rows written by M3 have no `report_version` key and read back as **v1**, unchanged (tests: `tests/unit/test_m4_models.py`, `tests/integration/test_m4_report_compat.py`). **v2** (M4) adds `claim_verification`, `verification_meta`, `unverified_items` and the M4 notice; the existing CHECKs and the insert-only trigger accept it as is. A v1 report can carry no M4 field.
+- **`review_cases` (M4 S7, Alembic `0008_m4_review_cases`, ORM `ReviewCaseRow`):**
+  - **Columns:** `id` uuid (UUIDv5 of report id, requirement id and reason), `report_id` FK → reports ON DELETE CASCADE, `session_id` FK → kyc_sessions ON DELETE CASCADE, `run_id`, `requirement_id`, `claim_id` (NULL in M4), `reason`, `status`, `created_at`.
+  - **Constraints:**
+    - `reason` is restricted to `contradicted`, `conflicting_sources`, `unsupported`, `mandatory_not_established`, `explanation_overstates_source`, `not_verified`;
+    - `status = 'open'` only;
+    - UNIQUE(report_id, requirement_id, reason); index on `report_id`.
+  - **Insert-only:** a `BEFORE UPDATE` trigger rejects every update. Rows go only by cascade.
+  - **Writing:** cases are derived from the report's review flags (`app/graph/review.py`) and written in the same transaction as the report (`PostgresReportStore.save`). Re-saving is idempotent.
 - `claims`: **not built** (M4 decision): claims live inside the immutable report JSON, not in a table. The sketch was `claims`(id, report_id FK, claim_text, evidence_refs jsonb, nli_label, nli_scores jsonb, confidence, review_status).
 - `review_cases`(id, report_id, claim_id, reason, status, reviewer_decision, reviewer_note, created_at, decided_at)
 - `graph_runs`(id, session_id, langsmith_run_id, status, latency_ms, retries, token_usage jsonb, node_events jsonb)
@@ -55,7 +63,7 @@ Use a separate schema or prefix for checkpoint tables.
 | Phase | When | What happens | What stays |
 |---|---|---|---|
 | 1 | `expires_at` | checkpoint data for every thread of the session (all `langgraph` tables with a `thread_id` column), the idempotency rows; open runs → `abandoned`; `status=expired`, `checkpoints_purged_at` set | session, runs, reports (readable) |
-| 2 | `expires_at + REPORT_RETENTION_D` | checkpoint data deleted and verified first, then the session row; the FKs cascade to `graph_runs`, `reports`, `api_idempotency` | nothing |
+| 2 | `expires_at + REPORT_RETENTION_D` | checkpoint data deleted and verified first, then the session row; the FKs cascade to `graph_runs`, `reports`, `review_cases` (M4), `api_idempotency` | nothing |
 | orphans | any time | checkpoint data whose thread has no `graph_runs` row | — |
 | idempotency TTL | `created_at + IDEMPOTENCY_TTL_H` | old idempotency rows | — |
 

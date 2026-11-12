@@ -528,3 +528,39 @@ Scope and decisions S6-1 to S6-5 owner-approved, with two clarifications: the pa
   - the S5-follow-up forged-report helper (it now also resets the scan fields the model requires).
 
 **Unchanged:** S4 records, datasets, labels, thresholds, the deferred S2 defects, the graph topology, dependencies and migrations. No S7 work.
+
+## S7 outcome (2026-11-12): open review cases, read endpoint, retention
+Owner-approved scope and decisions S7-1 to S7-6.
+
+**Derivation** (`app/graph/review.py`, pure):
+- `review_cases(report)` gives one case per (report, requirement, reason) from `claim_verification[*].review_flags`. Distinct flags give distinct cases; a repeated flag never duplicates one.
+- `claim_id` is always None in M4; `status` is always `open`.
+- The id is a UUIDv5 of report, requirement and reason.
+- Reports without verification results (v1, blocked, insufficient, failed synthesis, a hidden checklist) yield none.
+- The report is never modified, and finalize is unchanged.
+
+**Migration `0008_m4_review_cases`:**
+- the `review_cases` table: FK → reports and FK → kyc_sessions, both ON DELETE CASCADE;
+- CHECKs: reason in the 6 codes, `status = 'open'`; UNIQUE(report_id, requirement_id, reason); index on report_id;
+- a `BEFORE UPDATE` trigger makes the table insert-only;
+- the downgrade drops all of it. The ORM model `ReviewCaseRow` keeps `make check-schema` clean.
+
+**Store:** `PostgresReportStore.save` inserts the report and its cases in one transaction, both `ON CONFLICT DO NOTHING`. A failed case insert rolls the report back (tested). Re-saving changes nothing.
+
+**Endpoint:** `GET /api/v1/reports/{id}/review-cases`, read-only.
+- 404 `REPORT_NOT_FOUND` for a malformed, unknown or purged report; `[]` for a report without cases.
+- Ids and codes only.
+- POST, PUT, PATCH and DELETE on the path return 405; no decision route exists.
+
+**Retention and check-workflow:**
+- Phase 1 keeps cases readable; phase 2 deletes them by cascade.
+- `check-workflow` (`retention.integrity`) reports a `review_cases` count and problems for missing, unexpected or mismatched cases against each stored report, and for any status but `open`.
+
+**Production now (NLI disabled):** each checklist item of a v2 report gets exactly one `not_verified` case.
+
+**Tests:**
+- `tests/unit/test_m4_review_cases.py` (27);
+- `tests/integration/test_m4_review_cases_db.py` (14: migration, atomicity, idempotency, table constraints, endpoint, retention phases, check-workflow).
+- Updated: `test_migration_0007` now runs `alembic check` at head instead of at 0007, which is no longer the head. This is the same change `test_workflow_tables` made for 0006.
+
+**Unchanged:** graph behaviour and topology, report content, NLI configuration, S4 records, datasets, labels, thresholds, the conflict scan and the deferred S2 defects. No new dependency. Known baseline failures remain documented: 2 Qdrant tied-score tests and the environment-dependent Groq test.
