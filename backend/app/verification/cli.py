@@ -183,8 +183,18 @@ def _correct(cases: Sequence[Case], preds: Sequence[Prediction]) -> tuple[Fracti
     return tuple(Fraction(int(by[c.id].label == c.gold)) for c in cases)
 
 
+def repo_path(arg: str) -> Path:
+    """CLI paths are repo-relative (make runs from backend/), like the settings paths."""
+    path = Path(arg)
+    return path if path.is_absolute() else REPO_ROOT / path
+
+
 def cmd_select(args: argparse.Namespace) -> int:
-    record_path, doc_path = Path(args.record), Path(args.doc)
+    record_path, doc_path = repo_path(args.record), repo_path(args.doc)
+    missing = [str(p.parent) for p in (record_path, doc_path) if not p.parent.is_dir()]
+    if missing:  # fail before any model is loaded, never after the run
+        print(f"refused: output directory missing: {', '.join(missing)}")
+        return 2
     if record_path.exists():
         print(f"refused: {record_path} exists; the selection runs once (no retuning)")
         return 2

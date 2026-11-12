@@ -306,3 +306,24 @@ def test_no_record_or_no_selection_means_no_thresholds(tmp_path: Path) -> None:
     path.write_text(json.dumps({"protocol": "other", "selected": None}))
     with pytest.raises(ValueError, match="protocol"):
         load_selected(path)
+
+
+def test_select_paths_resolve_against_the_repo_root_not_the_cwd(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """make runs the CLI from backend/: relative record/doc paths must still mean the repo's
+    data/eval and docs/milestones, and the write-once check must look at that same file."""
+    import argparse
+
+    from app.config import REPO_ROOT
+    from app.verification import cli
+
+    monkeypatch.chdir(tmp_path)
+    assert cli.repo_path("data/eval/x.json") == REPO_ROOT / "data" / "eval" / "x.json"
+    assert cli.repo_path(str(tmp_path / "x.json")) == tmp_path / "x.json"
+    # an existing repo file is refused as a record (write-once), before any model loads
+    existing = argparse.Namespace(record="data/eval/m4_claims_dev.jsonl", doc="docs/x.md")
+    assert cli.cmd_select(existing) == 2
+    # a missing output directory is refused before any work
+    missing = argparse.Namespace(record="no/such/dir/r.json", doc="docs/x.md")
+    assert cli.cmd_select(missing) == 2
