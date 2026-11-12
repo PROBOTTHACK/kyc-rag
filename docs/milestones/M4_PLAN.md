@@ -590,4 +590,19 @@ Owner decisions S8-1 (option A), S8-2, S8-3 and S8-4. The full results are in do
   - the 6 held-out issues.
 - **Unchanged:** NLI configuration, S4 records, datasets, labels, thresholds, the conflict scan, graph topology, dependencies, migrations.
 
-**Next (S9, after owner approval):** docs and handoff.
+
+## S9 outcome (2026-11-13): final handoff and M4 closure. **M4 is complete.**
+- **Documentation only:** no application code, test, dataset, record, migration or dependency changed.
+- **Owner decision:** the held-out integrity tests are kept. They check structure and hash, never score. `held_out_status: frozen_unused`, the hash and the loader-access guard are preserved.
+- **New documents:**
+  - `docs/handoff/01-architecture-handoff.md`;
+  - `docs/handoff/02-setup-and-reproducibility.md`;
+  - `docs/handoff/03-evaluation-report.md`;
+  - `docs/handoff/04-limitations-and-known-issues.md`;
+  - `docs/milestones/M4_CLOSURE_REPORT.md`.
+- **Corrections:**
+  - README: feature statuses as built, the real graph, M4 evaluation and limits, tech stack and security statements corrected to what exists, links to the handoff;
+  - a pointer from `docs/01` to the as-built architecture.
+- **Final audit:** see the closure report §4.
+- **Known issues K1–K12:** recorded, not fixed (the register).
+- **There is no further M4 stage.**
