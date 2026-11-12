@@ -363,3 +363,13 @@ def test_invariants_hold_for_random_evidence_scores_and_failures() -> None:
         again = run("Trust deed", records, **(kw | {"nli": hashed_nli(seed) if nli else None}))
         if mode != "fail":
             assert again.verification == out, context
+
+
+def test_an_over_long_window_is_not_verified_never_truncated() -> None:
+    """M4 S4: a scorer that cannot fit a pair returns None; the claim is not_verified."""
+    nli = FakeNLI(rules=[lambda _p: ENTAIL], too_long="trust deed")
+    out = run("Trust deed", [primary(DEED_OBLIGATION)], nli=nli).verification
+    assert out.requirement_verdict == "not_verified"
+    assert out.verdicts[0].reason_codes == ["window_too_long"]
+    assert all(j.not_scored_reason == "window_too_long" for j in out.judgements)
+    assert out.applicability_after == "CONDITIONAL"

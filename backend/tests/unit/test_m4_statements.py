@@ -167,3 +167,41 @@ def test_the_analysis_is_deterministic_and_bounded() -> None:
     text = " ".join(t for t, _, _ in OBLIGATIONS)
     first, second = read(text), read(text)
     assert first == second and len(first.cues) <= 20
+
+
+# --- M4 S4.1 pre-run decisions --------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "(5) Documents of managers or employees, as the case may be, shall be obtained.",
+        "Such information as may be required by the bank shall be obtained from the trust.",
+        "Documents as may be notified shall be obtained from the trust.",
+    ],
+)
+def test_fixed_may_idioms_are_neither_permission_nor_obligation(text: str) -> None:
+    a = read(text, anchors("documents information"))
+    assert a.modality == "obligation" and "idiom:may_not_permission" in a.cues
+    assert not any(c.startswith("perm:") for c in a.cues)
+    assert "obl:required" not in a.cues  # "as may be required" is not an obligation either
+
+
+def test_a_real_permission_beside_an_idiom_is_still_a_permission() -> None:
+    a = read("The trust deed may, as the case may be, be obtained.")
+    assert a.modality == "permission" and "perm:may" in a.cues
+
+
+@pytest.mark.parametrize(
+    ("claim", "window", "matches"),
+    [
+        ("The form asks for the trust deed.", "Attach the trust deed copy.", True),
+        ("The trust deed must be obtained for a trust.", "the trust deed shall be got", True),
+        ("The bank must obtain the PAN of the trust.", "PAN of the trust", True),
+        ("The form asks for the board resolution.", "Form 60/61 attached", False),
+    ],
+)
+def test_claim_framing_words_are_never_anchors(claim: str, window: str, matches: bool) -> None:
+    """Without a separate item name, a claim's framing ('the form asks for', 'must be
+    obtained') must not become a required anchor; the item words still must match."""
+    assert (not anchors_missing(anchors(claim), window)) is matches

@@ -180,7 +180,10 @@ def _score(pairs: list[_Pair], scorer: NLIScorer | None, max_pairs: int) -> None
             p.not_scored = "scorer_failed"
         return
     for p, s in zip(batch, scores, strict=True):
-        p.score = s
+        if s is None:  # never truncated: an unscored pair is evidence of nothing
+            p.not_scored = "window_too_long"
+        else:
+            p.score = s
 
 
 def _supports(p: _Pair, t: Thresholds) -> bool:
@@ -416,3 +419,36 @@ def verify_requirement(
     )
     scored = sum(1 for p in pairs if p.score is not None)
     return Verified(verification, pairs_scored=scored, pairs_unscored=len(pairs) - scored)
+
+
+@dataclass(frozen=True)
+class JudgedClaim:
+    """One claim judged against premises: the S2 table, exposed for evaluation (M4 S4)."""
+
+    verdict: ClaimVerdict
+    judgements: tuple[EvidenceJudgement, ...]
+    pairs_scored: int
+    pairs_unscored: int
+    scores: tuple[NLIScore, ...]  # every scored pair, in pair order (for the NLI-only ablation)
+
+
+def judge_claim(
+    claim: AtomicClaim,
+    premises: Sequence[Premise],
+    *,
+    scorer: NLIScorer | None,
+    thresholds: Thresholds,
+    entity: EntityType | None,
+    max_pairs: int,
+    item: str | None = None,
+) -> JudgedClaim:
+    """Judge ONE claim with exactly the logic `verify_requirement` uses (no copy of it).
+    `item` names the requirement for anchor matching; without one, the claim's own text
+    supplies the anchors (dataset claims have no separate item name)."""
+    if max_pairs < 0:
+        raise ValueError("max_pairs must be >= 0")
+    pairs = _pairs([claim], premises, item if item is not None else claim.text, entity)
+    _score(pairs, scorer, max_pairs)
+    verdict, judgements = _judge_claim(claim, pairs, thresholds)
+    scored = tuple(p.score for p in pairs if p.score is not None)
+    return JudgedClaim(verdict, tuple(judgements), len(scored), len(pairs) - len(scored), scored)

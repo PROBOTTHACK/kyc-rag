@@ -78,5 +78,8 @@ disallow_untyped_calls = false
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-markers = ["integration: needs docker services from `make up`"]
-addopts = "-m 'not integration'"
+markers = [
+    "integration: needs docker services from `make up`",
+    "nli: needs a pinned NLI checkpoint in the local Hugging Face cache (M4 S4)",
+]
+addopts = "-m 'not integration and not nli'"

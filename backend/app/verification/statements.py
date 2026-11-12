@@ -43,6 +43,14 @@ _OBLIGATION = {
     "need_to": r"\b(?:needs?|has|have)\s+to\b",
     "necessary": r"\b(?:is|are)\s+necessary\b",
 }
+# Fixed idioms whose "may" grants no permission ("documents … of managers, officers or
+# employees, as the case may be"; "such information as may be required by the bank"). They
+# are removed before permission cues are read (M4 S4, decided before any model run).
+_MAY_IDIOMS = (
+    r"\bas\s+the\s+case\s+may\s+be\b"
+    r"|\bas\s+may\s+be\s+(?:required|notified|prescribed|specified|necessary|applicable"
+    r"|amended|decided|determined)\b"
+)
 _PERMISSION = {
     "may": r"\bmay\b",
     "can": r"\bcan\b",
@@ -203,6 +211,20 @@ STOPWORDS: frozenset[str] = frozenset(
         "mandatory", "is", "are", "be", "must", "shall", "may", "will", "should", "it",
     }
 )  # fmt: skip
+# Claim-framing words (M4 S4, registered before any model run): they say what a claim does
+# with an item ("the form asks for", "must be obtained", "lists", "submit"), never which
+# item it is, so they are never anchors. Needed when a claim has no separate item name.
+FRAME_WORDS: frozenset[str] = frozenset(
+    {
+        "form", "forms", "ask", "asks", "asked", "request", "requests", "requested", "state",
+        "states", "stated", "say", "says", "list", "lists", "listed", "need", "needs",
+        "needed", "obtain", "obtains", "obtained", "submit", "submits", "submitted",
+        "provide", "provides", "provided", "furnish", "furnished", "attach", "attached",
+        "give", "given", "bank", "open", "opens", "opening", "opened", "not", "only",
+        "also", "has", "have", "do", "does", "can", "when", "where", "if", "than", "who",
+        "which", "what", "into", "under", "per", "one", "case", "cases",
+    }
+)  # fmt: skip
 _TOKEN = re.compile(r"[A-Za-z0-9]+(?:/[A-Za-z0-9]+)*")
 
 
@@ -242,7 +264,7 @@ def anchors(phrase: str) -> Anchors:
             strict.append(frozenset(_norm(p) for p in parts))
             continue
         for p in parts:
-            if p.lower() not in STOPWORDS and len(p) > 1:
+            if p.lower() not in STOPWORDS | FRAME_WORDS and len(p) > 1:
                 words.add(_norm(p))
     specific = words - ENTITY_WORDS
     return Anchors(tuple(strict), frozenset(specific if specific or strict else words))
@@ -270,14 +292,19 @@ def analyse(
     section: str | None = None,
 ) -> StatementAnalysis:
     cues: list[str] = []
-    obligation = _found(_OBLIGATION, text)
-    permission = _found(_PERMISSION, text)
+    # Fixed 'may' idioms are neither a permission nor an obligation: read cues without them.
+    idioms = re.findall(_MAY_IDIOMS, text, re.IGNORECASE)
+    plain = re.sub(_MAY_IDIOMS, " ", text, flags=re.IGNORECASE)
+    obligation = _found(_OBLIGATION, plain)
+    permission = _found(_PERMISSION, plain)
     condition = _found(_CONDITION, text)
     modal_neg = _found(_MODAL_NEGATION, text)
     exception = _found(_EXCEPTION, text)
     cues += [f"obl:{c}" for c in obligation] + [f"perm:{c}" for c in permission]
     cues += [f"cond:{c}" for c in condition] + [f"neg:{c}" for c in modal_neg]
     cues += [f"exc:{c}" for c in exception]
+    if idioms:
+        cues.append("idiom:may_not_permission")
 
     # Other negators: those not already part of a modal negation or a "no need" phrase.
     stripped = text

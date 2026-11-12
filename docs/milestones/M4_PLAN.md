@@ -355,3 +355,37 @@ Findings:
   - rule 10: m4h-007, 009, 010, 011 (entity-null with `expected_obligation: true`);
   - rule 1: m4h-008 ("Rs." vs "₹"), m4h-007 ("Form No. 60" vs "Form 60" in the cited chunk), m4h-022 (relies on "One Lakh" = 1,00,000);
   - rule 3: none (every held-out numeric contradiction is mutually incompatible).
+
+## S4.1 outcome (2026-11-12): NLI scorer, dev evaluation and the registered selection rule (no model run)
+**Delivered** (no model downloaded or run, no dependency, no graph change, held-out not read):
+- `app/verification/nli.py`:
+  - `CrossEncoderNLI`: lazy, CPU, pinned 40-hex revision, raw logits with an identity activation;
+  - the label-map permutation to canonical order fails closed on any other label set;
+  - the fixed sanity triplet runs at load and is recorded;
+  - pairs reach the model as (premise, hypothesis);
+  - over-long pairs return `None` (never truncated);
+  - `nli_from_settings` returns no scorer unless a model and its revision are configured.
+- **Protocol change (D4):** `NLIScorer.score` returns `list[NLIScore | None]`, and `decide._score` records `window_too_long`.
+- `decide.judge_claim`: the S2 judgement for one claim, exposed for evaluation (no logic copied).
+- `app/verification/evaluation.py`:
+  - dev-only loader (refuses the held-out set);
+  - premises from stored chunks;
+  - a cached scorer (each pair scored once per model);
+  - exact metrics: per-class precision/recall/F1, false-support and false-contradiction rates, abstention, coverage, MANDATORY false positives/negatives, obligation-from-form errors, per-perturbation accuracy;
+  - the three ablations.
+- `app/verification/selection.py`: the registered rule (candidates N1–N4, 35-pair grid, gates, the 2/40 cap, objective, tie-breaks), the write-once record and the runtime threshold loader.
+- `app/verification/cli.py` and Makefile targets `nli-check`, `eval-claims`, `eval-claims-select`, `test-nli`. The pytest marker `nli` is excluded from `make test`.
+- **Settings:** `NLI_MODEL_REVISION`, `NLI_BATCH_SIZE`, `NLI_MAX_PAIRS`, `NLI_SELECTION_RECORD` (thresholds are not settings).
+
+**Decided before any run (with tests):**
+- **D3:** "may" idioms are neither permission nor obligation.
+- **Claim-framing words are never anchors.** Found while testing the evaluator: dataset claims have no item name, so words like "form", "asks" and "obtained" became required anchors and form-request claims could never match. This changes S2 anchor matching for every caller; all S2 tests still pass.
+
+**Tests:**
+- `test_m4_nli.py` (30, fake CrossEncoder): all six label orders, fail-closed maps, a swapped map caught by the sanity triplet, pinning, ordering, over-long pairs, cache, settings.
+- `test_m4_evaluation_selection.py` (31): dev-only refusal, claim building for all 55 cases, modes, exact metric arithmetic, every gate, the cap boundary, every tie-break, write-once, the loader.
+- New statement and decision tests.
+- `test_m4_evaluation_dev.py` (integration): the harness on all 55 stored cases without a model; false-support rate 0 and MANDATORY false positives 0.
+- `test_m4_nli_live.py` (marker `nli`): skipped until S4.2 caches a model; runs offline, never downloads.
+
+**Next (S4.2, after owner approval):** download the four pinned checkpoints (D12), `make nli-check`, one `make eval-claims-select`, commit the record and summary.

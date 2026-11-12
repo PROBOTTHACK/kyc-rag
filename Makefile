@@ -20,6 +20,9 @@ COMPOSE := docker compose -f infra/docker-compose.yml
 BACKEND := backend
 CLI = cd $(BACKEND) && $(PY) -m app.ingestion.cli
 WF = cd $(BACKEND) && $(PY) -m app.workflow.cli
+VCLI = cd $(BACKEND) && $(PY) -m app.verification.cli
+# M4 S4 claim verification: N=candidate (N1..N4), TE/TC=thresholds for eval-claims.
+N ?=
 # Optional document selection for ingestion targets: make ingest DOC="rbi_kyc_faqs hdfc_nri_rekyc"
 DOC ?=
 DOCS = $(foreach d,$(DOC),--document $(d))
@@ -29,6 +32,7 @@ DOCS = $(foreach d,$(DOC),--document $(d))
 .PHONY: persist index retry reconcile repair runs forms search check-corpus eval eval-compare eval-select eval-heldout check-dense-golden
 .PHONY: api test test-integration lint fmt web
 .PHONY: purge purge-dry check-workflow demo demo-live
+.PHONY: nli-check eval-claims eval-claims-select test-nli
 
 # Printed by make itself ($(info)), so it needs no shell and looks the same everywhere.
 help:
@@ -41,6 +45,7 @@ help:
 	$(info Retrieval: search Q="..."  eval  eval-compare  eval-select  check-dense-golden)
 	$(info Dev:       api test test-integration lint fmt)
 	$(info Workflow:  purge purge-dry check-workflow demo demo-live  (demo needs `make api`))
+	$(info Claims:    nli-check [N=N1]  eval-claims N=N2 TE=0.9 TC=0.9  eval-claims-select  test-nli  (dev set only))
 	$(info )
 	$(info Typical first run: make up migrate check-corpus ingest)
 	$(info Interpreter: $(VENV_PY))
@@ -159,6 +164,23 @@ eval-select:
 # to run again once data/eval/m2_heldout_results.json exists.
 eval-heldout:
 	$(CLI) evaluate --final-heldout --report data/processed/m2_heldout_report.md --record data/eval/m2_heldout_results.json
+
+# M4 S4 claim verification (dev set only; the held-out set is refused). Models load from the
+# local Hugging Face cache at their pinned revisions; a first run downloads them (decision D12).
+nli-check:
+	$(VCLI) check-model $(if $(N),--candidate $(N),)
+
+# Dev metrics for one checkpoint at fixed thresholds: evaluation only, selects nothing.
+eval-claims:
+	$(VCLI) evaluate --candidate $(N) --tau-e $(TE) --tau-c $(TC)
+
+# Applies the pre-registered rule ONCE and writes the committed record; refuses a rerun.
+eval-claims-select:
+	$(VCLI) select --record data/eval/m4_nli_selection.json --doc docs/milestones/M4_NLI_SELECTION.md
+
+# Live-model NLI tests (marker `nli`; skipped when the pinned model is not cached).
+test-nli:
+	cd $(BACKEND) && $(PY) -m pytest -m nli
 
 # M1 dense golden regression: real model + dev collection; fails (never skips) if missing.
 check-dense-golden:

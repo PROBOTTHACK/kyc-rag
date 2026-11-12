@@ -184,6 +184,44 @@ Labelling rules, fields, perturbation tags, leakage controls and limitations: `d
 - **Metrics to compute (S4 on dev, S8 on held-out):** per-class precision/recall, false-support rate (primary safety metric), false-contradiction rate, abstention and risk–coverage, obligation-from-form errors (must be 0), and the agreement of `expected_obligation` with the decision table's MANDATORY.
 - **Limitations:** a single annotator (the implementing assistant) with owner review only, no inter-annotator agreement, 17 cases per class, synthetic claims, a corpus with one primary document. Entity-group cases are thin (1 per split). The dev classes are unbalanced after the owner's corrections, so S4 must report per-class rates, not accuracy alone.
 
+## M4 S4 NLI selection protocol (registered in S4.1, before any model was downloaded or run)
+Code: `app/verification/{nli,evaluation,selection,cli}.py`. Make targets: `nli-check`, `eval-claims`, `eval-claims-select`, `test-nli`.
+- **Data:** the dev set only (`data/eval/m4_claims_dev.jsonl`, 55 cases). The evaluator refuses every other file. The held-out set is read once, in S8.
+- **What is evaluated:** each case is judged by the S2 verifier (`decide.judge_claim`) against premises built from the stored Postgres chunks, never from the dataset quotes.
+  - **Verdict mapping:** supported → entailed; contradicted → contradicted; insufficient, conflicting and not_verified → insufficient (abstain).
+  - **MANDATORY check:** uses `state.mandatory_established`.
+- **Candidates:** the four checkpoints pinned in S0 (N1 `cross-encoder/nli-deberta-v3-xsmall`, N2 `…-small`, N3 `…-base`, N4 `MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli`). Each is loaded on CPU at its revision, its label map is read from the model config, and a fixed sanity triplet runs at load.
+- **Threshold grid:** τ_e, τ_c ∈ {0.50, 0.60, 0.70, 0.80, 0.90, 0.95} with τ_e + τ_c > 1 (35 pairs per model). Scores are computed once per model and reused across the grid.
+- **Hard gates (disqualify):**
+  - MANDATORY false positives > 0;
+  - obligation-from-form errors > 0;
+  - sanity triplet failed;
+  - a second scoring pass differs by more than 1e-6.
+- **Qualification:** false-support rate ≤ 2/40.
+- **Objective:** maximise entailed recall.
+- **Tie-breaks, in order:**
+  1. lower false-contradiction rate;
+  2. higher macro-F1;
+  3. smaller model;
+  4. higher τ_e;
+  5. higher τ_c;
+  6. lower p50 per-pair latency;
+  7. candidate id.
+- **If nothing qualifies:** no selection, and NLI stays off by default.
+- **Reported, never decisive:**
+  - ablations: rules only, NLI only (argmax, no gates), combined;
+  - per-perturbation accuracy;
+  - abstention and coverage;
+  - latency;
+  - a paired bootstrap 95% CI (10,000 resamples, seed 20261110).
+- **Run once:** `make eval-claims-select` writes `data/eval/m4_nli_selection.json` and refuses to overwrite it. Thresholds are read at runtime only from that record (`selection.load_selected`), never from code or settings.
+- **Decided before the run, with tests:**
+  - fixed "may" idioms ("as the case may be", "as may be required/notified…") are neither a permission nor an obligation;
+  - claim-framing words ("form", "asks", "obtained", "submit"…) are never item anchors, needed because dataset claims carry no separate item name;
+  - an over-long pair scores `None` → `window_too_long` → `not_verified` (never truncated).
+- **Safety floor measured without a model** (`tests/integration/test_m4_evaluation_dev.py`): the rules-only ablation over all 55 cases has false-support rate 0 and MANDATORY false positives 0.
+- **Limitation:** choosing thresholds on 55 single-annotator cases overfits. The held-out run in S8 is the only unbiased estimate.
+
 ## Ablations
 | Exp | Architecture |
 |---|---|
