@@ -2,7 +2,7 @@
 
 > Independent portfolio prototype. It is **not** an HDFC Bank or RBI system, it uses synthetic data only, it never approves or rejects KYC, and every result requires human review.
 
-**Status:** M3 is complete on `feat/m3-s8-e2e` (stacked branches S0 → S8). Merging into `main` waits for the owner's approval (D5).
+**Status:** M3 is complete (stacked branches S0 → S8) and was merged into `main` on owner approval (D5, merge commit `5c3250d`).
 **Plan and per-stage outcomes:** [`M3_PLAN.md`](M3_PLAN.md). **Previous milestone:** [`M2_HANDOFF.md`](M2_HANDOFF.md).
 
 ## 1. What M3 delivers

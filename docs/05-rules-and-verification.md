@@ -34,18 +34,18 @@ Newer ≠ automatically overriding; consider issuing authority, scope, amendment
 - **If nothing survives:** the outcome is `INSUFFICIENT_EVIDENCE` with gap `no_supported_requirements`, and the user sees the fallback text (decision S5-D2).
 - **Claim-level verification** of the explanations, by NLI, is M4. Every item is labelled `not_claim_verified`, and its explanation `model_drafted_not_verified`.
 
-## Verification pipeline
-1. **Claim extraction** — split draft into atomic claims `{claim_id, claim}`.
-2. **Evidence matching** — best supporting passages per claim (reuse retrieval).
-3. **NLI** — local DeBERTa-v3 MNLI: entailment / contradiction / neutral for (evidence, claim).
-4. **Confidence** — combine NLI probs + retrieval relevance + evidence coverage + source applicability + rule check. Never use NLI probability alone as truth.
-5. **Routing** — supported proceed; unsupported -> regenerate or remove (max 2); contradicted -> review; unresolved -> Unverified.
-6. **Final report** — only claims passing configured thresholds; uncertainty and sources preserved.
+## Verification pipeline (M4; full design in `docs/milestones/M4_PLAN.md`, which supersedes the earlier sketch)
+1. **Typed claim extraction** — deterministic. The asserted proposition comes from the proposed applicability (MANDATORY = unconditional `policy_obligation`, CONDITIONAL = conditional one); explanation sentences are checked verbatim. Form chunks are only ever tested as `form_request`, never as an obligation.
+2. **Premises** — the cited chunks' stored text from Postgres (not the truncated state copy), split into sentence windows with character offsets.
+3. **Statement analysis** — deterministic modality, polarity/negation, subject, item match and entity scope. A necessary condition only: no keyword ever establishes MANDATORY.
+4. **NLI** — local DeBERTa-v3 MNLI cross-encoder, (premise = evidence window, hypothesis = claim), label map read from the model config, raw logits softmaxed by the code and stored as uncalibrated signals.
+5. **Decision table** — supported / insufficient / contradicted / conflicting / not_verified, with dev-selected thresholds; no combined confidence score.
+6. **Effects** — downgrade only. Unsupported items leave the checklist for `unverified_items`; contradictions and source conflicts become open review cases. No regeneration loop in M4.
 
 Example failure to catch: evidence "designated partners must be verified" vs claim "every employee must submit ID" -> neutral/unsupported -> removed.
 
 **Know the limit:** NLI is an entailment classifier. It can't tell if a source is authoritative, current, or applicable. Hence the combined checks + human review. Thresholds are configurable and tuned on the benchmark, not hardcoded by guess.
 
 ## Human review workflow
-Review case created for: conflicting sources, missing amendments, unclear applicability, contradictions, low-confidence form extraction, repeatedly unsupported claims.
-Reviewer can: view claim, open source doc, inspect page, see evaluator class, **approve / reject / mark unresolved**, record a reason (stored in `review_cases`). AI assists; human decides.
+M4 creates **open** review cases (insert-only `review_cases`) for contradicted claims, conflicting sources, unsupported claims, mandatory claims not established, explanations that overstate their source, and items that could not be verified. Conflicting sources are never resolved by publication date: supersession needs a manifest `supersedes` record, an active source and `version_review_status=confirmed`.
+Reviewer decisions (approve / reject / mark unresolved, with a reason) need authentication and arrive in a later milestone (M4 decision D5); until then cases are read-only and reports stay immutable. AI assists; human decides.

@@ -42,7 +42,7 @@ Its guiding rule: **a polished but wrong checklist is worse than an incomplete o
 | 🖼️ | **Multimodal form analysis** | A vision-capable model extracts fields, checkboxes, signature blocks, declarations and annexures into validated, versioned JSON. |
 | 🔎 | **Hybrid retrieval** | Entity-aware metadata filtering, dense embeddings and BM25, fused with Reciprocal Rank Fusion. |
 | ✅ | **Compliance synthesis** | Requirements labelled **Mandatory / Conditional / Optional / Unclear**, each with an explanation, source document and page. |
-| 🛡️ | **Claim-level verification** | Atomic claim extraction, evidence matching, NLI entailment and rule checks. Unsupported claims are regenerated or removed. |
+| 🛡️ | **Claim-level verification** (planned, M4) | Typed atomic claims checked against the stored cited text with a local NLI model and deterministic obligation/negation rules. Unsupported claims are removed from the checklist and listed for review; nothing is upgraded. |
 | 🔒 | **Security guardrails** | Prompt-injection detection, untrusted-evidence handling, output validation and least-privilege agent tools. |
 | 👩‍⚖️ | **Human-in-the-loop review** | Conflicts and low-confidence items become review cases that a person approves, rejects or leaves unresolved, with a recorded reason. |
 | 📈 | **Observability** | Node-level traces, latency, retries and verification outcomes, in LangSmith and in an in-app view. |
@@ -79,10 +79,10 @@ The workflow is a single **LangGraph state machine**, not a swarm of free-runnin
 ```
 Evidence : "Designated partners must be verified."
 Claim    : "Every employee of the LLP must submit identity documents."
-Verdict  : NEUTRAL (not supported by evidence)  ->  removed or regenerated
+Verdict  : NEUTRAL (not supported by evidence)  ->  removed and listed for review
 ```
 
-NLI alone is not treated as truth. Final confidence combines entailment, retrieval relevance, evidence coverage, source applicability and deterministic rule checks. Anything still unresolved goes to a human.
+NLI alone is not treated as truth, and its scores are uncalibrated signals, not confidence. A claim counts as supported only when the model's entailment, deterministic checks (obligation wording, negation, the item named, entity scope) and the source's eligibility agree; form text never establishes an obligation. Anything unresolved goes to a human. Plan: [`docs/milestones/M4_PLAN.md`](docs/milestones/M4_PLAN.md).
 
 ## Tech stack
 
@@ -258,7 +258,8 @@ M3 limits:
 - [x] Document ingestion and retrieval foundation (M1: see [`docs/milestones/M1_HANDOFF.md`](docs/milestones/M1_HANDOFF.md))
 - [x] Hybrid retrieval and multimodal form extraction (M2: see [`docs/milestones/M2_HANDOFF.md`](docs/milestones/M2_HANDOFF.md))
 - [x] End-to-end LangGraph workflow (M3: see [`docs/milestones/M3_HANDOFF.md`](docs/milestones/M3_HANDOFF.md))
-- [ ] Claim verification, security and human review
+- [ ] Claim verification and review cases (M4, in progress: see [`docs/milestones/M4_PLAN.md`](docs/milestones/M4_PLAN.md))
+- [ ] Security hardening: Prompt Guard, rules layer, adversarial suite, reviewer decisions with authentication (after M4, per M4 decision D1)
 - [ ] Dashboard frontend
 - [ ] Evaluation benchmark and observability
 - [ ] Deployment and demo
