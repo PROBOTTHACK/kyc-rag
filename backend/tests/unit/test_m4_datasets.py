@@ -19,6 +19,8 @@ from app.graph.state import ClaimType
 from app.schemas.taxonomy import EntityType
 
 DEV = REPO_ROOT / "data" / "eval" / "m4_claims_dev.jsonl"
+DEV_LEDGER = REPO_ROOT / "data" / "eval" / "m4_claims_dev_review.jsonl"
+HELDOUT_LEDGER = REPO_ROOT / "data" / "eval" / "m4_claims_heldout_review.jsonl"
 HELDOUT = REPO_ROOT / "data" / "eval" / "m4_claims_heldout.jsonl"
 # SHA-256 of the committed held-out file (LF line endings). Also recorded in docs/10.
 HELDOUT_SHA256 = "eee0a575319d7df4bc3d8f5c0771a89e4c8bf9f68abe36eb56fcac3275d90203"
@@ -34,6 +36,7 @@ PERTURBATIONS = {
 REQUIRED_COVERAGE = {
     "negation", "polarity_flip", "number_change", "acronym_variant", "entity_swap",
     "scope_widening", "form_only", "entity_group", "ocr_uncertain", "source_status",
+    "modality_change",  # dev added after the owner review (2026-11-12)
 }  # fmt: skip
 FIELDS = {
     "id", "split", "claim", "claim_type", "entity", "match_scope", "evidence", "gold",
@@ -169,3 +172,77 @@ def test_no_duplicate_cases_within_a_split(split: str) -> None:
     assert len(keys) == len(set(keys))
     claims = [r["claim"].lower() for r in SPLITS[split]]
     assert len(claims) == len(set(claims))
+
+
+# --- owner review (2026-11-12) ---------------------------------------------------------------
+
+
+def test_dev_rule_10_entity_null_never_expects_an_obligation() -> None:
+    """Revised rule 10 applies to the dev set. The frozen held-out set was labelled under
+    the earlier wording; its affected cases are documented, not edited."""
+    for r in SPLITS["dev"]:
+        if r["entity"] is None:
+            assert not r["expected_obligation"], r["id"]
+
+
+def test_the_dev_ledger_matches_the_dataset() -> None:
+    ledger = load(DEV_LEDGER)
+    rows = {r["id"]: r for r in SPLITS["dev"]}
+    assert [e["entry"] for e in ledger] == [f"D{i:02d}" for i in range(1, len(ledger) + 1)]
+    touched = set()
+    for e in ledger:
+        assert e["split"] == "dev" and e["owner_words"]
+        assert e["scope"] in ("case", "addition", "acceptance", "guideline")
+        if e["scope"] == "guideline":
+            assert e["case_id"] is None
+            continue
+        r = rows[e["case_id"]]
+        touched.add(r["id"])
+        assert e["validated_against_postgres"] is True
+        if e["scope"] == "case":
+            assert r["owner_review"] == "changed" and r["owner_note"]
+            for field, value in e["applied"].items():  # the last entry per field wins
+                later = [
+                    x for x in ledger if x["case_id"] == r["id"] and field in (x["applied"] or {})
+                ]
+                if later[-1] is e:
+                    assert r[field] == value, (r["id"], field)
+        elif e["scope"] == "acceptance":
+            # accepted with the existing label; explicitly NOT an independent re-annotation
+            assert e["independently_reannotated"] is False
+            assert r["owner_review"] == "accepted" and r["gold"] == e["applied"]["gold"]
+        else:
+            assert r["owner_review"] == "accepted" and r["gold"] == e["applied"]["gold"]
+    reviewed = {r["id"] for r in SPLITS["dev"] if r["owner_review"] != "pending"}
+    assert reviewed == touched  # nothing reviewed outside the ledger
+    assert all(r["owner_review"] != "pending" for r in SPLITS["dev"])  # owner review complete
+    assert {e["decision"] for e in ledger if e["scope"] == "guideline"} >= {
+        "rule_1",
+        "rule_3",
+        "rule_10",
+    }
+
+
+def test_the_cross_source_conflict_pair_is_kept_and_unresolved() -> None:
+    rows = {r["id"]: r for r in SPLITS["dev"]}
+    hdfc, rbi = rows["m4d-032"], rows["m4d-013"]
+    assert hdfc["evidence"][0]["document_key"] == "hdfc_kyc_aml_faq"
+    assert rbi["evidence"][0]["document_key"] == "rbi_kyc_faqs"
+    assert "source_status" in hdfc["perturbations"] and "source_status" in rbi["perturbations"]
+    assert not hdfc["expected_obligation"] and not rbi["expected_obligation"]
+
+
+def test_heldout_issues_are_recorded_for_a_versioned_s8_correction_only() -> None:
+    """The issues the revised rules raise in the held-out set are logged, never applied:
+    the frozen file and its hash stay unchanged through S3/S4."""
+    issues = load(HELDOUT_LEDGER)
+    held = {r["id"]: r for r in SPLITS["heldout"]}
+    assert {i["case_id"] for i in issues} == {
+        "m4h-007", "m4h-008", "m4h-009", "m4h-010", "m4h-011", "m4h-022",
+    }  # fmt: skip
+    for i in issues:
+        assert i["split"] == "heldout" and i["frozen_sha256"] == HELDOUT_SHA256
+        assert i["status"] == "deferred_to_S8_versioned_correction"
+        current = held[i["case_id"]]
+        assert i["current"]["gold"] == current["gold"]  # recorded, not applied
+        assert i["current"]["expected_obligation"] == current["expected_obligation"]

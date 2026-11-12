@@ -166,11 +166,11 @@ Retrieval **Recall@5**, **citation precision**, **unsupported-claim rate**, clai
 
 ## M4 claim-verification datasets (M4 S3)
 Labelling rules, fields, perturbation tags, leakage controls and limitations: `docs/milestones/M4_LABELLING_GUIDELINES.md`.
-- **Development set:** `data/eval/m4_claims_dev.jsonl`, 51 cases (17 entailed / 17 contradicted / 17 insufficient). All S4 choices (NLI checkpoint, thresholds) are made on it under a rule registered before the run.
+- **Development set:** `data/eval/m4_claims_dev.jsonl`, 55 cases (15 entailed / 15 contradicted / 25 insufficient) after the owner review of 2026-11-12. Decisions are in the ledger `data/eval/m4_claims_dev_review.jsonl`. All S4 choices (NLI checkpoint, thresholds) are made on it under a rule registered before the run.
 - **Held-out set (frozen):** `data/eval/m4_claims_heldout.jsonl`, 51 cases (17 / 17 / 17).
   - **SHA-256** (committed file, LF line endings): `eee0a575319d7df4bc3d8f5c0771a89e4c8bf9f68abe36eb56fcac3275d90203`. `tests/unit/test_m4_datasets.py` fails if the file changes.
   - **Use:** run once in S8, for the configuration already selected on dev. Never used to choose or tune anything. A disappointing result is reported as is.
-  - **Label errors:** corrected in a new versioned file, never by editing this one. Owner verdicts go to the review ledger `data/eval/m4_claims_heldout_review.jsonl`, so the frozen file never changes.
+  - **Label errors:** corrected in a new versioned file, never by editing this one. Owner verdicts and known issues go to the ledger `data/eval/m4_claims_heldout_review.jsonl`, so the frozen file never changes. Six issues under the revised rules 1 and 10 are logged there (m4h-007, 008, 009, 010, 011, 022) for a separately versioned correction at S8.
 - **Leakage controls (tested):**
   - no evidence chunk is cited by both splits (dev 23 chunks, held-out 28);
   - no cross-split claim pair reaches token Jaccard 0.8 (maximum 0.786: the deliberate shared pattern "the X deed must be obtained for opening an account of a Y" on different entities and evidence);
@@ -182,7 +182,7 @@ Labelling rules, fields, perturbation tags, leakage controls and limitations: `d
   - the tags `ocr_uncertain`, `source_status` and `form_only` match the stored metadata;
   - `expected_obligation` cases cite only primary, active, non-OCR-uncertain chunks.
 - **Metrics to compute (S4 on dev, S8 on held-out):** per-class precision/recall, false-support rate (primary safety metric), false-contradiction rate, abstention and risk–coverage, obligation-from-form errors (must be 0), and the agreement of `expected_obligation` with the decision table's MANDATORY.
-- **Limitations:** a single annotator (the implementing assistant) with owner review only, no inter-annotator agreement, 17 cases per class, synthetic claims, a corpus with one primary document. Entity-group cases are thin (1 per split), and the dev set has no `modality_change` case (held-out has 3); modality is covered by the S2 unit tests.
+- **Limitations:** a single annotator (the implementing assistant) with owner review only, no inter-annotator agreement, 17 cases per class, synthetic claims, a corpus with one primary document. Entity-group cases are thin (1 per split). The dev classes are unbalanced after the owner's corrections, so S4 must report per-class rates, not accuracy alone.
 
 ## Ablations
 | Exp | Architecture |

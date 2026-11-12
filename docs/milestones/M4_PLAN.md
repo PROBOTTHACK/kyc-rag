@@ -327,3 +327,31 @@ Findings:
 **Owner action before S4:** review the dev labels (`owner_review`) and, optionally, the held-out labels via the ledger.
 
 **Limitations:** see the guidelines §7. A single annotator, who also built the verifier; small N; synthetic claims; thin entity-group coverage (1 per split); no dev `modality_change` case.
+
+## S3 owner review of the dev set (2026-11-12; uncommitted, awaiting owner approval)
+**Review:** all 51 original dev cases were reviewed by the owner from a generated report (exact stored evidence, MANDATORY reasoning, guideline check per case).
+- **Decisions:** recorded in `data/eval/m4_claims_dev_review.jsonl`, 19 entries: 12 case-change entries (11 cases), 3 additions and 3 rule clarifications plus 1 modality decision. Each entry holds the owner's words and the previous and applied values.
+- **Case decisions (claims unchanged):**
+  - m4d-010 and m4d-005 → `insufficient` (dropped provisos, which the verifier must not repair; the provisos are now in the quotes);
+  - m4d-016 and m4d-033 → `insufficient` (OCR does not establish the meaning);
+  - m4d-031 and m4d-032 → `insufficient` under revised rule 3. m4d-032 stays the cross-source conflict example with m4d-013; no source is selected.
+- **Rule 10 (entity scope):** m4d-007, 008, 011 and 012 → `expected_obligation: false` (entity-null; FPI evidence is not generalised). m4d-005 is false through its relabel.
+- **Rule 1 (abbreviations):** m4d-012 and m4d-029 now also cite the paragraph 49 heading "Foreign Portfolio Investors (FPIs)" (chunk `9b04e1c1…`, dev-only), so the expansion is established by the source.
+- **Additions:**
+  - m4d-052 `insufficient` (may vs must);
+  - m4d-053 `contradicted` (not mandatory / voluntary vs must, same subject and condition);
+  - m4d-054 `entailed` control (no fresh CDD needed). Not counted as a modality example.
+- **Result:** 54 dev cases, 15 / 15 / 24.
+  - Every reference, quote and tag was revalidated against Postgres (211 checks).
+  - The held-out file is byte-identical, SHA-256 `eee0a575…d90203`.
+- **Round 2 (owner decisions):**
+  - m4d-004 → `insufficient`, claim unchanged ("MoA and AoA" is not established by the source; no terminology mapping is approved).
+  - Replacement **m4d-055** (`entailed`, company): "For opening an account of a company, the bank shall obtain the names of the relevant persons holding a senior management position." Its wording is verbatim from paragraph 33 item (6), a dev-only chunk.
+  - The other 39 cases are recorded as accepted with their existing labels. The ledger states that this is not an independent re-annotation.
+- **Final dev set:** 55 cases, 15 / 15 / 25, owner review complete.
+  - **Dev ledger:** 60 entries: 13 case changes (12 cases), 4 additions, 39 acceptances and 4 guideline decisions.
+  - **Held-out issues ledger:** `data/eval/m4_claims_heldout_review.jsonl`, 6 entries, status `deferred_to_S8_versioned_correction`.
+- **Held-out cases the revised rules would affect (logged in the held-out ledger, not edited; the correction is a separately versioned file at S8):**
+  - rule 10: m4h-007, 009, 010, 011 (entity-null with `expected_obligation: true`);
+  - rule 1: m4h-008 ("Rs." vs "₹"), m4h-007 ("Form No. 60" vs "Form 60" in the cited chunk), m4h-022 (relies on "One Lakh" = 1,00,000);
+  - rule 3: none (every held-out numeric contradiction is mutually incompatible).
