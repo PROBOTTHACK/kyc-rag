@@ -487,6 +487,9 @@ class EvidenceJudgement(_Model):
     document_type: DocumentType
     page: int = Field(ge=1)
     page_end: int | None = Field(default=None, ge=1)
+    # Offsets index into the stored `content` of `window_chunk_id`: the cited chunk itself
+    # (None) or, for a child chunk, the parent paragraph it was expanded to (M4 S2).
+    window_chunk_id: str | None = None
     window_start: int = Field(ge=0)
     window_end: int = Field(ge=1)
     evidence_role: EvidenceRole
@@ -545,7 +548,7 @@ class ClaimVerdict(_Model):
         return self
 
 
-def _mandatory_established(
+def mandatory_established(
     claims: dict[str, AtomicClaim],
     verdicts: list[ClaimVerdict],
     judgements: list[EvidenceJudgement],
@@ -585,9 +588,10 @@ class RequirementVerification(_Model):
     """All of M4's work on one validated requirement, and its downgrade-only effect."""
 
     requirement_id: str = Field(min_length=1, max_length=64)
-    claims: list[AtomicClaim] = Field(min_length=1, max_length=12)
+    # Empty only when the item asserts nothing checkable (M4 S2): then it is `not_verified`.
+    claims: list[AtomicClaim] = Field(default_factory=list, max_length=12)
     judgements: list[EvidenceJudgement] = Field(default_factory=list, max_length=200)
-    verdicts: list[ClaimVerdict] = Field(min_length=1, max_length=12)
+    verdicts: list[ClaimVerdict] = Field(default_factory=list, max_length=12)
     requirement_verdict: RequirementVerdict
     applicability_before: Applicability
     applicability_after: Applicability
@@ -597,6 +601,8 @@ class RequirementVerification(_Model):
     def _consistent(self) -> "RequirementVerification":
         if not never_upgraded(self.applicability_before, self.applicability_after):
             raise ValueError("claim verification can never upgrade applicability")
+        if not self.claims and self.requirement_verdict != "not_verified":
+            raise ValueError("a requirement with no checkable claim is not_verified")
         claims = {c.claim_id: c for c in self.claims}
         if len(claims) != len(self.claims):
             raise ValueError("claim ids must be unique")
@@ -618,7 +624,7 @@ class RequirementVerification(_Model):
                 raise ValueError("a verdict's best evidence must be one of its judgements")
         if len(set(self.review_flags)) != len(self.review_flags):
             raise ValueError("review flags must be unique")
-        if self.applicability_after == Applicability.MANDATORY and not _mandatory_established(
+        if self.applicability_after == Applicability.MANDATORY and not mandatory_established(
             claims, self.verdicts, self.judgements
         ):
             raise ValueError("MANDATORY needs a supported obligation on eligible primary evidence")

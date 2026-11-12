@@ -46,6 +46,8 @@ Example failure to catch: evidence "designated partners must be verified" vs cla
 
 **Know the limit:** NLI is an entailment classifier. It can't tell if a source is authoritative, current, or applicable. Hence the combined checks + human review. Thresholds are configurable and tuned on the benchmark, not hardcoded by guess.
 
+**Implementation status:** steps 1–3 and 5–6 are implemented deterministically in `backend/app/verification/` (M4 S2) and tested with a scripted `FakeNLI`; the real local NLI scorer arrives in S4 and the graph node in S5.
+
 ## Human review workflow
 M4 creates **open** review cases (insert-only `review_cases`) for contradicted claims, conflicting sources, unsupported claims, mandatory claims not established, explanations that overstate their source, and items that could not be verified. Conflicting sources are never resolved by publication date: supersession needs a manifest `supersedes` record, an active source and `version_review_status=confirmed`.
 Reviewer decisions (approve / reject / mark unresolved, with a reason) need authentication and arrive in a later milestone (M4 decision D5); until then cases are read-only and reports stay immutable. AI assists; human decides.

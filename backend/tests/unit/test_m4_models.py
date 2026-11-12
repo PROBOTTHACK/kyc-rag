@@ -638,7 +638,8 @@ def test_claim_verdict_contracts(kw: dict[str, Any], message: str) -> None:
     [
         ({"claims": [claim(), claim()]}, "unique"),
         ({"claims": [claim(requirement_id="REQ_009")]}, "belongs"),
-        ({"verdicts": []}, "at least 1"),
+        ({"verdicts": []}, "one verdict per claim"),
+        ({"claims": [], "verdicts": [], "judgements": []}, "no checkable claim"),
         ({"verdicts": [verdict(), verdict()]}, "one verdict per claim"),
         ({"judgements": [judgement(claim_id="REQ_001-C9")]}, "unknown claim"),
         ({"verdicts": [verdict(best_evidence_id="c-missing")]}, "one of its judgements"),
@@ -693,3 +694,19 @@ def test_m4_state_keys_validate_round_trip_and_cannot_be_injected() -> None:
     bad = state | {"claim_results": [dump(verification()) | {"applicability_before": "UNCLEAR"}]}
     with pytest.raises(ValueError, match="claim_results"):
         validate_state(bad)
+
+
+def test_a_requirement_with_no_checkable_claim_is_only_ever_not_verified() -> None:
+    """M4 S2: an UNCLEAR/OPTIONAL item citing only primary text asserts nothing checkable."""
+    nothing = verification(
+        claims=[],
+        verdicts=[],
+        judgements=[],
+        requirement_verdict="not_verified",
+        applicability_before="UNCLEAR",
+        applicability_after="UNCLEAR",
+        review_flags=["not_verified"],
+    )
+    assert nothing.claims == []
+    with pytest.raises(ValidationError, match="MANDATORY|not_verified"):
+        verification(claims=[], verdicts=[], judgements=[], requirement_verdict="not_verified")

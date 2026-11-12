@@ -252,3 +252,35 @@ Findings:
 - ruff, black, strict `mypy app` (112 files), `alembic check` (no drift): clean.
 
 **Environment-dependent failures, not regressions:** `test_dense_golden.py::test_dense_retrieval_reproduces_the_m1_golden_snapshot` and `test_hybrid_dev.py::test_hybrid_on_the_dev_stack_preserves_dense_provenance` both fail on query m1-14 at ranks 2/3. The golden snapshot records an **exact score tie** there (0.676856 for both chunks: the same declaration in `hdfc_nri_account_opening` p.3 and `hdfc_resident_to_nro_conversion` p.3), and Qdrant returned the tied pair in the other order after the containers were restarted for this run. Both tests fail identically on the M3 code with every S1 change stashed. S1 does not touch retrieval. The golden tests were not changed: making their tie handling deterministic (e.g. comparing tied hits as a set, or a chunk-id tie-break) is a separate owner decision.
+
+## S2 outcome (2026-11-12): deterministic verification foundation
+**Delivered** (`backend/app/verification/`; not wired into the graph, no real model, no dependency, no migration):
+- `text.py`: segmentation with exact character offsets. Splits on sentence ends, `;`, `:` (list lead-ins) and list markers; never on "Form No. 60", "Rs.", "e.g.", "16.1", "10:30". Paragraph labels ("35.", "Q6.") and connectors ("and") stay with their text.
+- `premises.py`: premises from the **stored** evidence context (Postgres text, not the truncated state copy). Windows are single segments, adjacent pairs, and a list lead-in through each item of its sentence. `content[start:end] == window` always; a child chunk is read in its parent paragraph and `window_chunk_id` names the parent. Bounded (1000 chars per window, 40 windows per premise, cap reported). A citation that disagrees with the stored chunk raises `PremiseMismatch`.
+- `statements.py`: modality (obligation / permission / conditional / none), polarity (affirmative / negated / ambiguous: double negation, exceptions, stray negators), anchors (numbers and acronyms strict, "60/61" as alternatives; other words at least half; entity-type words do not identify an item; no synonyms), subject (recorded only when named; person-role conflicts detected), entity scope (window, then section heading). A necessary condition only.
+- `claims.py` (templates `t1`): the asserted proposition from the PROPOSED applicability (MANDATORY → unconditional `policy_obligation`, CONDITIONAL → conditional; OPTIONAL/UNCLEAR → none), kept even when no primary source is cited, so it must fail. Role-specific `form_request` / `supporting_statement` claims for the roles actually cited. Explanation sentences verbatim (max 6; over-long ones counted, not lost). No template uses "requires or requests".
+- `nli.py`: `NLIScorer` protocol (`NLIPair(premise, hypothesis)`, canonical label order, raw logits → `softmax` here), `NLIError`, and `FakeNLI` (scripted, records calls). No real model.
+- `decide.py`: the decision table. A window supports only with entailment ≥ threshold **and** a compatible reading. It contradicts when it names the item and either the model contradicts or it states the obligation negated. Claim verdicts: conflicting / supported / contradicted / insufficient, and `not_verified` for any unscored allowed pair (no scorer, failure, pair cap). The requirement verdict is judged against the asserted proposition. Effects: `min(before, cap)`; MANDATORY also needs `state.mandatory_established`. Flags: unsupported, contradicted, conflicting_sources, not_verified, mandatory_not_established, explanation_overstates_source. Thresholds are required inputs (no defaults in code; `entail + contradict > 1`).
+
+**S1 adjustments (justified, backward compatible):**
+- `mandatory_established` is public, so the decision table and the model validator use one rule.
+- `EvidenceJudgement.window_chunk_id` (optional) makes offsets unambiguous for child chunks.
+- `RequirementVerification` may hold zero claims (an item asserting nothing checkable, e.g. UNCLEAR citing only primary text), and is then only ever `not_verified`.
+
+**Tests** (unit, no network; property-style tests use seeded `random`, since `hypothesis` is not a project dependency):
+- `test_m4_text.py`: 12 tests, including 500 random texts for offset exactness.
+- `test_m4_statements.py`: 61 tests, including positive, negative and ambiguous obligation statements.
+- `test_m4_premises_claims.py`: 23 tests.
+- `test_m4_decide.py`: 33 tests, including a 300-case seeded sweep with random evidence, applicabilities, scope, hashed scores, scorer failure and caps. It asserts never-upgrade, MANDATORY only when established, forms never judged for obligations, nothing supported without scores, JSON round trip and determinism.
+- `test_m4_models.py`: 147 tests (S1 suite, updated for zero-claim items).
+
+**Checks:**
+- Unit: 1244 passed, 1 failed (the known `.env`-dependent `test_live_calls_and_cache_are_off_by_default`).
+- Integration (relevant subset): `test_m4_report_compat`, `test_m3_e2e`, `test_graph_s5_corpus`, `test_workflow_tables`, `test_graph_checkpoint_postgres`, 21/21 passed.
+- ruff, black, strict `mypy app` (118 files), `alembic check`: clean.
+- The full integration suite was not rerun: S2 adds no graph, retrieval or database code. The two known Qdrant tie failures (S1 outcome) are unchanged baseline issues.
+
+**Limitations found and kept visible (to measure in S3/S4, not tuned now):**
+- Anchor matching does no stemming beyond plurals ("attach" ≠ "attached") and no synonyms ("PAN" ≠ "permanent account number"). Both fail towards `insufficient`, never towards `supported`.
+- Clause scope is approximated by cue words, so a negator elsewhere in a window makes it `ambiguous`.
+- "may be dispensed with" reads as a negated permission. That is still never an affirmative obligation.
