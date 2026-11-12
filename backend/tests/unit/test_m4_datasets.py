@@ -246,3 +246,28 @@ def test_heldout_issues_are_recorded_for_a_versioned_s8_correction_only() -> Non
         current = held[i["case_id"]]
         assert i["current"]["gold"] == current["gold"]  # recorded, not applied
         assert i["current"]["expected_obligation"] == current["expected_obligation"]
+
+
+# --- M4 S8: the held-out set stays frozen and unused (owner decision S8-1, option A) -------------
+
+# The only production code that may name the held-out file: the dev loader's refusal guard and
+# the selection CLI's byte-hash check. Nothing may load, score or relabel it.
+HELDOUT_REFERENCES = {"app/verification/evaluation.py", "app/verification/cli.py"}
+
+
+def test_no_code_path_can_load_the_heldout_set() -> None:
+    backend = REPO_ROOT / "backend"
+    found = {
+        str(p.relative_to(backend)).replace("\\", "/")
+        for p in (backend / "app").rglob("*.py")
+        if "m4_claims_heldout" in p.read_text(encoding="utf-8")
+    }
+    assert found == HELDOUT_REFERENCES
+    makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+    assert "m4_claims_heldout" not in makefile and "eval-claims-heldout" not in makefile
+    cli = (backend / "app/verification/cli.py").read_text(encoding="utf-8")
+    uses = [line.strip() for line in cli.splitlines() if re.search(r"\bHELDOUT\b", line)]
+    assert uses == [
+        'HELDOUT = REPO_ROOT / "data" / "eval" / "m4_claims_heldout.jsonl"',
+        "if _sha(HELDOUT) != HELDOUT_SHA256:",
+    ]  # defined once, used once: a byte hash, never parsed

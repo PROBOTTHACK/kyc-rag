@@ -564,3 +564,30 @@ Owner-approved scope and decisions S7-1 to S7-6.
 - Updated: `test_migration_0007` now runs `alembic check` at head instead of at 0007, which is no longer the head. This is the same change `test_workflow_tables` made for 0006.
 
 **Unchanged:** graph behaviour and topology, report content, NLI configuration, S4 records, datasets, labels, thresholds, the conflict scan and the deferred S2 defects. No new dependency. Known baseline failures remain documented: 2 Qdrant tied-score tests and the environment-dependent Groq test.
+
+## S8 outcome (2026-11-12): held-out frozen and unused, M4 acceptance rules, real-corpus e2e, latency
+Owner decisions S8-1 (option A), S8-2, S8-3 and S8-4. The full results are in docs/10 (M4 S8 results).
+
+- **`held_out_status: frozen_unused`.**
+  - No NLI configuration qualified in S4, and the shipped NLI-disabled verifier's held-out result is fixed by construction.
+  - The set was not read, loaded, evaluated, relabelled or corrected; its byte hash is still `eee0a575…d90203`.
+  - The new guard test limits mentions of the file in `app/` to the dev-loader refusal and the selection CLI's hash check.
+  - There is no `eval-claims-heldout` target and no corrected file.
+  - The 6 annotation issues are preserved unchanged for a future, separately approved protocol.
+- **Acceptance:** `check_report` now covers every verification state (`ran` / `partial` / `failed` / `not_configured`): monotonicity, provenance, MANDATORY establishment with a primary citation, no verified-looking item without support, conflict visibility, scan wording, degradations. 27 tests on genuine and forged reports.
+- **Real-corpus e2e:** NLI-off and scripted-enabled paths pass (3 tests incl. the latency sample).
+- **Newly found pre-existing M3 issue (recorded, not fixed):** a child-chunk citation carries its expanded parent's page range, so `check_report` reports `citation_mismatch` for that item. The M3 checklist already has it.
+- **Latency (NLI off, 7 runs):** node p50 47.2 ms / p95 49.4 ms; whole run p50 503.9 ms / p95 536.2 ms. Indicative only.
+- **Ablation:** taken from the S4 record only.
+- **Test counts (final S8 run):** unit `make test` 1,492 passed, 1 failed; integration (full) 504 passed, 2 failed, 4 deselected.
+  - Known baseline failures only: `test_groq_provider.py::test_live_calls_and_cache_are_off_by_default` (environment-dependent), `test_dense_golden` and `test_hybrid_dev` (Qdrant tied scores, query m1-14).
+  - The S7 `test_migration_0007` regression stays fixed.
+- **Documented, not investigated:**
+  - the legacy `fallback_text_missing` wording;
+  - the deferred S2 defects (rule 10, window-level modality and polarity, claim polarity, rule-1 abbreviations);
+  - the determinism tolerance; N4 float16;
+  - the single-annotator dev set;
+  - the 6 held-out issues.
+- **Unchanged:** NLI configuration, S4 records, datasets, labels, thresholds, the conflict scan, graph topology, dependencies, migrations.
+
+**Next (S9, after owner approval):** docs and handoff.

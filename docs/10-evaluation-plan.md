@@ -304,6 +304,70 @@ Any new protocol (for example a latency gate or corrected gates) must be a new v
   - applicability unchanged.
 - **Real corpus:** no `supersedes` relation is recorded, so no conflict can be resolved.
 
+## M4 S8 results (2026-11-12): held-out frozen and unused, acceptance, end to end, latency
+### Held-out set: `held_out_status: frozen_unused` (owner decision S8-1, option A)
+- **Why not evaluated:**
+  - The held-out run was meant to estimate the verifier selected in S4. No NLI configuration qualified (`m4-s4-v1`: 0 of 140), so none exists.
+  - The shipped configuration (NLI disabled) has a held-out outcome fixed by construction: every claim `not_verified`, entailed recall 0, false-support 0, MANDATORY false positives 0, abstention 100%.
+  - Running it would spend the only unseen set without measuring a model.
+  - The set stays valid for a future, separately approved protocol.
+- **Protection:**
+  - Its SHA-256 is still `eee0a575…d90203`, checked from the bytes only.
+  - It was not read, loaded, evaluated, relabelled or corrected in S8.
+  - The dev loader still refuses it.
+  - A new test (`test_no_code_path_can_load_the_heldout_set`) allows the file name in only two places in `app/`: the dev loader's refusal guard and the selection CLI's byte-hash check (defined once, used once). It also requires that no Makefile target names it.
+- **Not done:** no corrected held-out file was created, and there is no `eval-claims-heldout` target.
+- **The 6 logged annotation issues** (m4h-007, -008, -009, -010, -011, -022) are preserved unchanged in `m4_claims_heldout_review.jsonl` for that future protocol. That ledger file was not edited either, so its status text still reads `deferred_to_S8_versioned_correction`.
+- **Pre-existing, unchanged:** the S3 dataset-integrity tests (`test_m4_datasets.py`) parse the held-out file's structure and ledger on every `make test`. They do not score it.
+
+### Ablation (copied from the committed S4 record `data/eval/m4_nli_selection.json`; nothing re-run)
+| Configuration (dev, 55 cases) | Accuracy | Macro-F1 | False support | False contradiction | Recall E / C / I | Abstention | MANDATORY FP |
+|---|---|---|---|---|---|---|---|
+| Rules only (no scorer) | 25/55 | 0.208 | 0 | 0 | 0.00 / 0.00 / 1.00 | 1.00 | 0 |
+| NLI only (argmax), N1 / N2 / N3 / N4 | 30, 31, 30, 33 /55 | 0.538 / 0.560 / 0.539 / 0.605 | 4/40 each | 19/40, 17/40, 20/40, 15/40 | E 0.67 / 0.67 / 0.53 / 0.73 | 0.13–0.20 | 0 (never claims MANDATORY) |
+| Combined at τ_e = τ_c = 0.9, N1 / N2 / N3 / N4 | 36, 34, 32, 32 /55 | 0.619 / 0.583 / 0.554 / 0.543 | 2/40, 3/40, 3/40, 2/40 | 3/40, 3/40, 5/40, 5/40 | E 0.40 / 0.40 / 0.40 / 0.33 | 0.62–0.65 | 2 / 3 / 3 / 3 (the failed gate) |
+
+These dev numbers are diagnostic only. They selected nothing and estimate nothing unbiased.
+
+### Acceptance (`check_report`, M4 rules completed)
+- **Every v2 report:** applicability never rises (shown ≤ `applicability_after` ≤ `applicability_before` ≤ proposed), and the conflict-scan wording matches `contradiction_scan`.
+- **`ran` / `partial` / `failed`:**
+  - provenance present (model, revision, label map, templates, thresholds);
+  - MANDATORY only with an established, supported obligation and a primary citation;
+  - no item shown as verified without a supported claim;
+  - a `conflicting_sources` flag needs a source-conflict record or a claim-level `conflicting` verdict;
+  - every conflict shows two sources and is listed for review;
+  - `partial` / `failed` carry a `verification` degradation.
+- **`not_configured`:** the S5/S6 rules as before.
+- **Tests:** `tests/unit/test_m4_acceptance_s8.py` (27).
+  - Genuine reports in all 4 states pass.
+  - Forged reports are caught: missing provenance, missing degradation, verified without support, MANDATORY without a primary citation, flag without sources, conflict not listed, one-sided conflict, scan wording in 4 directions.
+  - Applicability rises are refused by the report model itself; the repeated rule in `check_report` is tested directly as a second layer.
+  - v1 and NLI-off behaviour is unchanged.
+
+### End to end on the real corpus (`tests/integration/test_m4_e2e_corpus.py`)
+- **NLI disabled:**
+  - DEGRADED, v2, all claims `not_verified`, scan `not_run`, no MANDATORY;
+  - one open `not_verified` review case per item, identical to what the report implies;
+  - `check-workflow` clean.
+- **Enabled path (scripted FakeNLI, test only; any attempt to build a real model fails the test):**
+  - status `ran`/`partial` with provenance, scan `bounded`;
+  - every scored premise is text stored in Postgres;
+  - review cases consistent.
+- **Newly found, pre-existing M3 issue (recorded, not fixed):**
+  - A citation of a retrieved child chunk carries the page range of its expanded parent paragraph. On the real trust run: the RBI Directions chunk is stored as pp. 8–9 but cited as pp. 4–15.
+  - `check_report` looks up the child row, so that item fails `citation_mismatch`.
+  - The M3 checklist already holds the same citation before verification runs.
+  - The e2e tests require these to be the only acceptance problems, so any M4 problem would still fail. A fix needs an owner decision.
+
+### Latency, NLI disabled (indicative; laptop CPU, scripted LLM, BM25; 7 runs; no gate)
+| Measure | p50 | p95 |
+|---|---|---|
+| `claim_verification` node | 47.2 ms | 49.4 ms |
+| Whole graph run (scripted LLM, real corpus) | 503.9 ms | 536.2 ms |
+
+The NLI-on costs are the S4 measurements above (N4 float16: 1.88 s per pair p50). They are not repeated.
+
 ## Ablations
 | Exp | Architecture |
 |---|---|
