@@ -18,6 +18,13 @@ With a scorer (tests only in S5, `FakeNLI`): premises are built from the stored 
 (Postgres), and `verify_requirement` applies the S2 decision table. A requirement whose
 premises cannot be built is `not_verified`; a corpus failure fails the stage closed.
 
+M4 S6, the bounded source-conflict scan (`app.verification.conflicts`): only with a scorer.
+It compares passages of evidence ALREADY retrieved in this run (eligible evidence only, no
+new retrieval), at most `max_conflict_pairs` unique pairs. A conflict adds the
+`conflicting_sources` flag and is listed with both sides; applicability never changes.
+Without a scorer the scan is `not_run` (zero pairs, no conflicts, no flags): never reported
+as "no conflict found".
+
 No LLM call, no network call, no model is loaded here. State holds codes, ids, offsets,
 scores and the model prose already in the report; never user words.
 """
@@ -25,23 +32,30 @@ scores and the model prose already in the report; never user words.
 import time
 from typing import TYPE_CHECKING, Any
 
-from app.db.repository import EvidenceContext
+from app.db.repository import DocumentRelationRow, EvidenceContext
+from app.graph.routing import ELIGIBLE
 from app.graph.state import (
+    Citation,
     Degradation,
     EntityProfile,
+    EvidenceItem,
     KYCState,
     RequirementVerification,
+    SourceConflict,
     ValidatedRequirement,
     VerificationMeta,
     dump,
     dump_list,
     evidence_role,
     read,
+    read_list,
 )
 from app.schemas.taxonomy import EntityType
 from app.verification.claims import TEMPLATES_VERSION, extract
-from app.verification.decide import not_verified_requirement, verify_requirement
-from app.verification.premises import PremiseMismatch, build_premise
+from app.verification.conflicts import ScanItem, candidate_pairs, scan, source_conflicts
+from app.verification.decide import Thresholds, not_verified_requirement, verify_requirement
+from app.verification.nli import NLIScorer
+from app.verification.premises import Premise, PremiseMismatch, build_premise
 
 if TYPE_CHECKING:
     from app.graph.builder import GraphDeps
@@ -49,6 +63,7 @@ if TYPE_CHECKING:
 NLI_NOT_CONFIGURED = "nli_not_configured"
 PREMISE_UNAVAILABLE = "premise_unavailable"
 CORPUS_UNAVAILABLE = "corpus_unavailable"
+CONFLICT_SCAN_FAILED = "conflict_scan_failed"
 
 
 def _entity(state: KYCState) -> EntityType | None:
@@ -57,13 +72,10 @@ def _entity(state: KYCState) -> EntityType | None:
     return EntityType(value) if value is not None else None
 
 
-def _contexts(
-    checklist: list[ValidatedRequirement], deps: "GraphDeps"
-) -> tuple[dict[str, EvidenceContext], str | None]:
-    """The stored chunks behind every citation, or a failure code (fail closed)."""
+def _contexts(ids: list[str], deps: "GraphDeps") -> tuple[dict[str, EvidenceContext], str | None]:
+    """The stored chunks behind the given ids, or a failure code (fail closed)."""
     if deps.corpus is None:
         return {}, CORPUS_UNAVAILABLE
-    ids = sorted({c.evidence_id for r in checklist for c in r.citations})
     try:
         return deps.corpus.evidence(ids), None
     except Exception as exc:  # any reader failure: verify nothing, never guess
@@ -80,6 +92,82 @@ def _roles(req: ValidatedRequirement, contexts: dict[str, EvidenceContext]) -> s
     return roles
 
 
+def _retrieved_premises(
+    state: KYCState, contexts: dict[str, EvidenceContext], known: dict[str, Premise]
+) -> dict[str, Premise]:
+    """Premises for eligible evidence already retrieved in this run (never re-retrieved).
+    A chunk whose stored facts disagree with state is left out (not scanned)."""
+    out = dict(known)
+    for e in read_list(state, "evidence", EvidenceItem):
+        if e.evidence_id in out or e.evidence_eligibility.value not in ELIGIBLE:
+            continue
+        ctx = contexts.get(e.evidence_id)
+        if ctx is None:
+            continue
+        citation = Citation(
+            evidence_id=e.evidence_id, document_key=e.document_key, page=e.page,
+            page_end=e.page_end, paragraph=e.paragraph, match_scope=e.match_scope,
+            evidence_eligibility=e.evidence_eligibility, text_reliability=e.text_reliability,
+            source_status=e.source_status, can_support_mandatory=e.can_support_mandatory,
+        )  # fmt: skip
+        try:
+            out[e.evidence_id] = build_premise(citation, ctx)
+        except PremiseMismatch:
+            continue
+    return out
+
+
+def _relations(keys: list[str], deps: "GraphDeps") -> dict[str, DocumentRelationRow] | None:
+    """Supersession facts; None on any lookup failure (then nothing is ever resolved)."""
+    if deps.corpus is None:
+        return None
+    try:
+        return deps.corpus.document_relations(keys)
+    except Exception:  # a failed lookup never resolves a conflict
+        return None
+
+
+def _conflict_scan(
+    state: KYCState,
+    deps: "GraphDeps",
+    checklist: list[ValidatedRequirement],
+    premises: dict[str, Premise],
+    contexts: dict[str, EvidenceContext],
+    scorer: NLIScorer,
+    thresholds: Thresholds,
+) -> tuple[list[SourceConflict], dict[str, Any]]:
+    pool = _retrieved_premises(state, contexts, premises)
+    items = [
+        ScanItem(r.requirement_id, r.name, frozenset(c.evidence_id for c in r.citations))
+        for r in checklist
+    ]
+    result = scan(candidate_pairs(items, list(pool.values())), scorer, thresholds,
+                  deps.max_conflict_pairs)  # fmt: skip
+    keys = sorted({p.premise.document_key for c, _ in result.conflicts for p in (c.a, c.b)})
+    relations = _relations(keys, deps) if keys else {}
+    meta = {
+        "contradiction_scan": "failed" if result.failed else "bounded",
+        "contradiction_scan_size": result.pairs_scored,
+        "contradiction_pairs_not_scanned": result.pairs_not_scanned,
+    }
+    return source_conflicts(result, relations), meta
+
+
+def _flag_conflicts(
+    results: list[RequirementVerification], conflicts: list[SourceConflict]
+) -> list[RequirementVerification]:
+    """Add the review flag only; applicability and verdicts are untouched (S6-3)."""
+    flagged = {c.requirement_id for c in conflicts}
+    out = []
+    for r in results:
+        if r.requirement_id in flagged and "conflicting_sources" not in r.review_flags:
+            r = RequirementVerification.model_validate(
+                r.model_dump() | {"review_flags": [*r.review_flags, "conflicting_sources"]}
+            )
+        out.append(r)
+    return out
+
+
 def claim_verification(state: KYCState, deps: "GraphDeps") -> dict[str, Any]:
     raw = state.get("checklist")
     if not raw:  # routing sends only a non-empty checklist here
@@ -87,15 +175,19 @@ def claim_verification(state: KYCState, deps: "GraphDeps") -> dict[str, Any]:
     started = time.perf_counter()
     checklist = [ValidatedRequirement.model_validate(c) for c in raw]
     entity = _entity(state)
-    contexts, corpus_error = _contexts(checklist, deps)
     # Both or neither (GraphDeps enforces it); None = NLI disabled, the S5 default.
     config = (
         (deps.nli, deps.nli_thresholds)
         if deps.nli is not None and deps.nli_thresholds is not None
         else None
     )
+    ids = {c.evidence_id for r in checklist for c in r.citations}
+    if config is not None:  # the conflict scan also reads the other retrieved evidence
+        ids |= {e.evidence_id for e in read_list(state, "evidence", EvidenceItem)}
+    contexts, corpus_error = _contexts(sorted(ids), deps)
 
     results: list[RequirementVerification] = []
+    premises_by_id: dict[str, Premise] = {}
     scored = unscored = fallbacks = 0
     for req in checklist:
         claims = extract(req, entity=entity, roles=_roles(req, contexts)).claims
@@ -108,6 +200,7 @@ def claim_verification(state: KYCState, deps: "GraphDeps") -> dict[str, Any]:
             continue
         try:
             premises = [build_premise(c, contexts[c.evidence_id]) for c in req.citations]
+            premises_by_id.update({p.evidence_id: p for p in premises})
         except (KeyError, PremiseMismatch):
             results.append(not_verified_requirement(req, claims, reason=PREMISE_UNAVAILABLE))
             fallbacks += 1
@@ -119,6 +212,16 @@ def claim_verification(state: KYCState, deps: "GraphDeps") -> dict[str, Any]:
         results.append(verified.verification)
         scored += verified.pairs_scored
         unscored += verified.pairs_unscored
+
+    conflicts: list[SourceConflict] = []
+    scan_meta: dict[str, Any] = {}  # not_run (the VerificationMeta default) without a scorer
+    if config is not None and corpus_error is None:
+        conflicts, scan_meta = _conflict_scan(
+            state, deps, checklist, premises_by_id, contexts, config[0], config[1]
+        )
+        results = _flag_conflicts(results, conflicts)
+    elif config is not None:
+        scan_meta = {"contradiction_scan": "failed"}
 
     timings = {"total_ms": round((time.perf_counter() - started) * 1000, 3)}
     if config is None:
@@ -143,16 +246,19 @@ def claim_verification(state: KYCState, deps: "GraphDeps") -> dict[str, Any]:
             pairs_scored=scored,
             pairs_capped=unscored,
             timings_ms=timings,
+            **scan_meta,
         )
         reason = (
-            None
-            if status == "ran"
-            else corpus_error if corpus_error is not None else "verification_partial"
+            corpus_error if corpus_error is not None
+            else "verification_partial" if status == "partial"
+            else CONFLICT_SCAN_FAILED if meta.contradiction_scan == "failed"
+            else None
         )  # fmt: skip
     update: dict[str, Any] = {
         "claim_results": dump_list(results),
         "verification_meta": dump(meta),
         "unverified_items": [],  # the report derives them from the results (decision D2)
+        "source_conflicts": dump_list(conflicts),
     }
     if reason is not None:
         update["degradations"] = [

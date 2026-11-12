@@ -76,6 +76,9 @@ class Settings(BaseSettings):
     NLI_BATCH_SIZE: int = Field(default=16, ge=1, le=128)
     # Scored pairs per requirement; pairs beyond it are not_verified, never supported.
     NLI_MAX_PAIRS: int = Field(default=400, ge=0, le=5000)
+    # M4 S6: unique passage pairs per run for the source-conflict scan (each scored in both
+    # directions); the rest are counted as not scanned. Unused while NLI is disabled.
+    MAX_CONFLICT_PAIRS: int = Field(default=200, ge=0, le=5000)
     NLI_SELECTION_RECORD: Path = Path("data/eval/m4_nli_selection.json")
     # --- Corpus / ingestion (relative paths resolve against the repo root) ---
     CORPUS_DIR: Path = Path("data/raw_pdfs")

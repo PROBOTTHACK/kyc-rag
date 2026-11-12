@@ -29,6 +29,7 @@ from app.graph.state import (
     ProfileSummary,
     RequirementVerification,
     RetrievalMeta,
+    SourceConflict,
     UnverifiedItem,
     ValidatedRequirement,
     ValidationFinding,
@@ -89,6 +90,20 @@ VERIFICATION_INCOMPLETE_NOTE = (
 )
 UNVERIFIED_NOTE = (
     "{count} item(s) whose cited text did not support them are listed separately for review."
+)
+# M4 S6: the bounded source-conflict scan. A scan that did not run is never "no conflict".
+CONFLICT_SCAN_OFF_NOTE = "No automated check for conflicting sources was performed."
+CONFLICT_SCAN_FAILED_NOTE = (
+    "The automated check for conflicting sources did not complete; no conclusion is drawn "
+    "about conflicts."
+)
+CONFLICT_SCAN_NOTE = (
+    "An automated check compared {pairs} pair(s) of retrieved passages from different sources "
+    "({skipped} not compared). Not finding a conflict does not prove that none exists."
+)
+CONFLICTS_NOTE = (
+    "{count} possible conflict(s) between sources are listed for review with both sources; "
+    "{unresolved} could not be resolved automatically."
 )
 VERIFICATION_TEXT = {
     "not_configured": "not_claim_verified",
@@ -230,6 +245,22 @@ def verification_codes(results: list[RequirementVerification]) -> list[str]:
     return codes
 
 
+def _scan_notes(meta: VerificationMeta, conflicts: list[SourceConflict]) -> tuple[str, ...]:
+    if meta.contradiction_scan == "not_run":
+        return (CONFLICT_SCAN_OFF_NOTE,)
+    if meta.contradiction_scan == "failed":
+        return (CONFLICT_SCAN_FAILED_NOTE,)
+    notes = [
+        CONFLICT_SCAN_NOTE.format(
+            pairs=meta.contradiction_scan_size, skipped=meta.contradiction_pairs_not_scanned
+        )
+    ]
+    if conflicts:
+        unresolved = sum(1 for c in conflicts if c.resolution == "unresolved")
+        notes.append(CONFLICTS_NOTE.format(count=len(conflicts), unresolved=unresolved))
+    return tuple(notes)
+
+
 def build_report(state: Mapping[str, Any], outcome: Outcome) -> ComplianceReport:
     """The single report for this run, from state (codes and stored citations only)."""
     meta = read(state, "retrieval_meta", RetrievalMeta)
@@ -279,6 +310,9 @@ def build_report(state: Mapping[str, Any], outcome: Outcome) -> ComplianceReport
             notes = (VERIFICATION_INCOMPLETE_NOTE,)
         if unverified:
             notes += (UNVERIFIED_NOTE.format(count=len(unverified)),)
+        conflicts = read_list(state, "source_conflicts", SourceConflict) if shown_results else []
+        notes += _scan_notes(vmeta, conflicts)
+        unresolved += sorted({f"conflicting_sources:{c.requirement_id}" for c in conflicts})
         v2 = {
             "report_version": 2,
             "notice": NOTICE_V2,
@@ -286,6 +320,7 @@ def build_report(state: Mapping[str, Any], outcome: Outcome) -> ComplianceReport
             "verification_meta": vmeta,
             "claim_verification": shown_results,
             "unverified_items": unverified,
+            "source_conflicts": conflicts,
         }
     return ComplianceReport(
         report_id=report_id(state.get("session_id"), state.get("run_id")),

@@ -148,6 +148,12 @@ def forged_not_configured(scripted: dict[str, Any]) -> dict[str, Any]:
         "pairs_scored": 0,
         "pairs_capped": 0,
     }
+    report["verification_meta"] |= {  # S6: and no conflict scan, as the model requires
+        "contradiction_scan": "not_run",
+        "contradiction_scan_size": 0,
+        "contradiction_pairs_not_scanned": 0,
+    }
+    report["source_conflicts"] = []
     report["degradations"] = []
     return report
 

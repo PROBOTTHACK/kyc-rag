@@ -286,6 +286,24 @@ The false-positive count does not change at τ_e = τ_c = 0.95. So each model's 
 
 Any new protocol (for example a latency gate or corrected gates) must be a new version, disclosed as post-hoc relative to `m4-s4-v1`, and needs the owner's approval. The v1 record is never overwritten or reinterpreted.
 
+## M4 S6 source-conflict scan (how it is measured)
+- **Scope:** bounded, not exhaustive.
+  - Only evidence already retrieved in the run is compared.
+  - A pair is two windows from different documents that both name the item (S2 anchors), at least one cited by the requirement.
+  - At most `MAX_CONFLICT_PAIRS` (200) unique pairs per run, each scored in both directions.
+  - Ordering is deterministic.
+- **Reported per run (`verification_meta`):** `contradiction_scan` (`not_run` / `bounded` / `failed`), `contradiction_scan_size` (unique pairs scored), `contradiction_pairs_not_scanned` (over the cap or unscoreable).
+- **With NLI disabled (current):** `not_run`, 0 / 0, no conflicts. No conflict-detection metric can be measured until a model qualifies under a new, owner-approved protocol.
+- **Tests:** scripted scorer only.
+  - cap and ordering;
+  - both directions;
+  - unscoreable pairs counted;
+  - scorer failure fails closed;
+  - all 8 combinations of the supersession conditions;
+  - a lookup failure or incomplete lookup never resolves;
+  - applicability unchanged.
+- **Real corpus:** no `supersedes` relation is recorded, so no conflict can be resolved.
+
 ## Ablations
 | Exp | Architecture |
 |---|---|

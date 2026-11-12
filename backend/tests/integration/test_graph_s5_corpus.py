@@ -104,6 +104,10 @@ def test_trust_report_is_stored_with_rbi_para_35_as_the_only_mandatory_basis(
     # The M3 gate's own result is kept as `applicability_before` and checked as before.
     assert stored.outcome == "DEGRADED" and stored.human_review_required
     assert [d.component for d in stored.degradations] == ["verification"]
+    # M4 S6: no conflict scan without NLI, and none is claimed
+    assert stored.verification_meta is not None
+    assert stored.verification_meta.contradiction_scan == "not_run"
+    assert stored.verification_meta.contradiction_scan_size == 0 and not stored.source_conflicts
     m3 = {r.requirement_id: r.applicability_before for r in stored.claim_verification or []}
     for item in stored.checklist or []:
         cited = item.citations[0]

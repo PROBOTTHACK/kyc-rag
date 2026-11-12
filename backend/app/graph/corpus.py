@@ -15,7 +15,13 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.cache import JsonCache
 from app.db.forms import list_form_schemas, load_form_schema_cached
-from app.db.repository import EvidenceContext, evidence_context, form_documents
+from app.db.repository import (
+    DocumentRelationRow,
+    EvidenceContext,
+    document_relations,
+    evidence_context,
+    form_documents,
+)
 from app.retrieval.retrieve import RetrievalMode, RetrievalResult
 from app.retrieval.search import SearchFilters
 from app.schemas.forms import FormSchema
@@ -65,6 +71,9 @@ class CorpusReader(Protocol):
 
     def load_schema(self, form_key: str, method: str, version: int) -> FormSchema | None: ...
 
+    # M4 S6: supersession facts for the conflict scan (read-only).
+    def document_relations(self, keys: Iterable[str]) -> dict[str, DocumentRelationRow]: ...
+
 
 @dataclass
 class PostgresCorpusReader:
@@ -101,6 +110,10 @@ class PostgresCorpusReader:
                 )
                 for r in list_form_schemas(session)
             ]
+
+    def document_relations(self, keys: Iterable[str]) -> dict[str, DocumentRelationRow]:
+        with self.sessions() as session:
+            return document_relations(session, keys)
 
     def load_schema(self, form_key: str, method: str, version: int) -> FormSchema | None:
         with self.sessions() as session:

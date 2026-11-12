@@ -250,7 +250,9 @@ def test_every_m3_report_fixture_still_validates_unchanged(path: pathlib.Path) -
         "claim_verification",
         "verification_meta",
         "unverified_items",
+        "source_conflicts",  # M4 S6, default empty
     }
+    assert dumped["source_conflicts"] == []
     assert ComplianceReport.model_validate(dumped) == report
 
 

@@ -491,3 +491,40 @@ Approved by the owner after the S5 review (point 3); no graph, dataset, threshol
 
   One S5 assertion in `test_m4_graph_s5.py` now expects `report_schema_invalid` (stricter) for a version/notice mismatch.
 - **Not done here (S8, unchanged):** the broader M4 `check_report` rules for reports whose check ran.
+
+## S6 outcome (2026-11-12): bounded source-conflict scan and the supersession rule
+Scope and decisions S6-1 to S6-5 owner-approved, with two clarifications: the pair cap counts unique pairs, and a failed relation lookup never resolves a conflict.
+
+**Delivered:**
+- **`app/verification/conflicts.py`:**
+  - `candidate_pairs`: unique cross-document window pairs that both name the item, at least one cited, deterministic order; a pair shared by requirements is scored once.
+  - `scan`: at most `max_pairs` unique pairs, each in both directions. A conflict is a contradiction ≥ τ_c in either direction. Unscoreable pairs, pairs over the cap and pairs hit by a scorer failure are counted as not scanned.
+  - `resolve` (D10): resolved only by a recorded relation, with an active superseding document and a confirmed review. A failed or incomplete lookup, or a mutual relation, leaves the conflict unresolved; dates are never read.
+  - `source_conflicts`: one structured record per (pair, requirement).
+- **State and report:**
+  - `SourceConflict` / `ConflictSide`: ids, offsets, statuses, a structured resolution reason; no text, no free form.
+  - `VerificationMeta` gains `contradiction_scan` (`not_run` default / `bounded` / `failed`) and `contradiction_pairs_not_scanned`; `contradiction_scan_size` = unique pairs scored.
+  - Report v2 gains `source_conflicts`, plus model rules: no conflicts without a scan that ran, every conflict flags its requirement, v1 carries none.
+  - The scan statement is in the message, and unresolved codes `conflicting_sources:<id>` are added.
+- **Node:**
+  - The scan runs inside `claim_verification` (no topology change), only with a scorer and a readable corpus.
+  - It reads only evidence already retrieved (eligible evidence).
+  - A conflict adds the `conflicting_sources` flag; applicability and verdicts are untouched.
+  - A scan failure records `contradiction_scan=failed` and a `conflict_scan_failed` degradation.
+- **Corpus:** read-only `document_relations(keys)` (`app/db/repository.py`, `CorpusReader`); no migration.
+- **Settings:** `MAX_CONFLICT_PAIRS=200` (`GraphDeps.max_conflict_pairs`). `from_settings` still never enables NLI.
+- **Acceptance:** the S5 not_configured contract is extended. It requires `contradiction_scan=not_run`, zero scanned and not-scanned pairs, no conflicts and no `conflicting_sources` flag.
+
+**NLI disabled (production):**
+- the scan is `not_run`, scores zero pairs, records no conflicts or flags, and reads no document relations;
+- the report says "No automated check for conflicting sources was performed."
+
+**Tests:**
+- `tests/unit/test_m4_conflicts.py` (44) and `tests/integration/test_m4_conflicts_corpus.py` (2; real corpus: every document has a relation row and none supersedes another).
+- `test_graph_s5_corpus` asserts the scan is `not_run` on the real corpus.
+- Updated for the deliberate schema widening:
+  - `test_m4_models` (v1 re-dump gains the default `source_conflicts=[]`; stored values unchanged);
+  - `test_graph_state` (new state key);
+  - the S5-follow-up forged-report helper (it now also resets the scan fields the model requires).
+
+**Unchanged:** S4 records, datasets, labels, thresholds, the deferred S2 defects, the graph topology, dependencies and migrations. No S7 work.

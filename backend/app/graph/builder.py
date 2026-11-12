@@ -92,6 +92,7 @@ class GraphDeps:
     nli: NLIScorer | None = None
     nli_thresholds: Thresholds | None = None
     nli_max_pairs: int = 400
+    max_conflict_pairs: int = 200  # M4 S6: unique pairs per run for the source-conflict scan
 
     def __post_init__(self) -> None:
         if not 0 <= self.max_clarification_rounds <= 2:
@@ -104,6 +105,8 @@ class GraphDeps:
             raise ValueError("an NLI scorer and its thresholds are configured together")
         if self.nli_max_pairs < 0:
             raise ValueError("nli_max_pairs must be >= 0")
+        if self.max_conflict_pairs < 0:
+            raise ValueError("max_conflict_pairs must be >= 0")
         needed = required_recursion_limit(self.max_clarification_rounds)
         if self.recursion_limit < needed:
             raise ValueError(
@@ -138,6 +141,7 @@ class GraphDeps:
             nli=None,
             nli_thresholds=None,
             nli_max_pairs=settings.NLI_MAX_PAIRS,
+            max_conflict_pairs=settings.MAX_CONFLICT_PAIRS,
         )
 
 

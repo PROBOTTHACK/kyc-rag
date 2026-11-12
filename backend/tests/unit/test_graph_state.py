@@ -148,6 +148,7 @@ def full_state() -> KYCState:
         "claim_results": None,
         "verification_meta": dump(VerificationMeta(status="not_configured")),
         "unverified_items": [],
+        "source_conflicts": [],  # M4 S6
     }
 
 

@@ -14,7 +14,8 @@ A report passes when:
 - (M4 S5) it validates as a `ComplianceReport` (v1 or v2, with every model invariant);
   otherwise it fails with `report_schema_invalid` (field locations only, never values) and
   no other check runs. A v2 report whose claim check was `not_configured` (NLI disabled)
-  must show every item `not_verified`, none MANDATORY, and agree with its metadata.
+  must show every item `not_verified`, none MANDATORY, and agree with its metadata; and
+  (M4 S6) its conflict scan must be `not_run`, with nothing scanned and no conflicts.
 An honestly labelled weak outcome (INSUFFICIENT_EVIDENCE, DEGRADED, ...) passes; the
 checker never asks for a particular outcome. It returns problems as codes with ids only.
 """
@@ -126,6 +127,15 @@ def _not_configured_problems(model: ComplianceReport) -> list[str]:
             problems.append(f"result_{r.requirement_id}:verified_without_a_model")
     if model.unverified_items:
         problems.append("unverified_items_without_a_model")
+    # M4 S6: no conflict scan without a model (never "no conflict found")
+    if meta.contradiction_scan != "not_run":
+        problems.append("conflict_scan_without_a_model")
+    if meta.contradiction_scan_size or meta.contradiction_pairs_not_scanned:
+        problems.append("conflict_scan_size_without_a_model")
+    if model.source_conflicts:
+        problems.append("source_conflicts_without_a_model")
+    if any("conflicting_sources" in r.review_flags for r in results or []):
+        problems.append("conflict_flag_without_a_model")
     if items and "verification" not in {d.component for d in model.degradations}:
         problems.append("verification_degradation_missing")
     if items and model.outcome != Outcome.DEGRADED:

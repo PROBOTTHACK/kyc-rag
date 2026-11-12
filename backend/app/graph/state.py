@@ -646,7 +646,12 @@ class VerificationMeta(_Model):
     thresholds_version: str | None = None
     pairs_scored: int = Field(default=0, ge=0)
     pairs_capped: int = Field(default=0, ge=0)
+    # M4 S6: the bounded source-conflict scan. `not_run` (NLI disabled) is never "no
+    # conflicts found". The size counts UNIQUE passage pairs scored (each in both directions);
+    # eligible pairs beyond the cap or unscoreable are counted as not scanned.
+    contradiction_scan: Literal["not_run", "bounded", "failed"] = "not_run"
     contradiction_scan_size: int = Field(default=0, ge=0)
+    contradiction_pairs_not_scanned: int = Field(default=0, ge=0)
     timings_ms: dict[str, float] = Field(default_factory=dict)
 
     @model_validator(mode="after")
@@ -660,6 +665,75 @@ class VerificationMeta(_Model):
             raise ValueError("the label map must name exactly entailment, neutral, contradiction")
         if self.status == "not_configured" and self.pairs_scored:
             raise ValueError("nothing is scored without a configured model")
+        if self.status == "not_configured" and self.contradiction_scan != "not_run":
+            raise ValueError("no conflict scan runs without a configured model")
+        if self.contradiction_scan == "not_run" and (
+            self.contradiction_scan_size or self.contradiction_pairs_not_scanned
+        ):
+            raise ValueError("a scan that did not run scored and skipped nothing")
+        return self
+
+
+ConflictResolution = Literal["unresolved", "superseded"]
+# Structured codes only (M4 S6, D10): never exception text or free-form content.
+ResolutionReason = Literal[
+    "no_supersession_relation",
+    "superseding_not_active",
+    "version_review_not_confirmed",
+    "relation_lookup_failed",
+    "relation_incomplete",
+    "supersession_confirmed",
+]
+
+
+class ConflictSide(_Model):
+    """One side of a source conflict: provenance and window offsets only (no text)."""
+
+    evidence_id: str = Field(min_length=1, max_length=64)
+    document_key: str = Field(min_length=1, max_length=120)
+    page: int = Field(ge=1)
+    page_end: int | None = Field(default=None, ge=1)
+    window_start: int = Field(ge=0)
+    window_end: int = Field(ge=0)
+    source_status: SourceStatus
+    evidence_eligibility: EvidenceEligibility
+    cited: bool  # cited by the requirement (else: other evidence retrieved in this run)
+
+    @model_validator(mode="after")
+    def _window(self) -> "ConflictSide":
+        if self.window_end <= self.window_start:
+            raise ValueError("a window has positive length")
+        return self
+
+
+class SourceConflict(_Model):
+    """Two passages from different documents, both naming a requirement's item, that the
+    model reads as contradicting each other (M4_PLAN §H). Both sides stay visible. Resolved
+    only by a recorded, active, confirmed supersession (D10); never by date."""
+
+    requirement_id: str = Field(min_length=1, max_length=64)
+    side_a: ConflictSide
+    side_b: ConflictSide
+    detected_by: Literal["nli_contradiction"] = "nli_contradiction"
+    max_contradiction: float = Field(ge=0.0, le=1.0)  # uncalibrated model signal
+    resolution: ConflictResolution
+    resolution_reason: ResolutionReason
+    superseding_document_key: str | None = None
+
+    @model_validator(mode="after")
+    def _consistent(self) -> "SourceConflict":
+        if self.side_a.document_key == self.side_b.document_key:
+            raise ValueError("a source conflict is between two different documents")
+        if not (self.side_a.cited or self.side_b.cited):
+            raise ValueError("a source conflict involves at least one cited passage")
+        superseded = self.resolution == "superseded"
+        if superseded != (self.resolution_reason == "supersession_confirmed"):
+            raise ValueError("only a confirmed supersession resolves a conflict")
+        keys = {self.side_a.document_key, self.side_b.document_key}
+        if superseded != (self.superseding_document_key is not None) or (
+            superseded and self.superseding_document_key not in keys
+        ):
+            raise ValueError("a resolved conflict names one of its two documents as superseding")
         return self
 
 
@@ -730,6 +804,7 @@ class ComplianceReport(_Model):
     claim_verification: list[RequirementVerification] | None = None
     verification_meta: VerificationMeta | None = None
     unverified_items: list[UnverifiedItem] = Field(default_factory=list)
+    source_conflicts: list[SourceConflict] = Field(default_factory=list)  # M4 S6
 
     @model_validator(mode="after")
     def _disclaimer_present(self) -> "ComplianceReport":
@@ -751,6 +826,8 @@ class ComplianceReport(_Model):
                 for i in items
             ):
                 raise ValueError("v1 checklist items are not claim-verified")
+            if self.source_conflicts:
+                raise ValueError("a v1 report carries no source conflicts")
             return self
         if self.notice != NOTICE_V2:
             raise ValueError("a v2 report carries the M4 notice")
@@ -766,6 +843,10 @@ class ComplianceReport(_Model):
         results = self.claim_verification
         if results is not None and meta is None:
             raise ValueError("claim results need their verification_meta")
+        if self.source_conflicts and (meta is None or meta.contradiction_scan == "not_run"):
+            raise ValueError("source conflicts need a conflict scan that ran")
+        if self.source_conflicts and results is None:
+            raise ValueError("source conflicts belong to listed requirements")
         if results is None:
             if self.unverified_items or any(
                 i.verification_status != "not_claim_verified" for i in items
@@ -794,6 +875,10 @@ class ComplianceReport(_Model):
         for u in self.unverified_items:
             if by_id[u.requirement_id].requirement_verdict != "unsupported":
                 raise ValueError("only unsupported requirements are listed as unverified items")
+        for c in self.source_conflicts:
+            flagged = by_id.get(c.requirement_id)
+            if flagged is None or "conflicting_sources" not in flagged.review_flags:
+                raise ValueError("a source conflict flags its requirement conflicting_sources")
         return self
 
 
@@ -866,6 +951,7 @@ class KYCState(TypedDict, total=False):
     claim_results: Annotated[list[JSON] | None, Validates(RequirementVerification, each=True)]
     verification_meta: Annotated[JSON | None, Validates(VerificationMeta)]
     unverified_items: Annotated[list[JSON], Validates(UnverifiedItem, each=True)]
+    source_conflicts: Annotated[list[JSON], Validates(SourceConflict, each=True)]  # M4 S6
 
 
 class KYCInput(TypedDict, total=False):
