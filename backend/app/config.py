@@ -69,6 +69,17 @@ class Settings(BaseSettings):
     # Hugging Face commit to load; None = latest. Pinned in .env.example for reproducibility.
     EMBEDDING_MODEL_REVISION: str | None = None
     NLI_MODEL: str | None = None
+    # M4 S4: the NLI checkpoint must be pinned (a 40-hex Hugging Face commit); it is loaded
+    # lazily, on CPU, never downloaded at import. Thresholds are NOT settings: they come from
+    # the committed selection record (NLI_SELECTION_RECORD), chosen on the dev set only.
+    NLI_MODEL_REVISION: str | None = None
+    NLI_BATCH_SIZE: int = Field(default=16, ge=1, le=128)
+    # Scored pairs per requirement; pairs beyond it are not_verified, never supported.
+    NLI_MAX_PAIRS: int = Field(default=400, ge=0, le=5000)
+    # M4 S6: unique passage pairs per run for the source-conflict scan (each scored in both
+    # directions); the rest are counted as not scanned. Unused while NLI is disabled.
+    MAX_CONFLICT_PAIRS: int = Field(default=200, ge=0, le=5000)
+    NLI_SELECTION_RECORD: Path = Path("data/eval/m4_nli_selection.json")
     # --- Corpus / ingestion (relative paths resolve against the repo root) ---
     CORPUS_DIR: Path = Path("data/raw_pdfs")
     CORPUS_MANIFEST: Path = Path("data/raw_pdfs/manifest.yaml")
@@ -182,6 +193,7 @@ class Settings(BaseSettings):
         "GEMINI_DATA_TERMS_VERIFIED_ON",
         "GROQ_DATA_TERMS_VERIFIED_ON",
         "NLI_MODEL",
+        "NLI_MODEL_REVISION",
         "EMBEDDING_MODEL_REVISION",
         "RERANK_MODEL_REVISION",
         "TESSERACT_CMD",
@@ -203,6 +215,7 @@ class Settings(BaseSettings):
         "TESSDATA_DIR",
         "OCR_CACHE_DIR",
         "LLM_CACHE_ALLOWLIST",
+        "NLI_SELECTION_RECORD",
     )
     @classmethod
     def _repo_relative(cls, v: Path | None) -> Path | None:

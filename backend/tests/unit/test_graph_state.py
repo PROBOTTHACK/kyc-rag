@@ -26,6 +26,7 @@ from app.graph.state import (
     RetrievalMeta,
     ScreenRecord,
     ValidationFinding,
+    VerificationMeta,
     dump,
     dump_list,
     read,
@@ -143,6 +144,11 @@ def full_state() -> KYCState:
         "report_id": None,
         "checklist": None,
         "report": None,
+        # M4 S1 keys (populated M4 values are covered in test_m4_models.py)
+        "claim_results": None,
+        "verification_meta": dump(VerificationMeta(status="not_configured")),
+        "unverified_items": [],
+        "source_conflicts": [],  # M4 S6
     }
 
 

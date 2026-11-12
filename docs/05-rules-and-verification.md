@@ -34,18 +34,31 @@ Newer ≠ automatically overriding; consider issuing authority, scope, amendment
 - **If nothing survives:** the outcome is `INSUFFICIENT_EVIDENCE` with gap `no_supported_requirements`, and the user sees the fallback text (decision S5-D2).
 - **Claim-level verification** of the explanations, by NLI, is M4. Every item is labelled `not_claim_verified`, and its explanation `model_drafted_not_verified`.
 
-## Verification pipeline
-1. **Claim extraction** — split draft into atomic claims `{claim_id, claim}`.
-2. **Evidence matching** — best supporting passages per claim (reuse retrieval).
-3. **NLI** — local DeBERTa-v3 MNLI: entailment / contradiction / neutral for (evidence, claim).
-4. **Confidence** — combine NLI probs + retrieval relevance + evidence coverage + source applicability + rule check. Never use NLI probability alone as truth.
-5. **Routing** — supported proceed; unsupported -> regenerate or remove (max 2); contradicted -> review; unresolved -> Unverified.
-6. **Final report** — only claims passing configured thresholds; uncertainty and sources preserved.
+## Verification pipeline (M4; full design in `docs/milestones/M4_PLAN.md`, which supersedes the earlier sketch)
+1. **Typed claim extraction** — deterministic. The asserted proposition comes from the proposed applicability (MANDATORY = unconditional `policy_obligation`, CONDITIONAL = conditional one); explanation sentences are checked verbatim. Form chunks are only ever tested as `form_request`, never as an obligation.
+2. **Premises** — the cited chunks' stored text from Postgres (not the truncated state copy), split into sentence windows with character offsets.
+3. **Statement analysis** — deterministic modality, polarity/negation, subject, item match and entity scope. A necessary condition only: no keyword ever establishes MANDATORY.
+4. **NLI** — local DeBERTa-v3 MNLI cross-encoder, (premise = evidence window, hypothesis = claim), label map read from the model config, raw logits softmaxed by the code and stored as uncalibrated signals.
+5. **Decision table** — supported / insufficient / contradicted / conflicting / not_verified, with dev-selected thresholds; no combined confidence score.
+6. **Effects** — downgrade only. Unsupported items leave the checklist for `unverified_items`; contradictions and source conflicts become open review cases. No regeneration loop in M4.
 
 Example failure to catch: evidence "designated partners must be verified" vs claim "every employee must submit ID" -> neutral/unsupported -> removed.
 
 **Know the limit:** NLI is an entailment classifier. It can't tell if a source is authoritative, current, or applicable. Hence the combined checks + human review. Thresholds are configurable and tuned on the benchmark, not hardcoded by guess.
 
+**Implementation status:**
+- Steps 1–3 and 5–6 are implemented deterministically in `backend/app/verification/` (M4 S2).
+- The local NLI scorer (`CrossEncoderNLI`) is implemented in S4.1: pinned revision, label map read from the model config, sanity triplet at load, no truncation.
+- The checkpoint and thresholds were to be chosen on the dev set by the pre-registered rule in S4.2. **Result (`m4-s4-v1`): no configuration qualified (0/140). NLI is disabled by default**, so claims are `not_verified` (docs/10, S4.2 result).
+- **S5:** the `claim_verification` graph node runs after `output_validation` for a non-empty checklist, with NLI disabled. Every claim is `not_verified` (`nli_not_configured`): nothing is scored and no rule-based contradiction is applied. Applicability is capped at CONDITIONAL (never upgraded; MANDATORY needs a supported claim), each item is flagged `not_verified`, and the run is DEGRADED (`verification` degradation). The report is v2: M3 citations, gaps and form links are unchanged, and the M3 applicability is kept as `applicability_before`.
+- **S6:** the bounded source-conflict scan (`app/verification/conflicts.py`) and the supersession rule (D10). It runs only with a scorer, so **with NLI disabled it is `not_run`**: nothing is scored, there are no conflict records or flags, and the report says no automated conflict check was performed (never "no conflict found"). With a scorer, it compares at most `MAX_CONFLICT_PAIRS` unique passage pairs per run, each scored in both directions. A pair is two windows from different documents that both name the item, at least one cited, taken from evidence already retrieved. A conflict adds `conflicting_sources` and keeps both sides visible; applicability never changes. A conflict is resolved only by a recorded, active, confirmed supersession. A failed or incomplete lookup leaves it unresolved with a reason code, and dates are never used.
+
 ## Human review workflow
-Review case created for: conflicting sources, missing amendments, unclear applicability, contradictions, low-confidence form extraction, repeatedly unsupported claims.
-Reviewer can: view claim, open source doc, inspect page, see evaluator class, **approve / reject / mark unresolved**, record a reason (stored in `review_cases`). AI assists; human decides.
+M4 creates **open** review cases (insert-only `review_cases`) for contradicted claims, conflicting sources, unsupported claims, mandatory claims not established, explanations that overstate their source, and items that could not be verified. Conflicting sources are never resolved by publication date: supersession needs a manifest `supersedes` record, an active source and `version_review_status=confirmed`.
+Reviewer decisions (approve / reject / mark unresolved, with a reason) need authentication and arrive in a later milestone (M4 decision D5); until then cases are read-only and reports stay immutable. AI assists; human decides.
+
+**Implementation status (M4 S7):**
+- One open case per (report, requirement, review flag) is written with the report, in the same transaction.
+- It can be read at `GET /api/v1/reports/{id}/review-cases`.
+- `make check-workflow` verifies that stored cases match each stored report's flags and are all `open`.
+- With NLI disabled, every checklist item gets exactly one `not_verified` case.

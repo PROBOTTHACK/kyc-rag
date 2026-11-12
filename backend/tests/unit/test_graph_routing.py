@@ -53,6 +53,21 @@ RETRIEVAL_CASES: list[tuple[dict[str, Any], str]] = [
 ]
 
 
+# M4 S5: only a non-empty validated checklist has claims to verify.
+VALIDATION_CASES: list[tuple[dict[str, Any], str]] = [
+    ({"checklist": [{"requirement_id": "R1"}]}, r.CLAIM_VERIFICATION),
+    ({"checklist": []}, r.FINALIZE),  # nothing survived validation
+    ({"checklist": None}, r.FINALIZE),  # no draft
+    ({}, r.FINALIZE),  # missing: fail closed
+    ({"checklist": "R1"}, r.FINALIZE),  # malformed: fail closed
+]
+
+
+@pytest.mark.parametrize(("state", "expected"), VALIDATION_CASES)
+def test_route_after_validation(state: dict[str, Any], expected: str) -> None:
+    assert r.route_after_validation(state) == expected
+
+
 @pytest.mark.parametrize(("state", "expected"), SECURITY_CASES)
 def test_route_after_security(state: dict[str, Any], expected: str) -> None:
     assert r.route_after_security(state) == expected
@@ -73,6 +88,7 @@ def test_the_tables_cover_every_conditional_edge_of_the_graph() -> None:
         {(r.INPUT_SECURITY, t) for _, t in SECURITY_CASES}
         | {(r.ENTITY_INTAKE, t) for _, _, t in INTAKE_CASES}
         | {(r.POLICY_RETRIEVAL, t) for _, t in RETRIEVAL_CASES}
+        | {(r.OUTPUT_VALIDATION, t) for _, t in VALIDATION_CASES}
     )
     graph_edges = {(s, t) for s, t, cond in topology(build_graph(GraphDeps()))["edges"] if cond}
     assert covered == graph_edges

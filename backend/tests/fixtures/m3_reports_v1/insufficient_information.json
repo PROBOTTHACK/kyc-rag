@@ -1,0 +1,43 @@
+{
+  "checklist": null,
+  "degradations": [
+    {
+      "component": "llm",
+      "reason": "not_configured"
+    }
+  ],
+  "disclaimer": "Independent educational prototype. Not affiliated with, endorsed by, or an official system of HDFC Bank.",
+  "dropped_requirements": 0,
+  "evidence_status": null,
+  "findings": [],
+  "forms": [],
+  "gaps": [],
+  "human_review_required": true,
+  "missing_fields": [
+    "entity_type",
+    "account_type"
+  ],
+  "notice": "Decision support only. Not a KYC decision. Not claim-verified (M4).",
+  "outcome": "INSUFFICIENT_INFORMATION",
+  "profile": {
+    "account_type": {
+      "source": "unknown",
+      "value": null
+    },
+    "entity_type": {
+      "source": "unknown",
+      "value": null
+    },
+    "residency": {
+      "source": "unknown",
+      "value": null
+    }
+  },
+  "report_id": "3471e43c-0a7b-589b-a47c-b991c307875f",
+  "run_id": "r-i",
+  "security_reasons": [],
+  "session_id": "s-i",
+  "unresolved_items": [],
+  "user_message": "The question could not be answered because required details were not provided: entity_type, account_type. For accurate information, please visit https://www.hdfcbank.com/ or contact HDFC Bank customer service.\n\nIndependent educational prototype. Not affiliated with, endorsed by, or an official system of HDFC Bank.",
+  "verification": "not_claim_verified"
+}

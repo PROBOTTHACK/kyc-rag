@@ -164,6 +164,210 @@ M2 retrieval choices follow `docs/milestones/M2_PLAN.md` §6.
 
 Retrieval **Recall@5**, **citation precision**, **unsupported-claim rate**, claim-verification precision/recall, evidence coverage, false-rejection rate, entity-classification accuracy, form-extraction accuracy, **security attack success rate**, end-to-end latency, token usage.
 
+## M4 claim-verification datasets (M4 S3)
+Labelling rules, fields, perturbation tags, leakage controls and limitations: `docs/milestones/M4_LABELLING_GUIDELINES.md`.
+- **Development set:** `data/eval/m4_claims_dev.jsonl`, 55 cases (15 entailed / 15 contradicted / 25 insufficient) after the owner review of 2026-11-12. Decisions are in the ledger `data/eval/m4_claims_dev_review.jsonl`. All S4 choices (NLI checkpoint, thresholds) are made on it under a rule registered before the run.
+- **Held-out set (frozen):** `data/eval/m4_claims_heldout.jsonl`, 51 cases (17 / 17 / 17).
+  - **SHA-256** (committed file, LF line endings): `eee0a575319d7df4bc3d8f5c0771a89e4c8bf9f68abe36eb56fcac3275d90203`. `tests/unit/test_m4_datasets.py` fails if the file changes.
+  - **Use:** run once in S8, for the configuration already selected on dev. Never used to choose or tune anything. A disappointing result is reported as is.
+  - **Label errors:** corrected in a new versioned file, never by editing this one. Owner verdicts and known issues go to the ledger `data/eval/m4_claims_heldout_review.jsonl`, so the frozen file never changes. Six issues under the revised rules 1 and 10 are logged there (m4h-007, 008, 009, 010, 011, 022) for a separately versioned correction at S8.
+- **Leakage controls (tested):**
+  - no evidence chunk is cited by both splits (dev 23 chunks, held-out 28);
+  - no cross-split claim pair reaches token Jaccard 0.8 (maximum 0.786: the deliberate shared pattern "the X deed must be obtained for opening an account of a Y" on different entities and evidence);
+  - no duplicate case within a split.
+- **Provenance (tested against Postgres, `tests/integration/test_m4_dataset_labels.py`):**
+  - every chunk exists, with the recorded document key and page;
+  - every quote is an exact substring of the stored text;
+  - cited chunks are retrievable units, never `context_only` or parents;
+  - the tags `ocr_uncertain`, `source_status` and `form_only` match the stored metadata;
+  - `expected_obligation` cases cite only primary, active, non-OCR-uncertain chunks.
+- **Metrics to compute (S4 on dev, S8 on held-out):** per-class precision/recall, false-support rate (primary safety metric), false-contradiction rate, abstention and risk–coverage, obligation-from-form errors (must be 0), and the agreement of `expected_obligation` with the decision table's MANDATORY.
+- **Limitations:** a single annotator (the implementing assistant) with owner review only, no inter-annotator agreement, 17 cases per class, synthetic claims, a corpus with one primary document. Entity-group cases are thin (1 per split). The dev classes are unbalanced after the owner's corrections, so S4 must report per-class rates, not accuracy alone.
+
+## M4 S4 NLI selection protocol (registered in S4.1, before any model was downloaded or run)
+Code: `app/verification/{nli,evaluation,selection,cli}.py`. Make targets: `nli-check`, `eval-claims`, `eval-claims-select`, `test-nli`.
+- **Data:** the dev set only (`data/eval/m4_claims_dev.jsonl`, 55 cases). The evaluator refuses every other file. The held-out set is read once, in S8.
+- **What is evaluated:** each case is judged by the S2 verifier (`decide.judge_claim`) against premises built from the stored Postgres chunks, never from the dataset quotes.
+  - **Verdict mapping:** supported → entailed; contradicted → contradicted; insufficient, conflicting and not_verified → insufficient (abstain).
+  - **MANDATORY check:** uses `state.mandatory_established`.
+- **Candidates:** the four checkpoints pinned in S0 (N1 `cross-encoder/nli-deberta-v3-xsmall`, N2 `…-small`, N3 `…-base`, N4 `MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli`). Each is loaded on CPU at its revision, its label map is read from the model config, and a fixed sanity triplet runs at load.
+- **Threshold grid:** τ_e, τ_c ∈ {0.50, 0.60, 0.70, 0.80, 0.90, 0.95} with τ_e + τ_c > 1 (35 pairs per model). Scores are computed once per model and reused across the grid.
+- **Hard gates (disqualify):**
+  - MANDATORY false positives > 0;
+  - obligation-from-form errors > 0;
+  - sanity triplet failed;
+  - a second scoring pass differs by more than 1e-6.
+- **Qualification:** false-support rate ≤ 2/40.
+- **Objective:** maximise entailed recall.
+- **Tie-breaks, in order:**
+  1. lower false-contradiction rate;
+  2. higher macro-F1;
+  3. smaller model;
+  4. higher τ_e;
+  5. higher τ_c;
+  6. lower p50 per-pair latency;
+  7. candidate id.
+- **If nothing qualifies:** no selection, and NLI stays off by default.
+- **Reported, never decisive:**
+  - ablations: rules only, NLI only (argmax, no gates), combined;
+  - per-perturbation accuracy;
+  - abstention and coverage;
+  - latency;
+  - a paired bootstrap 95% CI (10,000 resamples, seed 20261110).
+- **Run once:** `make eval-claims-select` writes `data/eval/m4_nli_selection.json` and refuses to overwrite it. Thresholds are read at runtime only from that record (`selection.load_selected`), never from code or settings.
+- **Decided before the run, with tests:**
+  - fixed "may" idioms ("as the case may be", "as may be required/notified…") are neither a permission nor an obligation;
+  - claim-framing words ("form", "asks", "obtained", "submit"…) are never item anchors, needed because dataset claims carry no separate item name;
+  - an over-long pair scores `None` → `window_too_long` → `not_verified` (never truncated).
+- **Safety floor measured without a model** (`tests/integration/test_m4_evaluation_dev.py`): the rules-only ablation over all 55 cases has false-support rate 0 and MANDATORY false positives 0.
+- **Limitation:** choosing thresholds on 55 single-annotator cases overfits. The held-out run in S8 is the only unbiased estimate.
+
+## M4 S4.2 selection result (protocol `m4-s4-v1`, run once on 2026-11-12): no configuration qualified
+The official research outcome of S4 is **0 qualifying configurations of 140** (4 checkpoints × 35 threshold pairs). **No NLI model is selected, and NLI stays disabled by default** (D5): `NLI_MODEL` stays unset, and in S5 every claim is `not_verified` with an honest DEGRADED outcome. Nothing was retuned after the result.
+
+The record and summary are kept exactly as produced:
+- `data/eval/m4_nli_selection.json` (SHA-256 of file `f80f8b3f…bdcdebb4`);
+- `docs/milestones/M4_NLI_SELECTION.md` (`c485d6b7…b0c2deab`).
+
+**Run facts:**
+- **Run:** code commit `0c4cc49`. Dev SHA-256 `b199e4da…53b0f7` equals the committed dev file. The held-out file is byte-identical (`eee0a575…d90203`); it was hashed, never parsed or scored.
+- **Write-once guard:** a second `make eval-claims-select` is refused before any model loads.
+- **First attempt:** it crashed after scoring and wrote nothing. `make` ran the CLI from `backend/`, so the relative record path pointed at a missing directory. No outcome was observed. The path fix (`0c4cc49`, repo-root resolution, fail-fast output-dir check) changed no scoring, metric, grid, gate or rule. The registered run was then completed once.
+
+**Results per candidate.** Each candidate scored the same 1,047 distinct pairs (55 cases, about 19 pairs per case).
+
+| Candidate | Gates failed (all 35 pairs) | MANDATORY FP | False-support rate range | Best entailed recall | Determinism (max abs logit diff; gate 1e-6) |
+|---|---|---|---|---|---|
+| N1 `nli-deberta-v3-xsmall` | MANDATORY FP, non-deterministic | 2 | 1/20 – 1/10 | 0.40 | 4.9e-6 (fail) |
+| N2 `nli-deberta-v3-small` | MANDATORY FP, non-deterministic | 3 | 3/40 at every pair | 0.40 | 2.9e-6 (fail) |
+| N3 `nli-deberta-v3-base` | MANDATORY FP, non-deterministic | 3 | 3/40 at every pair | 0.40 | 6.0e-6 (fail) |
+| N4 `DeBERTa-v3-base-mnli-fever-anli` | MANDATORY FP, non-deterministic | 3 | 1/20 at every pair | 0.40 | 1.07e-2 (fail) |
+
+Gate notes:
+- The obligation-from-form errors gate passed everywhere (0), and all four loaded with sanity 3/3.
+- The MANDATORY false-positive count is the same at every threshold pair, so the gate fails for every model whatever the thresholds.
+- The N1–N3 determinism differences are float32 batch noise above a tolerance that was set too tight. N4 runs in float16 (below). Either gate alone disqualifies every configuration.
+
+**Cost** (CPU estimates on one 16-logical-core laptop, not guaranteed timings). The per-pair figures are the median and 95th percentile of the batch mean per call.
+
+| Candidate | Load | p50 per pair | p95 per pair | One dev scoring pass | Total time on this candidate | Typical estimate per case (mean pairs × p50) | Conservative estimate per request (400 × p95) |
+|---|---|---|---|---|---|---|---|
+| N1 | 23.6 s (includes first-process warm-up) | 41 ms | 63 ms | 44 s | 1.8 min | 0.8 s | 25 s |
+| N2 | 3.1 s | 62 ms | 86 ms | 64 s | 2.4 min | 1.2 s | 35 s |
+| N3 | 3.8 s | 117 ms | 177 ms | 132 s | 4.7 min | 2.2 s | 71 s |
+| N4 | 4.6 s | 1,877 ms | 2,779 ms | 2,008 s | 53.0 min | 35.7 s | 1,112 s (~18.5 min) |
+
+About N4's cost:
+- Its pinned `config.json` declares `torch_dtype: float16`, which sentence-transformers honours. Half precision on the CPU makes it about 16× slower per pair than N3, the same-size base model, and accounts for its determinism difference.
+- **Total S4.2 compute:** 62.4 min for the registered run, plus 65.6 min for the crashed first attempt.
+
+**Diagnosis of the MANDATORY false positives** (read-only; no model run, no threshold or label change):
+- **How the cases were found.** The S4-v1 record stores aggregates, not per-case predictions. So the cases were identified by a deterministic rule trace: the dev harness with a scripted scorer that entails every pair. This gives an upper bound: every case that could become MANDATORY while gold `expected_obligation` is false.
+- **The bound is 7 cases.** The models' 2–3 false positives are a subset of these 7. Exact per-model attribution would need re-scoring, which is out of scope here.
+
+| Case | Gold | Evidence (RBI KYC Directions 2025) | What lets it reach MANDATORY | Likely source |
+|---|---|---|---|---|
+| m4d-008 | entailed, no entity | p.41: "shall carry out periodic updation at least once in every two years for high-risk customers" | a correct entailment; every `mandatory_established` condition holds | **gate vs rule-10 mismatch:** the labelling rule says a claim with no entity never carries an obligation, but the gate does not require an entity |
+| m4d-011 | entailed, no entity | p.58: "The bank shall verify every day, the UNSCR 1718 Sanctions List…" | same | same |
+| m4d-004 | insufficient (rule 1: "MoA and AoA" not established by the source) | p.37: "shall obtain certified copies… (2) Memorandum and Articles of Association" | the window is an affirmative obligation naming the item; a model that resolves the abbreviation entails it | rule 1 (abbreviations) is a labelling rule the deterministic gate cannot see |
+| m4d-052 | insufficient ("may" → "must") | p.48: "(2) The CDD of all the office bearers shall suffice. (3) The bank may undertake CDD of all the members of an SHG…" | the window's modality is read as an *obligation*, because the "shall" of the neighbouring item outranks the "may" of the sentence that names the item | **S2 defect:** modality and polarity are analysed per window, not per sentence naming the object |
+| m4d-019 | contradicted ("need not obtain" PAN) | p.37: "shall obtain… (3) PAN of the company" | if a model entailed it, the gate checks the window's polarity but never the claim's own negative polarity | **S2 latent defect:** the claim's polarity is not part of the MANDATORY gate |
+| m4d-020 | contradicted (five years vs two) | p.41 (as m4d-008) | numbers are left to the NLI; the rules pass | a model that entails it creates a false positive; the rules have no number check (by design, rule 3) |
+| m4d-024 | contradicted ("Aadhaar is mandatory") | p.26: "Aadhaar number is not mandatory…" | in the trace a different window of the chunk ("such bank shall carry out authentication of the customer's Aadhaar number…") reads as an affirmative obligation naming "Aadhaar number" | best-window choice plus window-level analysis; depends on the model's scores |
+
+The false-positive count does not change at τ_e = τ_c = 0.95. So each model's false positives come from cases it entails with probability ≥ 0.95. The two correctly entailed gold cases m4d-008 and m4d-011 are the most likely common pair. The third for N2–N4 is most likely m4d-004 or m4d-052. This attribution is not verified.
+
+**Recorded for later stages, not acted on in S4:**
+- the gate does not encode rule 10;
+- modality and polarity are judged per window, not per object sentence;
+- the claim's own polarity is not part of the MANDATORY gate;
+- the determinism tolerance is tighter than float32 batch noise;
+- N4 runs in float16 on the CPU.
+
+Any new protocol (for example a latency gate or corrected gates) must be a new version, disclosed as post-hoc relative to `m4-s4-v1`, and needs the owner's approval. The v1 record is never overwritten or reinterpreted.
+
+## M4 S6 source-conflict scan (how it is measured)
+- **Scope:** bounded, not exhaustive.
+  - Only evidence already retrieved in the run is compared.
+  - A pair is two windows from different documents that both name the item (S2 anchors), at least one cited by the requirement.
+  - At most `MAX_CONFLICT_PAIRS` (200) unique pairs per run, each scored in both directions.
+  - Ordering is deterministic.
+- **Reported per run (`verification_meta`):** `contradiction_scan` (`not_run` / `bounded` / `failed`), `contradiction_scan_size` (unique pairs scored), `contradiction_pairs_not_scanned` (over the cap or unscoreable).
+- **With NLI disabled (current):** `not_run`, 0 / 0, no conflicts. No conflict-detection metric can be measured until a model qualifies under a new, owner-approved protocol.
+- **Tests:** scripted scorer only.
+  - cap and ordering;
+  - both directions;
+  - unscoreable pairs counted;
+  - scorer failure fails closed;
+  - all 8 combinations of the supersession conditions;
+  - a lookup failure or incomplete lookup never resolves;
+  - applicability unchanged.
+- **Real corpus:** no `supersedes` relation is recorded, so no conflict can be resolved.
+
+## M4 S8 results (2026-11-12): held-out frozen and unused, acceptance, end to end, latency
+### Held-out set: `held_out_status: frozen_unused` (owner decision S8-1, option A)
+- **Why not evaluated:**
+  - The held-out run was meant to estimate the verifier selected in S4. No NLI configuration qualified (`m4-s4-v1`: 0 of 140), so none exists.
+  - The shipped configuration (NLI disabled) has a held-out outcome fixed by construction: every claim `not_verified`, entailed recall 0, false-support 0, MANDATORY false positives 0, abstention 100%.
+  - Running it would spend the only unseen set without measuring a model.
+  - The set stays valid for a future, separately approved protocol.
+- **Protection:**
+  - Its SHA-256 is still `eee0a575…d90203`, checked from the bytes only.
+  - It was not read, loaded, evaluated, relabelled or corrected in S8.
+  - The dev loader still refuses it.
+  - A new test (`test_no_code_path_can_load_the_heldout_set`) allows the file name in only two places in `app/`: the dev loader's refusal guard and the selection CLI's byte-hash check (defined once, used once). It also requires that no Makefile target names it.
+- **Not done:** no corrected held-out file was created, and there is no `eval-claims-heldout` target.
+- **The 6 logged annotation issues** (m4h-007, -008, -009, -010, -011, -022) are preserved unchanged in `m4_claims_heldout_review.jsonl` for that future protocol. That ledger file was not edited either, so its status text still reads `deferred_to_S8_versioned_correction`.
+- **Pre-existing, unchanged:** the S3 dataset-integrity tests (`test_m4_datasets.py`) parse the held-out file's structure and ledger on every `make test`. They do not score it.
+
+### Ablation (copied from the committed S4 record `data/eval/m4_nli_selection.json`; nothing re-run)
+| Configuration (dev, 55 cases) | Accuracy | Macro-F1 | False support | False contradiction | Recall E / C / I | Abstention | MANDATORY FP |
+|---|---|---|---|---|---|---|---|
+| Rules only (no scorer) | 25/55 | 0.208 | 0 | 0 | 0.00 / 0.00 / 1.00 | 1.00 | 0 |
+| NLI only (argmax), N1 / N2 / N3 / N4 | 30, 31, 30, 33 /55 | 0.538 / 0.560 / 0.539 / 0.605 | 4/40 each | 19/40, 17/40, 20/40, 15/40 | E 0.67 / 0.67 / 0.53 / 0.73 | 0.13–0.20 | 0 (never claims MANDATORY) |
+| Combined at τ_e = τ_c = 0.9, N1 / N2 / N3 / N4 | 36, 34, 32, 32 /55 | 0.619 / 0.583 / 0.554 / 0.543 | 2/40, 3/40, 3/40, 2/40 | 3/40, 3/40, 5/40, 5/40 | E 0.40 / 0.40 / 0.40 / 0.33 | 0.62–0.65 | 2 / 3 / 3 / 3 (the failed gate) |
+
+These dev numbers are diagnostic only. They selected nothing and estimate nothing unbiased.
+
+### Acceptance (`check_report`, M4 rules completed)
+- **Every v2 report:** applicability never rises (shown ≤ `applicability_after` ≤ `applicability_before` ≤ proposed), and the conflict-scan wording matches `contradiction_scan`.
+- **`ran` / `partial` / `failed`:**
+  - provenance present (model, revision, label map, templates, thresholds);
+  - MANDATORY only with an established, supported obligation and a primary citation;
+  - no item shown as verified without a supported claim;
+  - a `conflicting_sources` flag needs a source-conflict record or a claim-level `conflicting` verdict;
+  - every conflict shows two sources and is listed for review;
+  - `partial` / `failed` carry a `verification` degradation.
+- **`not_configured`:** the S5/S6 rules as before.
+- **Tests:** `tests/unit/test_m4_acceptance_s8.py` (27).
+  - Genuine reports in all 4 states pass.
+  - Forged reports are caught: missing provenance, missing degradation, verified without support, MANDATORY without a primary citation, flag without sources, conflict not listed, one-sided conflict, scan wording in 4 directions.
+  - Applicability rises are refused by the report model itself; the repeated rule in `check_report` is tested directly as a second layer.
+  - v1 and NLI-off behaviour is unchanged.
+
+### End to end on the real corpus (`tests/integration/test_m4_e2e_corpus.py`)
+- **NLI disabled:**
+  - DEGRADED, v2, all claims `not_verified`, scan `not_run`, no MANDATORY;
+  - one open `not_verified` review case per item, identical to what the report implies;
+  - `check-workflow` clean.
+- **Enabled path (scripted FakeNLI, test only; any attempt to build a real model fails the test):**
+  - status `ran`/`partial` with provenance, scan `bounded`;
+  - every scored premise is text stored in Postgres;
+  - review cases consistent.
+- **Newly found, pre-existing M3 issue (recorded, not fixed):**
+  - A citation of a retrieved child chunk carries the page range of its expanded parent paragraph. On the real trust run: the RBI Directions chunk is stored as pp. 8–9 but cited as pp. 4–15.
+  - `check_report` looks up the child row, so that item fails `citation_mismatch`.
+  - The M3 checklist already holds the same citation before verification runs.
+  - The e2e tests require these to be the only acceptance problems, so any M4 problem would still fail. A fix needs an owner decision.
+
+### Latency, NLI disabled (indicative; laptop CPU, scripted LLM, BM25; 7 runs; no gate)
+| Measure | p50 | p95 |
+|---|---|---|
+| `claim_verification` node | 47.2 ms | 49.4 ms |
+| Whole graph run (scripted LLM, real corpus) | 503.9 ms | 536.2 ms |
+
+The NLI-on costs are the S4 measurements above (N4 float16: 1.88 s per pair p50). They are not repeated.
+
 ## Ablations
 | Exp | Architecture |
 |---|---|

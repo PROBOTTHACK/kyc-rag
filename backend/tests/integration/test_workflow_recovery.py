@@ -115,7 +115,7 @@ def test_crash_mid_run_then_retry_after_the_lease_expires(engine: sa.Engine) -> 
         assert ok.status_code == 202
         assert post(second, f"/sessions/{sid}/retry", {}, "t2").json() == ok.json()  # replay
         wf = wait_for(second, sid, "completed")["workflow"]
-        assert wf["outcome"] == "CHECKLIST_REVIEW_REQUIRED"
+        assert wf["outcome"] == "DEGRADED"  # M4 S5: claims not verified (NLI disabled)
         node_names = [e["node"] for e in wf["node_events"]]
         assert node_names[0] == "compliance_synthesis"  # resumed from the last checkpoint
     statuses = [s for _, s in runs(engine)]

@@ -1,12 +1,12 @@
 # 03 — LangGraph Design
 
-Single state machine, specialized nodes. A node may use an LLM, deterministic Python, or an external service. Checkpointer: Postgres. Status (M3 complete, 2026-11-12): the workflow runs end to end through the API; claim verification (NLI), Prompt Guard and review cases are M4 and are not built. Progress events (M3 S7): the durable `graph_runs.node_events` in Postgres, streamed over SSE, with Redis pub/sub as a best-effort wake-up only. Tracing: LangSmith.
+Single state machine, specialized nodes. A node may use an LLM, deterministic Python, or an external service. Checkpointer: Postgres. Status (M3 complete, 2026-11-12): the workflow runs end to end through the API; claim verification (NLI) and review cases are M4 (`docs/milestones/M4_PLAN.md`); Prompt Guard moves to the Future security milestone — number TBD (M4 decision D1). Progress events (M3 S7): the durable `graph_runs.node_events` in Postgres, streamed over SSE, with Redis pub/sub as a best-effort wake-up only. Tracing: LangSmith.
 
 ## State
 > **As implemented (M3 S2): `app/graph/state.py`.** It follows `docs/milestones/M3_PLAN.md` §4–§5, which supersedes the sketch below:
 > - **JSON-safe values:** every value is JSON, and nested values are Pydantic model dumps, so checkpoints never deserialise application classes.
 > - **Outcome vocabulary:** `final_status` is replaced by the single report `outcome` (`BLOCKED`, `INSUFFICIENT_INFORMATION`, `INSUFFICIENT_EVIDENCE`, `DEGRADED`, `CHECKLIST_REVIEW_REQUIRED`, in precedence order), plus the separate run lifecycle `RunStatus`.
-> - **Claim fields:** they arrive with M4.
+> - **Claim fields (M4 S1, models only; the node arrives in S5):** `claim_results` (one `RequirementVerification` per validated requirement), `verification_meta` and `unverified_items`. They are not input keys, so a caller can never pre-fill them. The models enforce the never-upgrade invariant and the M4 MANDATORY rule themselves (docs/milestones/M4_PLAN.md §E, §I).
 > - **Routing:** `app/graph/routing.py`. A blocked or review security status goes to `finalize`, not to a separate refusal node (M3 plan revision 2).
 > - **Security, intake and clarification (M3 S3):** these are real nodes.
 >   - **`input_security`:** deterministic and monotonic. An input cannot declare itself safe, and a block is never relaxed.
@@ -63,12 +63,7 @@ State rules: no secrets; store file references not binaries; isolate by session;
 3. **policy_retrieval** — embed query, Qdrant filtered dense search, BM25 keyword search (`rank_bm25`, in-process index built from Postgres chunks), RRF fusion, optional cross-encoder rerank, dedupe, package with source metadata. Output chunks from real retrieval only.
 4. **form_analysis** (conditional) — skip for policy-only questions. Prefer cached validated form schema (Postgres + Redis); call multimodal model only if absent/new hash. Output fields, checkboxes, signatures, declarations, annexures, `unresolved_items`.
 5. **compliance_synthesis** — inputs: entity profile, evidence, form schema, rules. Produces Pydantic-validated checklist. Each requirement: name, applicability (MANDATORY/CONDITIONAL/OPTIONAL/UNCLEAR; enum `Applicability` in app/schemas/taxonomy.py), explanation, evidence refs, source doc+page, confidence (evaluation confidence, not legal certainty), review status.
-6. **claim_verification** — extract atomic claims -> match evidence -> NLI (entail/contradict/neutral) -> check source applicability & rules -> combined confidence (never NLI alone). Routing:
-   - SUPPORTED -> output_validation
-   - UNSUPPORTED -> regenerate (max 2) then mark unverified
-   - CONTRADICTED -> human_review
-   - UNRESOLVED -> mark Unverified
-   Also detects **missing** evidence, not just false statements.
+6. **claim_verification** (M4, `docs/milestones/M4_PLAN.md`; supersedes the earlier sketch here) — runs **after** `output_validation` (decision D8), only on items that survived citation validation: typed atomic claims (`policy_obligation`, `form_request`, `supporting_statement`, `explanatory_claim`) -> premise windows from the stored chunk text -> deterministic statement analysis (modality, polarity/negation, subject, item match, entity scope) -> local NLI (premise = evidence, hypothesis = claim) -> a categorical decision table (no combined confidence; scores are uncalibrated) -> downgrade-only effects. No regeneration loop (D3) and no separate `human_review` node: unsupported items move to `unverified_items`, contradictions and source conflicts become open review cases, and every report already requires human review. Verification failure is `not_verified` (DEGRADED), never "supported". **Status (M4 S5):** wired as `output_validation -> claim_verification | finalize` (only a non-empty checklist is verified). It runs with NLI disabled, because S4 selected no configuration, so every report with a checklist is currently DEGRADED with all claims `not_verified`. **S6:** the bounded source-conflict scan runs inside the same node (no topology change). With NLI disabled it is `not_run`, and the report states that no automated conflict check was performed.
 7. **output_validation** — valid JSON, valid citation refs (doc/page exist), no unsupported MANDATORY, entity classification sane, uncertainty labels present, no sensitive disclosure. Persist report.
 8. **human_review / refusal** — create review case (see `05`), or return safe refusal.
 

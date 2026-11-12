@@ -75,7 +75,8 @@ def test_message_pause_resume_report(client: TestClient) -> None:
     r = post(client, f"/sessions/{sid}/resume", body, key="r1")
     assert r.status_code == 202 and r.json()["status"] == "running"
     wf = wait_for(client, sid, "completed")["workflow"]
-    assert wf["outcome"] == "CHECKLIST_REVIEW_REQUIRED" and wf["report_id"]
+    # M4 S5: NLI disabled, so the claims are not verified and the run is DEGRADED
+    assert wf["outcome"] == "DEGRADED" and wf["report_id"]
     seqs = [e["seq"] for e in wf["node_events"]]
     assert seqs == list(range(1, len(seqs) + 1)) and wf["node_events"][-1]["node"] == "finalize"
 

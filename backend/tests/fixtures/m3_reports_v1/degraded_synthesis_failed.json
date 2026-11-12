@@ -1,0 +1,49 @@
+{
+  "checklist": null,
+  "degradations": [
+    {
+      "component": "llm",
+      "reason": "invalid_output_after_repair"
+    }
+  ],
+  "disclaimer": "Independent educational prototype. Not affiliated with, endorsed by, or an official system of HDFC Bank.",
+  "dropped_requirements": 0,
+  "evidence_status": "found",
+  "findings": [],
+  "forms": [
+    {
+      "fields_analysed": 2,
+      "flags": [],
+      "form_key": "hdfc_ni_form",
+      "method": "m1_chunks",
+      "subset_only": false,
+      "version": 1
+    }
+  ],
+  "gaps": [],
+  "human_review_required": true,
+  "missing_fields": [],
+  "notice": "Decision support only. Not a KYC decision. Not claim-verified (M4).",
+  "outcome": "DEGRADED",
+  "profile": {
+    "account_type": {
+      "source": "user_stated",
+      "value": "CURRENT_ACCOUNT"
+    },
+    "entity_type": {
+      "source": "user_stated",
+      "value": "TRUST"
+    },
+    "residency": {
+      "source": "unknown",
+      "value": null
+    }
+  },
+  "report_id": "b1466c08-223a-550f-ae6c-959a710ff07f",
+  "run_id": "r-1",
+  "security_reasons": [],
+  "session_id": "s-1",
+  "unresolved_items": [],
+  "user_message": "Part of the processing did not complete normally (llm), so this result may be incomplete. I don't have sufficient verified information in my available knowledge base to answer this query. Please visit https://www.hdfcbank.com/ or contact HDFC Bank customer service for accurate information.\n\nIndependent educational prototype. Not affiliated with, endorsed by, or an official system of HDFC Bank.",
+  "verification": "not_claim_verified"
+}

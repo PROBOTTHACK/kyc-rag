@@ -59,7 +59,7 @@ Group membership is a retrieval convenience only. It does **not** mean an RBI pa
 ## Form requirements are not obligations
 A form shows what the form *requests* (a field, a checkbox, an instruction such as "attach self-attested passport, visa & address proof"). That is evidence of the form's content. It is not proof of a current regulatory or bank-policy obligation (docs/05 states (a)–(c)).
 - `document_type=form` is never `primary`, whatever its `source_status`. Forms whose current validity cannot be verified are `source_status=unknown`, and they stay retrievable as `supporting` historical or reference evidence.
-- A requirement built only on form evidence can be `CONDITIONAL`/`UNCLEAR`, never `MANDATORY`. Reaching `MANDATORY` needs a `primary` source: active RBI regulatory text or verified active bank policy (enforced in M4 output validation).
+- A requirement built only on form evidence can be `CONDITIONAL`/`UNCLEAR`, never `MANDATORY`. Reaching `MANDATORY` needs a `primary` source: active RBI regulatory text or verified active bank policy (enforced since M3 S5 by `app/graph/validation.py`; M4 additionally requires the primary citation itself to support the obligation, docs/milestones/M4_PLAN.md).
 
 ## `bank`, `source_authority`, `attribution_basis`: three different questions
 | Field | Question it answers | Example |

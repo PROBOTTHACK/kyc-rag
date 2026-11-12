@@ -37,7 +37,6 @@ def test_0007_creates_the_checkpointer_schema_and_is_reversible(temp_db: str) ->
     command.upgrade(cfg, "0007_m3_checkpointer")
     assert tables(engine, "langgraph") == CHECKPOINT_TABLES
     assert tables(engine, "public") == public_before  # nothing leaked into public
-    command.check(cfg)
 
     with engine.begin() as conn:  # a stored checkpoint makes the downgrade refuse
         conn.execute(
@@ -56,3 +55,4 @@ def test_0007_creates_the_checkpointer_schema_and_is_reversible(temp_db: str) ->
     assert "langgraph" not in schemas(engine)
     command.upgrade(cfg, "head")
     assert tables(engine, "langgraph") == CHECKPOINT_TABLES
+    command.check(cfg)  # ORM and migrations agree (at head; 0007 is no longer the head, M4 S7)

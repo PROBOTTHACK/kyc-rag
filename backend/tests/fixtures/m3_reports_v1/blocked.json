@@ -1,0 +1,25 @@
+{
+  "checklist": null,
+  "degradations": [],
+  "disclaimer": "Independent educational prototype. Not affiliated with, endorsed by, or an official system of HDFC Bank.",
+  "dropped_requirements": 0,
+  "evidence_status": null,
+  "findings": [],
+  "forms": [],
+  "gaps": [],
+  "human_review_required": true,
+  "missing_fields": [],
+  "notice": "Decision support only. Not a KYC decision. Not claim-verified (M4).",
+  "outcome": "BLOCKED",
+  "profile": {},
+  "report_id": "92ecc7e6-460d-5805-b1fe-40730a6194aa",
+  "run_id": "r-b",
+  "security_reasons": [
+    "override_instruction",
+    "system_prompt_extraction"
+  ],
+  "session_id": "s-b",
+  "unresolved_items": [],
+  "user_message": "This request could not be processed.\n\nIndependent educational prototype. Not affiliated with, endorsed by, or an official system of HDFC Bank.",
+  "verification": "not_claim_verified"
+}

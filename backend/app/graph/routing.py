@@ -12,7 +12,8 @@ Edges (the builder registers exactly these):
 - policy_retrieval -> form_analysis | evidence_association | finalize
                                                           (`route_after_retrieval`)
 - form_analysis -> evidence_association -> compliance_synthesis -> output_validation
-  -> finalize -> END
+- output_validation -> claim_verification | finalize      (`route_after_validation`; M4 S5)
+- claim_verification -> finalize -> END
 """
 
 from collections.abc import Mapping
@@ -29,6 +30,7 @@ FORM_ANALYSIS: Final = "form_analysis"
 EVIDENCE_ASSOCIATION: Final = "evidence_association"
 COMPLIANCE_SYNTHESIS: Final = "compliance_synthesis"
 OUTPUT_VALIDATION: Final = "output_validation"
+CLAIM_VERIFICATION: Final = "claim_verification"
 FINALIZE: Final = "finalize"
 
 NODE_ORDER: tuple[str, ...] = (
@@ -40,6 +42,7 @@ NODE_ORDER: tuple[str, ...] = (
     EVIDENCE_ASSOCIATION,
     COMPLIANCE_SYNTHESIS,
     OUTPUT_VALIDATION,
+    CLAIM_VERIFICATION,
     FINALIZE,
 )
 
@@ -49,6 +52,7 @@ ELIGIBLE = frozenset({EvidenceEligibility.PRIMARY.value, EvidenceEligibility.SUP
 AfterSecurity = Literal["entity_intake", "finalize"]
 AfterIntake = Literal["policy_retrieval", "clarify", "finalize"]
 AfterRetrieval = Literal["form_analysis", "evidence_association", "finalize"]
+AfterValidation = Literal["claim_verification", "finalize"]
 
 
 def route_after_security(state: Mapping[str, Any]) -> AfterSecurity:
@@ -85,6 +89,13 @@ def route_after_retrieval(state: Mapping[str, Any]) -> AfterRetrieval:
     return FORM_ANALYSIS if state.get("form_analysis_required") is True else EVIDENCE_ASSOCIATION
 
 
+def route_after_validation(state: Mapping[str, Any]) -> AfterValidation:
+    """Only a non-empty validated checklist has claims to verify (M4_PLAN §C); a missing
+    or empty checklist finalizes (DEGRADED or INSUFFICIENT_EVIDENCE, unchanged from M3)."""
+    checklist = state.get("checklist")
+    return CLAIM_VERIFICATION if isinstance(checklist, list) and checklist else FINALIZE
+
+
 def decide_outcome(state: Mapping[str, Any]) -> Outcome:
     """The report outcome, by precedence (M3_PLAN §5):
     BLOCKED > INSUFFICIENT_INFORMATION > INSUFFICIENT_EVIDENCE > DEGRADED >
@@ -101,6 +112,7 @@ def decide_outcome(state: Mapping[str, Any]) -> Outcome:
         return Outcome.INSUFFICIENT_EVIDENCE
     meta = state.get("retrieval_meta")
     partial_retrieval = isinstance(meta, Mapping) and bool(meta.get("degraded"))
+    # M4: a `verification` degradation (e.g. NLI not configured) lands here too.
     if state.get("degradations") or partial_retrieval or state.get("draft") is None:
         return Outcome.DEGRADED
     return Outcome.CHECKLIST_REVIEW_REQUIRED

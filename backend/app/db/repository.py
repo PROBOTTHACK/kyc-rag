@@ -248,3 +248,46 @@ def family_integrity(
         if r.raw_text != "\n".join(c.raw_text or "" for c in family):
             report.problems.append(f"{label}: children do not reassemble its raw text")
     return report
+
+
+@dataclass(frozen=True)
+class DocumentRelationRow:
+    """Document-level facts the M4 S6 supersession rule needs (read-only)."""
+
+    document_key: str
+    supersedes: tuple[str, ...]  # document keys this document supersedes (manifest)
+    source_status: str
+    version_review_status: str
+
+
+def document_relations(session: Session, keys: Iterable[str]) -> dict[str, DocumentRelationRow]:
+    """Supersession facts for the given document keys; unknown keys are simply absent."""
+    wanted = sorted(set(keys))
+    if not wanted:
+        return {}
+    docs = session.scalars(select(Document).where(Document.document_key.in_(wanted))).all()
+    targets = {d.supersedes_document_id for d in docs if d.supersedes_document_id is not None}
+    target_keys = (
+        dict(
+            session.execute(
+                select(Document.id, Document.document_key).where(Document.id.in_(targets))
+            )
+            .tuples()
+            .all()
+        )
+        if targets
+        else {}
+    )
+    return {
+        d.document_key: DocumentRelationRow(
+            document_key=d.document_key,
+            supersedes=tuple(
+                [target_keys[d.supersedes_document_id]]
+                if d.supersedes_document_id in target_keys
+                else []
+            ),
+            source_status=d.source_status,
+            version_review_status=d.version_review_status,
+        )
+        for d in docs
+    }

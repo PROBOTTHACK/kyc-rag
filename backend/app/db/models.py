@@ -627,6 +627,43 @@ class ReportRow(Base):
     )
 
 
+class ReviewCaseRow(Base):
+    """An open human-review case (M4 S7, migration 0008): insert-only (a trigger rejects
+    UPDATE), deleted only by cascade with its report or session. `status` can only be
+    `open`; no column or value can express a decision."""
+
+    __tablename__ = "review_cases"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("reports.id", ondelete="CASCADE"), nullable=False
+    )
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("kyc_sessions.id", ondelete="CASCADE"), nullable=False
+    )
+    run_id: Mapped[str] = mapped_column(Text, nullable=False)
+    requirement_id: Mapped[str] = mapped_column(Text, nullable=False)
+    claim_id: Mapped[str | None] = mapped_column(Text)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'open'"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "reason IN ('contradicted', 'conflicting_sources', 'unsupported', "
+            "'mandatory_not_established', 'explanation_overstates_source', 'not_verified')",
+            name="ck_review_cases_reason",
+        ),
+        CheckConstraint("status = 'open'", name="ck_review_cases_open_only"),
+        UniqueConstraint(
+            "report_id", "requirement_id", "reason", name="uq_review_cases_report_req_reason"
+        ),
+        Index("ix_review_cases_report", "report_id"),
+    )
+
+
 class ApiIdempotency(Base):
     """Idempotency records for POST /messages, /resume, /retry (used from S6)."""
 

@@ -388,10 +388,25 @@ def test_a_supported_checklist_report() -> None:
     )
     report = out["report"]
     assert_message_rules(report)
-    assert report["outcome"] == "CHECKLIST_REVIEW_REQUIRED" and report["evidence_status"] == "found"
-    assert report["checklist"][0]["applicability"] == "MANDATORY"
+    assert report["evidence_status"] == "found"
+    # M3's gate established MANDATORY; it is kept in state and as `applicability_before`
+    assert out["checklist"][0]["applicability"] == "MANDATORY"
+    assert report["claim_verification"][0]["applicability_before"] == "MANDATORY"
+    # M4 S5: NLI disabled, so the claim is not verified: shown as at most CONDITIONAL, DEGRADED
+    assert report["outcome"] == "DEGRADED"
+    assert report["checklist"][0]["applicability"] == "CONDITIONAL"
+    assert report["checklist"][0]["verification_status"] == "not_verified"
     assert report["report_id"] == report_id("s-1", "r-1") == out["report_id"]
-    assert TRUST_Q not in json.dumps(report) and "a trust" not in json.dumps(report)
+    assert TRUST_Q not in json.dumps(report)
+    # M4 claim templates name the customer from the TAXONOMY label ("a trust customer"),
+    # never from the user's words: drop exactly those template texts, then no user span.
+    templated = [c["text"] for r in report["claim_verification"] for c in r["claims"]
+                 if c["template_version"] is not None]  # fmt: skip
+    assert templated == ["Item must be obtained for a trust customer."]
+    stripped = json.dumps(report)
+    for text in templated:
+        stripped = stripped.replace(text, "")
+    assert "a trust" not in stripped
 
 
 def test_llp_group_scope_evidence_never_becomes_mandatory_and_partial_stays_visible() -> None:

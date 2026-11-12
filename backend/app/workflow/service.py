@@ -249,6 +249,18 @@ class WorkflowService:
             raise WorkflowError(404, "REPORT_NOT_FOUND", "Report not found.")
         return report.model_dump(mode="json")
 
+    async def get_review_cases(self, report_id: str) -> dict[str, Any]:
+        """M4 S7, read-only: the report's open review cases (codes and ids only). There is
+        no decision, approval, rejection, resolution, dismissal or status-update route."""
+        try:
+            uuid.UUID(report_id)
+        except ValueError:
+            raise WorkflowError(404, "REPORT_NOT_FOUND", "Report not found.") from None
+        cases = await asyncio.to_thread(self.rt.reports.review_cases_for, report_id)
+        if cases is None:
+            raise WorkflowError(404, "REPORT_NOT_FOUND", "Report not found.")
+        return {"report_id": report_id, "review_cases": cases}
+
     # --- the three state-changing endpoints ----------------------------------------------------
 
     @staticmethod
