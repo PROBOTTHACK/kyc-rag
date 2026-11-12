@@ -320,10 +320,11 @@ def lookup(ids: Any) -> dict[str, StoredChunk]:
 def test_the_m3_acceptance_check_accepts_a_v2_report_and_its_notice_only_for_v2() -> None:
     report = trust_run()["report"]
     assert check_report(report, lookup).ok
+    # since the S5 follow-up, a notice/version mismatch is refused by schema validation
     v1_with_v2_notice = dict(report, report_version=1)
-    assert "notice_or_disclaimer_missing" in check_report(v1_with_v2_notice, lookup).problems
+    assert "report_schema_invalid" in check_report(v1_with_v2_notice, lookup).problems
     v2_with_m3_notice = dict(report, notice=NOTICE)
-    assert "notice_or_disclaimer_missing" in check_report(v2_with_m3_notice, lookup).problems
+    assert "report_schema_invalid" in check_report(v2_with_m3_notice, lookup).problems
 
 
 def test_build_report_without_the_stage_output_is_the_m3_v1_report() -> None:

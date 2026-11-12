@@ -469,3 +469,25 @@ Findings:
 These do not affect S5 behaviour: with NLI disabled, no claim can be supported, so the gate never sees a supported claim.
 
 **Next (S6, after owner approval):** the bounded contradiction / conflict scan.
+
+## S5 follow-up (2026-11-12): `check_report` validates the report before any rule
+Approved by the owner after the S5 review (point 3); no graph, dataset, threshold or NLI change.
+- `app/workflow/acceptance.check_report` first runs `ComplianceReport.model_validate`. A failing report returns only `report_schema_invalid` plus `report_schema_invalid:<field location>` codes (never values), and no other check runs. A malformed or internally inconsistent v2 report therefore cannot pass on its version number.
+- **Explicit acceptance rules for a v2 report with `verification_meta.status == not_configured`:**
+  - every checklist item is `not_verified`, and none is MANDATORY;
+  - the metadata names no model, revision, label map or thresholds, and scored nothing;
+  - `verification == not_claim_verified`;
+  - claim results are present for a shown checklist, and none is verified;
+  - there are no unverified items;
+  - a `verification` degradation is present and the outcome is DEGRADED.
+- **M3 v1 behaviour is unchanged.** The old and new `check_report` give identical results on all 8 stored v1 fixtures, with both a resolving and an empty chunk lookup. A pre-existing M3 rule result is recorded, not changed: the retrieval-failure v1 report gets `fallback_text_missing`.
+- **Tests:** `tests/unit/test_m4_acceptance.py` (28):
+  - malformed v2 reports (10 kinds);
+  - locations never values;
+  - a forged not_configured report that passes every model invariant but is caught by the M4 rules;
+  - inconsistent metadata, a missing degradation and a non-DEGRADED outcome, each on its own;
+  - all v1 fixtures;
+  - the v1 rules.
+
+  One S5 assertion in `test_m4_graph_s5.py` now expects `report_schema_invalid` (stricter) for a version/notice mismatch.
+- **Not done here (S8, unchanged):** the broader M4 `check_report` rules for reports whose check ran.

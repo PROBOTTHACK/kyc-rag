@@ -11,6 +11,10 @@ A report passes when:
   MANDATORY;
 - `unresolved_items` is present (listed, possibly empty), and an INSUFFICIENT_EVIDENCE
   outcome carries the "no evidence, no answer" fallback text.
+- (M4 S5) it validates as a `ComplianceReport` (v1 or v2, with every model invariant);
+  otherwise it fails with `report_schema_invalid` (field locations only, never values) and
+  no other check runs. A v2 report whose claim check was `not_configured` (NLI disabled)
+  must show every item `not_verified`, none MANDATORY, and agree with its metadata.
 An honestly labelled weak outcome (INSUFFICIENT_EVIDENCE, DEGRADED, ...) passes; the
 checker never asks for a particular outcome. It returns problems as codes with ids only.
 """
@@ -21,10 +25,11 @@ from dataclasses import dataclass
 from typing import Any
 
 import sqlalchemy as sa
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.graph.report import FALLBACK
-from app.graph.state import DISCLAIMER, NOTICE, NOTICE_V2, Outcome
+from app.graph.state import DISCLAIMER, NOTICE, NOTICE_V2, ComplianceReport, Outcome
 
 
 @dataclass(frozen=True)
@@ -76,8 +81,63 @@ class Acceptance:
         return not self.problems
 
 
-def check_report(report: dict[str, Any], lookup: ChunkLookup) -> Acceptance:
+SCHEMA_INVALID = "report_schema_invalid"
+_MAX_SCHEMA_LOCATIONS = 10
+
+
+def _schema_problems(report: dict[str, Any]) -> tuple[ComplianceReport | None, list[str]]:
+    """Validate the whole report first; a malformed report never reaches the other checks.
+    Problems name field locations only (never the offending values)."""
+    try:
+        return ComplianceReport.model_validate(report), []
+    except ValidationError as exc:
+        locs = sorted({".".join(str(p) for p in e["loc"]) or "report" for e in exc.errors()})
+        return None, [SCHEMA_INVALID] + [
+            f"{SCHEMA_INVALID}:{loc}" for loc in locs[:_MAX_SCHEMA_LOCATIONS]
+        ]
+
+
+def _not_configured_problems(model: ComplianceReport) -> list[str]:
+    """M4 S5: with NLI disabled, nothing may look verified and nothing may be MANDATORY."""
+    meta = model.verification_meta
+    if model.report_version != 2 or meta is None or meta.status != "not_configured":
+        return []
     problems: list[str] = []
+    if model.verification != "not_claim_verified":
+        problems.append("verification_status_inconsistent")
+    if any(v is not None for v in (meta.model_id, meta.model_revision, meta.label_map,
+                                   meta.thresholds_version)) or meta.pairs_scored:  # fmt: skip
+        problems.append("verification_meta_inconsistent")
+    items = model.checklist or []
+    for n, item in enumerate(items):
+        if item.verification_status != "not_verified":
+            problems.append(f"item_{n}:verification_status_not_not_verified")
+        if item.applicability == "MANDATORY":
+            problems.append(f"item_{n}:mandatory_without_claim_verification")
+    results = model.claim_verification
+    if items and results is None:
+        problems.append("claim_verification_missing")
+    for r in results or []:
+        if (
+            r.requirement_verdict != "not_verified"
+            or r.judgements
+            or any(v.verdict != "not_verified" for v in r.verdicts)
+        ):
+            problems.append(f"result_{r.requirement_id}:verified_without_a_model")
+    if model.unverified_items:
+        problems.append("unverified_items_without_a_model")
+    if items and "verification" not in {d.component for d in model.degradations}:
+        problems.append("verification_degradation_missing")
+    if items and model.outcome != Outcome.DEGRADED:
+        problems.append("outcome_not_degraded_without_verification")
+    return problems
+
+
+def check_report(report: dict[str, Any], lookup: ChunkLookup) -> Acceptance:
+    model, problems = _schema_problems(report)
+    if model is None:
+        return Acceptance(problems=problems, items=0, mandatory=0, citations=0, unresolved=0)
+    problems += _not_configured_problems(model)
     outcome = report.get("outcome")
     if outcome not in {o.value for o in Outcome}:
         problems.append("unknown_outcome")
