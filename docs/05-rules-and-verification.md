@@ -49,7 +49,7 @@ Example failure to catch: evidence "designated partners must be verified" vs cla
 **Implementation status:**
 - Steps 1–3 and 5–6 are implemented deterministically in `backend/app/verification/` (M4 S2).
 - The local NLI scorer (`CrossEncoderNLI`) is implemented in S4.1: pinned revision, label map read from the model config, sanity triplet at load, no truncation.
-- The checkpoint and thresholds are chosen on the dev set by the pre-registered rule in S4.2 (docs/10).
+- The checkpoint and thresholds were to be chosen on the dev set by the pre-registered rule in S4.2. **Result (`m4-s4-v1`): no configuration qualified (0/140). NLI is disabled by default**, so claims are `not_verified` (docs/10, S4.2 result).
 - The graph node arrives in S5.
 
 ## Human review workflow

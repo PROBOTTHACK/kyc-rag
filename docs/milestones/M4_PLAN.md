@@ -389,3 +389,20 @@ Findings:
 - `test_m4_nli_live.py` (marker `nli`): skipped until S4.2 caches a model; runs offline, never downloads.
 
 **Next (S4.2, after owner approval):** download the four pinned checkpoints (D12), `make nli-check`, one `make eval-claims-select`, commit the record and summary.
+
+## S4.2 outcome (2026-11-12): one registered dev run; no configuration qualified. S4 complete.
+- **Downloads and load checks.** The four pinned checkpoints were downloaded to the local HF cache (never committed). `make nli-check` passed for all four: label map read from config, sanity 3/3. `sentencepiece` was not needed (D13). `pytest -m nli`: 4 passed, offline.
+- **Selection.** `make eval-claims-select` was completed once at `0c4cc49`. A first attempt crashed after scoring because of a CLI path bug, wrote nothing and showed no outcome. Fixed in `0c4cc49`, with no change to the protocol.
+- **Outcome (official, owner-accepted):** 0 of 140 configurations qualified.
+  - Every configuration failed the MANDATORY false-positive gate (N1: 2; N2–N4: 3, at every threshold pair) and the determinism gate (N1–N3: 3–6e-6; N4: 1.07e-2, against 1e-6).
+  - **No NLI model is selected; NLI stays disabled by default** (D5). `infra/.env.example` is unchanged: no model is pinned.
+- **Cost.** N4 (float16 on the CPU) takes p50 1.88 s and p95 2.78 s per pair, 53 min for its part of the run, and is estimated at about 36 s per case (typical) and 18.5 min per request at the 400-pair cap (conservative). Total S4.2 compute: 62.4 min plus 65.6 min for the crashed attempt. The full tables are in docs/10.
+- **MANDATORY false-positive diagnosis** (read-only rule trace; the details are in docs/10). The upper bound is 7 dev cases (m4d-004, 008, 011, 019, 020, 024, 052). Sources:
+  - the gate does not encode labelling rule 10 (no entity → no obligation), behind m4d-008 and m4d-011;
+  - window-level instead of sentence-level modality and polarity (m4d-052, m4d-024);
+  - the claim's own polarity is not part of the gate (m4d-019);
+  - labelling rule 1 for abbreviations cannot be seen by the gate (m4d-004).
+
+  Per-model attribution is not recoverable from the v1 record without re-scoring.
+- **Integrity.** The dev SHA in the record equals the committed file. The held-out file is byte-identical (hashed only). The record and summary are committed as produced. No threshold change, relabelling, new protocol or dependency.
+- **Consequence for S5.** The graph node ships with NLI off: claims are `not_verified`, with the `verification` degradation and the DEGRADED outcome. The never-upgrade invariant holds. Any later protocol is a new version, disclosed as post-hoc, and needs the owner's approval.

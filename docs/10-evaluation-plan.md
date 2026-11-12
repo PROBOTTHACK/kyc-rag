@@ -222,6 +222,70 @@ Code: `app/verification/{nli,evaluation,selection,cli}.py`. Make targets: `nli-c
 - **Safety floor measured without a model** (`tests/integration/test_m4_evaluation_dev.py`): the rules-only ablation over all 55 cases has false-support rate 0 and MANDATORY false positives 0.
 - **Limitation:** choosing thresholds on 55 single-annotator cases overfits. The held-out run in S8 is the only unbiased estimate.
 
+## M4 S4.2 selection result (protocol `m4-s4-v1`, run once on 2026-11-12): no configuration qualified
+The official research outcome of S4 is **0 qualifying configurations of 140** (4 checkpoints × 35 threshold pairs). **No NLI model is selected, and NLI stays disabled by default** (D5): `NLI_MODEL` stays unset, and in S5 every claim is `not_verified` with an honest DEGRADED outcome. Nothing was retuned after the result.
+
+The record and summary are kept exactly as produced:
+- `data/eval/m4_nli_selection.json` (SHA-256 of file `f80f8b3f…bdcdebb4`);
+- `docs/milestones/M4_NLI_SELECTION.md` (`c485d6b7…b0c2deab`).
+
+**Run facts:**
+- **Run:** code commit `0c4cc49`. Dev SHA-256 `b199e4da…53b0f7` equals the committed dev file. The held-out file is byte-identical (`eee0a575…d90203`); it was hashed, never parsed or scored.
+- **Write-once guard:** a second `make eval-claims-select` is refused before any model loads.
+- **First attempt:** it crashed after scoring and wrote nothing. `make` ran the CLI from `backend/`, so the relative record path pointed at a missing directory. No outcome was observed. The path fix (`0c4cc49`, repo-root resolution, fail-fast output-dir check) changed no scoring, metric, grid, gate or rule. The registered run was then completed once.
+
+**Results per candidate.** Each candidate scored the same 1,047 distinct pairs (55 cases, about 19 pairs per case).
+
+| Candidate | Gates failed (all 35 pairs) | MANDATORY FP | False-support rate range | Best entailed recall | Determinism (max abs logit diff; gate 1e-6) |
+|---|---|---|---|---|---|
+| N1 `nli-deberta-v3-xsmall` | MANDATORY FP, non-deterministic | 2 | 1/20 – 1/10 | 0.40 | 4.9e-6 (fail) |
+| N2 `nli-deberta-v3-small` | MANDATORY FP, non-deterministic | 3 | 3/40 at every pair | 0.40 | 2.9e-6 (fail) |
+| N3 `nli-deberta-v3-base` | MANDATORY FP, non-deterministic | 3 | 3/40 at every pair | 0.40 | 6.0e-6 (fail) |
+| N4 `DeBERTa-v3-base-mnli-fever-anli` | MANDATORY FP, non-deterministic | 3 | 1/20 at every pair | 0.40 | 1.07e-2 (fail) |
+
+Gate notes:
+- The obligation-from-form errors gate passed everywhere (0), and all four loaded with sanity 3/3.
+- The MANDATORY false-positive count is the same at every threshold pair, so the gate fails for every model whatever the thresholds.
+- The N1–N3 determinism differences are float32 batch noise above a tolerance that was set too tight. N4 runs in float16 (below). Either gate alone disqualifies every configuration.
+
+**Cost** (CPU estimates on one 16-logical-core laptop, not guaranteed timings). The per-pair figures are the median and 95th percentile of the batch mean per call.
+
+| Candidate | Load | p50 per pair | p95 per pair | One dev scoring pass | Total time on this candidate | Typical estimate per case (mean pairs × p50) | Conservative estimate per request (400 × p95) |
+|---|---|---|---|---|---|---|---|
+| N1 | 23.6 s (includes first-process warm-up) | 41 ms | 63 ms | 44 s | 1.8 min | 0.8 s | 25 s |
+| N2 | 3.1 s | 62 ms | 86 ms | 64 s | 2.4 min | 1.2 s | 35 s |
+| N3 | 3.8 s | 117 ms | 177 ms | 132 s | 4.7 min | 2.2 s | 71 s |
+| N4 | 4.6 s | 1,877 ms | 2,779 ms | 2,008 s | 53.0 min | 35.7 s | 1,112 s (~18.5 min) |
+
+About N4's cost:
+- Its pinned `config.json` declares `torch_dtype: float16`, which sentence-transformers honours. Half precision on the CPU makes it about 16× slower per pair than N3, the same-size base model, and accounts for its determinism difference.
+- **Total S4.2 compute:** 62.4 min for the registered run, plus 65.6 min for the crashed first attempt.
+
+**Diagnosis of the MANDATORY false positives** (read-only; no model run, no threshold or label change):
+- **How the cases were found.** The S4-v1 record stores aggregates, not per-case predictions. So the cases were identified by a deterministic rule trace: the dev harness with a scripted scorer that entails every pair. This gives an upper bound: every case that could become MANDATORY while gold `expected_obligation` is false.
+- **The bound is 7 cases.** The models' 2–3 false positives are a subset of these 7. Exact per-model attribution would need re-scoring, which is out of scope here.
+
+| Case | Gold | Evidence (RBI KYC Directions 2025) | What lets it reach MANDATORY | Likely source |
+|---|---|---|---|---|
+| m4d-008 | entailed, no entity | p.41: "shall carry out periodic updation at least once in every two years for high-risk customers" | a correct entailment; every `mandatory_established` condition holds | **gate vs rule-10 mismatch:** the labelling rule says a claim with no entity never carries an obligation, but the gate does not require an entity |
+| m4d-011 | entailed, no entity | p.58: "The bank shall verify every day, the UNSCR 1718 Sanctions List…" | same | same |
+| m4d-004 | insufficient (rule 1: "MoA and AoA" not established by the source) | p.37: "shall obtain certified copies… (2) Memorandum and Articles of Association" | the window is an affirmative obligation naming the item; a model that resolves the abbreviation entails it | rule 1 (abbreviations) is a labelling rule the deterministic gate cannot see |
+| m4d-052 | insufficient ("may" → "must") | p.48: "(2) The CDD of all the office bearers shall suffice. (3) The bank may undertake CDD of all the members of an SHG…" | the window's modality is read as an *obligation*, because the "shall" of the neighbouring item outranks the "may" of the sentence that names the item | **S2 defect:** modality and polarity are analysed per window, not per sentence naming the object |
+| m4d-019 | contradicted ("need not obtain" PAN) | p.37: "shall obtain… (3) PAN of the company" | if a model entailed it, the gate checks the window's polarity but never the claim's own negative polarity | **S2 latent defect:** the claim's polarity is not part of the MANDATORY gate |
+| m4d-020 | contradicted (five years vs two) | p.41 (as m4d-008) | numbers are left to the NLI; the rules pass | a model that entails it creates a false positive; the rules have no number check (by design, rule 3) |
+| m4d-024 | contradicted ("Aadhaar is mandatory") | p.26: "Aadhaar number is not mandatory…" | in the trace a different window of the chunk ("such bank shall carry out authentication of the customer's Aadhaar number…") reads as an affirmative obligation naming "Aadhaar number" | best-window choice plus window-level analysis; depends on the model's scores |
+
+The false-positive count does not change at τ_e = τ_c = 0.95. So each model's false positives come from cases it entails with probability ≥ 0.95. The two correctly entailed gold cases m4d-008 and m4d-011 are the most likely common pair. The third for N2–N4 is most likely m4d-004 or m4d-052. This attribution is not verified.
+
+**Recorded for later stages, not acted on in S4:**
+- the gate does not encode rule 10;
+- modality and polarity are judged per window, not per object sentence;
+- the claim's own polarity is not part of the MANDATORY gate;
+- the determinism tolerance is tighter than float32 batch noise;
+- N4 runs in float16 on the CPU.
+
+Any new protocol (for example a latency gate or corrected gates) must be a new version, disclosed as post-hoc relative to `m4-s4-v1`, and needs the owner's approval. The v1 record is never overwritten or reinterpreted.
+
 ## Ablations
 | Exp | Architecture |
 |---|---|
