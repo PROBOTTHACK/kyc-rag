@@ -284,3 +284,46 @@ Findings:
 - Anchor matching does no stemming beyond plurals ("attach" ≠ "attached") and no synonyms ("PAN" ≠ "permanent account number"). Both fail towards `insufficient`, never towards `supported`.
 - Clause scope is approximated by cue words, so a negator elsewhere in a window makes it `ambiguous`.
 - "may be dispensed with" reads as a negated permission. That is still never an affirmative obligation.
+
+## S3 outcome (2026-11-12): golden claim datasets
+**Delivered** (data and tests only; no application code, no model run, no threshold, no dependency, no external call):
+- `docs/milestones/M4_LABELLING_GUIDELINES.md`, committed with the data and before any NLI run. It covers:
+  - the three labels and ten rules, including numbers, modality, lists, conditions, entity/subject, dated sources, OCR, forms, and `expected_obligation` (rule 10);
+  - fields, the perturbation vocabulary and examples for every class;
+  - split and leakage controls, limitations, and the owner-review procedure (dev reviewed in place; held-out via a separate ledger, so the frozen file never changes).
+- `data/eval/m4_claims_dev.jsonl`: 51 cases, 17 per class. Claim types: 25 policy_obligation, 11 explanatory, 9 supporting, 6 form_request. 9 cases expect an obligation. 23 chunks from 5 documents.
+- `data/eval/m4_claims_heldout.jsonl`: 51 cases, 17 per class. Claim types: 25 / 13 / 6 / 7. 10 cases expect an obligation. 28 chunks from 6 documents. **SHA-256 `eee0a575319d7df4bc3d8f5c0771a89e4c8bf9f68abe36eb56fcac3275d90203`** (LF), also recorded in docs/10.
+- Coverage (dev / held-out case counts):
+
+  | Tag | Dev | Held-out |
+  |---|---|---|
+  | negation | 7 | 7 |
+  | polarity_flip | 6 | 5 |
+  | number_change | 8 | 8 |
+  | acronym_variant | 12 | 18 |
+  | entity_swap | 3 | 3 |
+  | scope_widening | 5 | 3 |
+  | form_only | 6 | 7 |
+  | entity_group | 1 | 1 |
+  | ocr_uncertain | 3 | 2 |
+  | source_status | 9 | 6 |
+  | document_swap | 7 | 7 |
+  | paraphrase | 5 | 8 |
+  | subject_swap | 1 | 1 |
+  | condition_dropped | 1 | 1 |
+  | modality_change | 0 | 3 |
+  | verbatim_fact | 1 | 0 |
+
+- Cross-source conflict kept visible: the dated HDFC FAQ accepts a telephone bill up to 3 months old (`m4d-032`, contradicted against a two-month claim); the dated RBI FAQ says two months for utility bills (`m4d-013`, entailed). Neither is resolved by date.
+
+**How the files were built:**
+- A one-off script (not committed) copied `document_key` and `page` from Postgres and refused any quote that was not an exact substring of the stored chunk. The committed JSONL is the artifact.
+- Four labels were corrected during self-review, before freezing, to follow the written rules (numbers on the same quantity; "may" vs an express "may not"; one ambiguous scope case replaced; one quote moved to the sentence that limits small accounts to individuals).
+
+**Tests:**
+- `tests/unit/test_m4_datasets.py`, 17 tests: frozen hash, canonical JSONL, fields and vocabularies, ≥ 15 per class, required coverage in both splits, rule 10, no shared chunks, no near-duplicates (max Jaccard 0.786 < 0.8), no duplicates.
+- `tests/integration/test_m4_dataset_labels.py`, 205 tests: Postgres provenance and quotes, the database-checkable tags, eligibility of obligation cases, and role/status/reliability coverage.
+
+**Owner action before S4:** review the dev labels (`owner_review`) and, optionally, the held-out labels via the ledger.
+
+**Limitations:** see the guidelines §7. A single annotator, who also built the verifier; small N; synthetic claims; thin entity-group coverage (1 per split); no dev `modality_change` case.
