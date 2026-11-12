@@ -1,0 +1,135 @@
+{
+  "checklist": [
+    {
+      "applicability": "MANDATORY",
+      "citations": [
+        {
+          "can_support_mandatory": true,
+          "document_key": "rbi_directions",
+          "evidence_eligibility": "primary",
+          "evidence_id": "6fe70a1c-6278-517c-a262-a86903caed62",
+          "match_scope": "entity",
+          "page": 1,
+          "page_end": null,
+          "paragraph": null,
+          "source_status": "active",
+          "text_reliability": "native"
+        }
+      ],
+      "explanation": "From the cited passage.",
+      "explanation_status": "model_drafted_not_verified",
+      "name": "Item",
+      "proposed_applicability": "MANDATORY",
+      "related_form_fields": [
+        {
+          "field_label": "Name of Trust",
+          "form_key": "hdfc_ni_form",
+          "link_kind": "topic_match",
+          "note": "related form field (relationship only)"
+        },
+        {
+          "field_label": "PAN of Trust",
+          "form_key": "hdfc_ni_form",
+          "link_kind": "topic_match",
+          "note": "related form field (relationship only)"
+        }
+      ],
+      "requirement_id": "REQ_001",
+      "uncertainty_label": "Stated in a cited primary source for this customer type; proposed, not claim-verified (M4).",
+      "verification_status": "not_claim_verified"
+    },
+    {
+      "applicability": "CONDITIONAL",
+      "citations": [
+        {
+          "can_support_mandatory": false,
+          "document_key": "hdfc_ni_form",
+          "evidence_eligibility": "supporting",
+          "evidence_id": "5aaf0b5b-9714-5eb7-9deb-3a66fb023cc3",
+          "match_scope": "entity",
+          "page": 1,
+          "page_end": null,
+          "paragraph": null,
+          "source_status": "unknown",
+          "text_reliability": "native"
+        }
+      ],
+      "explanation": "From the cited passage.",
+      "explanation_status": "model_drafted_not_verified",
+      "name": "Form item",
+      "proposed_applicability": "MANDATORY",
+      "related_form_fields": [
+        {
+          "field_label": "Name of Trust",
+          "form_key": "hdfc_ni_form",
+          "link_kind": "same_chunk",
+          "note": "related form field (relationship only)"
+        },
+        {
+          "field_label": "PAN of Trust",
+          "form_key": "hdfc_ni_form",
+          "link_kind": "same_chunk",
+          "note": "related form field (relationship only)"
+        },
+        {
+          "field_label": "Registration Number",
+          "form_key": "hdfc_ni_form",
+          "link_kind": "same_chunk",
+          "note": "related form field (relationship only)"
+        }
+      ],
+      "requirement_id": "REQ_002",
+      "uncertainty_label": "Supported by the cited sources but not established as mandatory; may depend on circumstances.",
+      "verification_status": "not_claim_verified"
+    }
+  ],
+  "degradations": [],
+  "disclaimer": "Independent educational prototype. Not affiliated with, endorsed by, or an official system of HDFC Bank.",
+  "dropped_requirements": 0,
+  "evidence_status": "found",
+  "findings": [
+    {
+      "detail": "only_form_or_supporting",
+      "kind": "mandatory_downgraded",
+      "requirement_id": "REQ_002"
+    }
+  ],
+  "forms": [
+    {
+      "fields_analysed": 4,
+      "flags": [],
+      "form_key": "hdfc_ni_form",
+      "method": "m1_chunks",
+      "subset_only": false,
+      "version": 1
+    }
+  ],
+  "gaps": [],
+  "human_review_required": true,
+  "missing_fields": [],
+  "notice": "Decision support only. Not a KYC decision. Not claim-verified (M4).",
+  "outcome": "CHECKLIST_REVIEW_REQUIRED",
+  "profile": {
+    "account_type": {
+      "source": "user_stated",
+      "value": "CURRENT_ACCOUNT"
+    },
+    "entity_type": {
+      "source": "user_stated",
+      "value": "TRUST"
+    },
+    "residency": {
+      "source": "unknown",
+      "value": null
+    }
+  },
+  "report_id": "b1466c08-223a-550f-ae6c-959a710ff07f",
+  "run_id": "r-1",
+  "security_reasons": [],
+  "session_id": "s-1",
+  "unresolved_items": [
+    "mandatory_downgraded:only_form_or_supporting"
+  ],
+  "user_message": "Below is a draft checklist built only from the cited sources. Each item shows its source document and page. It is decision support for human review, not a KYC decision.\n\nIndependent educational prototype. Not affiliated with, endorsed by, or an official system of HDFC Bank.",
+  "verification": "not_claim_verified"
+}

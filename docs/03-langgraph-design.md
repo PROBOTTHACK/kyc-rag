@@ -1,12 +1,12 @@
 # 03 — LangGraph Design
 
-Single state machine, specialized nodes. A node may use an LLM, deterministic Python, or an external service. Checkpointer: Postgres. Status (M3 complete, 2026-11-12): the workflow runs end to end through the API; claim verification (NLI) and review cases are M4 (`docs/milestones/M4_PLAN.md`); Prompt Guard moves to a later security milestone (M4 decision D1). Progress events (M3 S7): the durable `graph_runs.node_events` in Postgres, streamed over SSE, with Redis pub/sub as a best-effort wake-up only. Tracing: LangSmith.
+Single state machine, specialized nodes. A node may use an LLM, deterministic Python, or an external service. Checkpointer: Postgres. Status (M3 complete, 2026-11-12): the workflow runs end to end through the API; claim verification (NLI) and review cases are M4 (`docs/milestones/M4_PLAN.md`); Prompt Guard moves to the Future security milestone — number TBD (M4 decision D1). Progress events (M3 S7): the durable `graph_runs.node_events` in Postgres, streamed over SSE, with Redis pub/sub as a best-effort wake-up only. Tracing: LangSmith.
 
 ## State
 > **As implemented (M3 S2): `app/graph/state.py`.** It follows `docs/milestones/M3_PLAN.md` §4–§5, which supersedes the sketch below:
 > - **JSON-safe values:** every value is JSON, and nested values are Pydantic model dumps, so checkpoints never deserialise application classes.
 > - **Outcome vocabulary:** `final_status` is replaced by the single report `outcome` (`BLOCKED`, `INSUFFICIENT_INFORMATION`, `INSUFFICIENT_EVIDENCE`, `DEGRADED`, `CHECKLIST_REVIEW_REQUIRED`, in precedence order), plus the separate run lifecycle `RunStatus`.
-> - **Claim fields:** they arrive with M4.
+> - **Claim fields (M4 S1, models only; the node arrives in S5):** `claim_results` (one `RequirementVerification` per validated requirement), `verification_meta` and `unverified_items`. They are not input keys, so a caller can never pre-fill them. The models enforce the never-upgrade invariant and the M4 MANDATORY rule themselves (docs/milestones/M4_PLAN.md §E, §I).
 > - **Routing:** `app/graph/routing.py`. A blocked or review security status goes to `finalize`, not to a separate refusal node (M3 plan revision 2).
 > - **Security, intake and clarification (M3 S3):** these are real nodes.
 >   - **`input_security`:** deterministic and monotonic. An input cannot declare itself safe, and a block is never relaxed.

@@ -185,12 +185,12 @@ Local NLI only; zero new external calls; no live Groq/Gemini; synthetic data onl
 | S9 | Docs and handoff | docs, README | DoD met | — |
 
 ## N. Out of scope for M4
-Prompt Guard, adversarial security suite, rules table (M5 per D1); regeneration loops; LLM-as-judge; reviewer decisions and authentication; frontend review queue; retrieval changes; calibrated confidence; any live Groq/Gemini call; autonomous approval/rejection (never).
+Prompt Guard, adversarial security suite, rules table (Future security milestone — number TBD, per D1); regeneration loops; LLM-as-judge; reviewer decisions and authentication; frontend review queue; retrieval changes; calibrated confidence; any live Groq/Gemini call; autonomous approval/rejection (never).
 
 ## O. Decisions (owner-approved 2026-11-12)
 | ID | Decision | Approved choice | Status |
 |---|---|---|---|
-| D1 | M4 scope | Claim verification + open review cases; Prompt Guard / rules / attack suite → M5 | approved |
+| D1 | M4 scope | Claim verification + open review cases; Prompt Guard / rules / attack suite → Future security milestone — number TBD | approved |
 | D2 | Unsupported items | Out of checklist, visible in `unverified_items` | approved |
 | D3 | Regeneration | None in M4 | approved |
 | D4 | Scores | Categorical verdicts; logits + softmax stored as uncalibrated signals; no "confidence" | approved (refined, R3) |
@@ -226,8 +226,29 @@ Findings:
 
 **Docs aligned in S0** (discrepancies in §A): README features/verification text and roadmap, docs/03 (claim_verification placement and routing), docs/05 (verification pipeline per this plan), docs/12 (M4 scope per D1), docs/15 (primary-only MANDATORY already enforced in M3 S5), M3_HANDOFF status line. The `builder.py` seam comment is code and is updated in S5 with the node.
 
-**Milestone numbering:** D1 says the deferred security work goes to "M5", but the playbook (docs/12) already uses M5 for the frontend. The docs therefore say "a later security milestone"; its number is the owner's call.
+**Milestone numbering (owner decision, 2026-11-12):** the deferred security work is labelled "Future security milestone — number TBD". M5 stays reserved for the frontend (docs/12).
 
 **Checks:** docs-only stage. Unit suite 968/969: the one failure, `test_groq_provider.py::test_live_calls_and_cache_are_off_by_default`, also fails on `main` without these changes. It reads the repo-root `.env`, where `GROQ_DATA_TERMS_VERIFIED_ON` is still set from the M3 live run (`GROQ_LIVE_ENABLED` is already false). Same `.env` dependence as the M3 handoff records; owner action: clear that value in `.env` when no live run is planned.
 
 **Not done in S0:** no application code, no dependency, no weights download, no migration.
+
+## S1 outcome (2026-11-12): claim and verification models, report v2
+**Delivered** (`app/graph/state.py`; no graph, node, prompt or migration change):
+- **Models:** `AtomicClaim`, `StatementAnalysis`, `EvidenceJudgement`, `ClaimVerdict`, `RequirementVerification`, `VerificationMeta`, `UnverifiedItem`; vocabularies `ClaimType`, `EvidenceRole` (+ `evidence_role()` derived from stored document type and eligibility), `ALLOWED_ROLES`, `NLI_LABELS` (canonical storage order), `RequirementVerdict`, `ReviewReason`.
+- **Invariants enforced by the models themselves:**
+  - never upgrade: `never_upgraded()` on `RequirementVerification`, and `ValidatedRequirement` can no longer exceed its proposal. `APPLICABILITY_STRICTNESS` is now the single ordering; `validation.STRICTNESS` points to it (same values, no behaviour change);
+  - MANDATORY after verification only per §E: a supported, unconditional `policy_obligation` claim whose best evidence is scored, primary, `can_support_mandatory`, active, entity scope, and reads as an affirmative obligation naming the item with no scope mismatch. Weak verdicts can never stay MANDATORY;
+  - a form chunk can never be judged for an obligation claim (`ALLOWED_ROLES`);
+  - scores: logits and probabilities stored together, 3 finite values each, probabilities in [0, 1] summing to 1, labelled `softmax_of_logits_uncalibrated`; an unscored pair must give a reason;
+  - `VerificationMeta`: a run records model id, revision, label map (exactly entailment/neutral/contradiction) and template/threshold versions.
+- **State:** `claim_results`, `verification_meta`, `unverified_items` (not input keys, so never caller-settable).
+- **Report v2:** `report_version` (default 1), widened `notice`/`verification`/item status Literals, `claim_verification`, `verification_meta`, `unverified_items`. v1 must carry the M3 notice and no M4 field; v2 must be internally consistent (verification label matches meta status; each item is in the checklist or unverified, never both; shown applicability = verified applicability; only `unsupported` items are set aside). M3's `build_report` still produces v1; v2 is produced from S5.
+- **`Degradation.component`** gains only `verification`.
+- **Compatibility evidence:** 8 committed v1 fixtures (`tests/fixtures/m3_reports_v1/`) captured from the unchanged M3 code before any S1 edit, covering all five outcomes. Each validates as v1 with every stored value unchanged; dumping adds only the four new keys with v1 defaults. Also validated: the local (gitignored) M3 demo and live records, every report stored in the developer database, and raw M3-style rows read back through `PostgresReportStore`. A v2 report passes the existing `reports` CHECKs and insert-only trigger, so **no migration is needed**.
+
+**Checks:**
+- Unit: 1113 passed, 1 failed (`test_groq_provider.py::test_live_calls_and_cache_are_off_by_default`, the known `.env` dependence recorded in S0; not a regression). New: `tests/unit/test_m4_models.py` (145 tests).
+- Integration: 271 passed, 2 failed, both environmental (below). New: `tests/integration/test_m4_report_compat.py` (6 tests, none skipped).
+- ruff, black, strict `mypy app` (112 files), `alembic check` (no drift): clean.
+
+**Environment-dependent failures, not regressions:** `test_dense_golden.py::test_dense_retrieval_reproduces_the_m1_golden_snapshot` and `test_hybrid_dev.py::test_hybrid_on_the_dev_stack_preserves_dense_provenance` both fail on query m1-14 at ranks 2/3. The golden snapshot records an **exact score tie** there (0.676856 for both chunks: the same declaration in `hdfc_nri_account_opening` p.3 and `hdfc_resident_to_nro_conversion` p.3), and Qdrant returned the tied pair in the other order after the containers were restarted for this run. Both tests fail identically on the M3 code with every S1 change stashed. S1 does not touch retrieval. The golden tests were not changed: making their tie handling deterministic (e.g. comparing tied hits as a set, or a chunk-id tie-break) is a separate owner decision.

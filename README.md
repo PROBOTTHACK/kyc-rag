@@ -259,7 +259,7 @@ M3 limits:
 - [x] Hybrid retrieval and multimodal form extraction (M2: see [`docs/milestones/M2_HANDOFF.md`](docs/milestones/M2_HANDOFF.md))
 - [x] End-to-end LangGraph workflow (M3: see [`docs/milestones/M3_HANDOFF.md`](docs/milestones/M3_HANDOFF.md))
 - [ ] Claim verification and review cases (M4, in progress: see [`docs/milestones/M4_PLAN.md`](docs/milestones/M4_PLAN.md))
-- [ ] Security hardening: Prompt Guard, rules layer, adversarial suite, reviewer decisions with authentication (after M4, per M4 decision D1)
+- [ ] Future security milestone — number TBD: Prompt Guard, rules layer, adversarial suite, reviewer decisions with authentication (per M4 decision D1)
 - [ ] Dashboard frontend
 - [ ] Evaluation benchmark and observability
 - [ ] Deployment and demo

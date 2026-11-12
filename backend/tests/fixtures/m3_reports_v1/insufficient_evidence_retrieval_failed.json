@@ -1,0 +1,44 @@
+{
+  "checklist": null,
+  "degradations": [
+    {
+      "component": "retrieval",
+      "reason": "RetrievalError"
+    }
+  ],
+  "disclaimer": "Independent educational prototype. Not affiliated with, endorsed by, or an official system of HDFC Bank.",
+  "dropped_requirements": 0,
+  "evidence_status": "retrieval_failed",
+  "findings": [],
+  "forms": [],
+  "gaps": [
+    "retrieval_failed"
+  ],
+  "human_review_required": true,
+  "missing_fields": [],
+  "notice": "Decision support only. Not a KYC decision. Not claim-verified (M4).",
+  "outcome": "INSUFFICIENT_EVIDENCE",
+  "profile": {
+    "account_type": {
+      "source": "user_stated",
+      "value": "CURRENT_ACCOUNT"
+    },
+    "entity_type": {
+      "source": "user_stated",
+      "value": "LLP"
+    },
+    "residency": {
+      "source": "unknown",
+      "value": null
+    }
+  },
+  "report_id": "b1466c08-223a-550f-ae6c-959a710ff07f",
+  "run_id": "r-1",
+  "security_reasons": [],
+  "session_id": "s-1",
+  "unresolved_items": [
+    "retrieval_failed"
+  ],
+  "user_message": "A technical problem prevented searching the knowledge base, so no conclusion was drawn about your question. Please try again later. For accurate information, please visit https://www.hdfcbank.com/ or contact HDFC Bank customer service.\n\nIndependent educational prototype. Not affiliated with, endorsed by, or an official system of HDFC Bank.",
+  "verification": "not_claim_verified"
+}

@@ -22,7 +22,7 @@ Done: LLP question w/ missing info pauses, resumes, returns a cited checklist.
 ## M4 — Claim verification (Week 4; locked plan: `docs/milestones/M4_PLAN.md`)
 Scope (decision D1): typed claim extraction, deterministic obligation/negation analysis, local DeBERTa NLI with uncalibrated scores and dev-selected thresholds, downgrade-only effects, bounded contradiction and source-conflict flags, open review cases (no decision endpoint until authentication), claim-verification evaluation sets with a frozen held-out split.
 Done: an unsupported or overstated claim is caught and shown as unverified; no MANDATORY without a primary citation that supports the obligation; held-out results recorded as measured.
-Moved to a later security-hardening milestone (its number is the owner's call; M5 below remains the frontend): Prompt Guard, the rules layer, the adversarial suite and attack success rate, reviewer decisions with authentication.
+Moved to the **Future security milestone — number TBD** (M5 below remains the frontend): Prompt Guard, the rules layer, the adversarial suite and attack success rate, reviewer decisions with authentication.
 
 ## M5 — Frontend (Week 5)
 Prompt: "Build the 5 screens + review queue per docs/09 with typed API client and SSE progress."

@@ -24,6 +24,7 @@ from dataclasses import dataclass
 
 from app.db.repository import EvidenceContext
 from app.graph.state import (
+    APPLICABILITY_STRICTNESS,
     Citation,
     EvidenceItem,
     FieldEvidenceLink,
@@ -34,12 +35,7 @@ from app.graph.state import (
 from app.graph.synthesis import ChecklistDraft
 from app.schemas.taxonomy import Applicability
 
-STRICTNESS = {
-    Applicability.UNCLEAR: 0,
-    Applicability.OPTIONAL: 1,
-    Applicability.CONDITIONAL: 2,
-    Applicability.MANDATORY: 3,
-}
+STRICTNESS = APPLICABILITY_STRICTNESS  # one ordering, shared with M4 (state.py)
 UNCERTAINTY = {
     Applicability.MANDATORY: (
         "Stated in a cited primary source for this customer type; proposed, not "
