@@ -306,9 +306,10 @@ Built on the S3 client and hooks only. No backend change, no new endpoint, no ne
   - reconnecting and unavailable live-progress states with a manual reconnect;
   - session kept across navigation to the report and back.
 - `App.test.tsx`: the S2 shell tests now render inside a React Query provider (the assistant needs one). Their assertions are unchanged.
+- `events.test.ts` (+1): the recorded `events_completed.txt` is replayed through `SessionEventStream`. It closes on `completed` with no reconnect, and its node events equal the session view's. `frontend/.gitattributes` exempts only that recorded stream from the whitespace check: its final blank line terminates the last SSE event.
 
 **Checks:**
-- **Frontend:** `make web-lint`, `make web-test` (66/66, 3 consecutive runs) and `make web-build` pass.
+- **Frontend:** `make web-lint`, `make web-test` (67/67; 66 before the replay test, 3 consecutive runs) and `make web-build` pass, and a fresh clone of the branch passes them too.
 - **Backend (unchanged; no backend file modified):** `make lint` is clean; `make test` gives 1,505 passed and 1 failed (K7).
 
 **Known issues and limits (S4):**
