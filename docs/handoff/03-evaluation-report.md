@@ -126,7 +126,7 @@ Exact results, measured on the M5 branch (`feat/m5-s7-closure`). No backend code
 | Frontend `make web-test` (Vitest, jsdom, no network) | **120 passed / 120**, 3 consecutive runs (13 test files) |
 | Frontend `make web-lint` (tsc strict, ESLint, Prettier, `openapi-typescript --check`) | clean |
 | Frontend `make web-build` (Vite production build) | pass (JS 348.9 kB, 107.7 kB gzipped) |
-| Fresh clone of `feat/m5-s7-closure` | recorded in the follow-up commit below |
+| Fresh clone of `feat/m5-s7-closure` (at `cefb4b7`) | `npm ci`, type-check, ESLint and Prettier, `check:api`, **120/120** tests (13 files) and the build all pass; `npm audit --omit=dev` 0. The backend contract tests (13) and ruff also pass from the clone, using the main checkout's virtualenv. |
 | `npm audit --omit=dev` | 0 vulnerabilities |
 | `npm audit` (full tree) | 10 moderate, all GHSA-g3hv-75wg-m249 (minimatch via ESLint/typescript-eslint; dev tooling only; accepted, K16) |
 | Backend unit (`make test`) | 1,505 passed, 1 failed (**K7**, environment-dependent), 512 deselected |

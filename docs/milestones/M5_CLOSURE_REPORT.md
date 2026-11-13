@@ -22,7 +22,7 @@ M5 was developed on stacked branches, one per stage. **Nothing was merged, pushe
 | S4 KYC Assistant | `feat/m5-s4-assistant` | `33e4d58`, `76befd6` (recorded stream test), `9f1bdaf` (docs) |
 | S5 Compliance Report | `feat/m5-s5-report` | `d29f24c` |
 | S6 M5-D4 and Dashboard | `feat/m5-s6-dashboard` | `bb89a8b` |
-| S7 demo, accessibility, docs, closure | `feat/m5-s7-closure` | the S7 commit (see `git log`) |
+| S7 demo, accessibility, docs, closure | `feat/m5-s7-closure` | `cefb4b7`, plus a docs commit recording the fresh-clone result |
 
 `feat/m5-s7-closure` contains every M5 commit on top of `main` (`0b65df0`), so merging it alone merges M5.
 
@@ -56,7 +56,7 @@ See [`docs/handoff/03-evaluation-report.md`](../handoff/03-evaluation-report.md)
 | Frontend `make web-test` | **120 passed / 120**, 3 consecutive runs |
 | Frontend `make web-lint` (tsc, ESLint, Prettier, generated types) | clean |
 | Frontend `make web-build` | pass |
-| Fresh clone of `feat/m5-s7-closure` (`npm ci` + all of the above) | see the evaluation report §9 |
+| Fresh clone of `feat/m5-s7-closure` at `cefb4b7` (`npm ci` + all of the above) | pass (120/120, lint, types, build) |
 | `npm audit --omit=dev` | 0 vulnerabilities |
 | `npm audit` (full tree) | 10 moderate, all GHSA-g3hv-75wg-m249 (dev tooling; accepted, rechecked) |
 | Backend unit (`make test`) | 1,505 passed, 1 failed (K7, environment-dependent), 512 deselected |
