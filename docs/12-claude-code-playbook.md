@@ -28,6 +28,7 @@ Moved to the **Future security milestone — number TBD** (M5 below remains the 
 Prompt: "Build the 5 screens + review queue per docs/09 with typed API client and SSE progress."
 Done: full demo flow in browser.
 Locked scope (owner, 2026-11-13; `docs/milestones/M5_PLAN.md`): KYC Assistant, Compliance Report, read-only Review Cases and a minimal Dashboard on the existing API; Document Intelligence and Observability move to M6; no upload, no review decisions, no new endpoint (response models only).
+**Status: complete (S0–S7, 2026-11-14), see `docs/milestones/M5_CLOSURE_REPORT.md`.** The full demo flow ran in a real browser against the real backend (S7).
 
 ## M6 — Evaluation & observability (Week 6)
 Prompt: "Build 50-case benchmark runner, metrics, ablations A–E, LangSmith tracing, graph_runs mirroring, Observability screen, markdown eval report."

@@ -2,7 +2,8 @@
  * every page and by the top-level error fallback, so it stays visible even after a crash. */
 export const DISCLAIMER =
   "Independent prototype. Not an official bank system. Not a compliance approval.";
-export const DISCLAIMER_DETAIL = "Synthetic data only. Every result requires human review.";
+export const DISCLAIMER_DETAIL =
+  "Not affiliated with or endorsed by HDFC Bank or the RBI. Synthetic data only. Every result requires human review.";
 
 export function Disclaimer() {
   return (

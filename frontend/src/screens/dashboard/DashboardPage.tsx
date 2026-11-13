@@ -75,13 +75,14 @@ function HealthPanel() {
           </ul>
         </>
       )}
+      {/* Never disabled: disabling the focused button would throw keyboard focus away.
+          A second click restarts the check (React Query cancels the one in flight). */}
       <button
         type="button"
-        className="mt-2 text-sm underline disabled:opacity-50"
-        disabled={health.isFetching}
+        className="mt-2 text-sm underline"
         onClick={() => void health.refetch()}
       >
-        Check again
+        {health.isFetching && !health.isPending ? "Checking…" : "Check again"}
       </button>
     </section>
   );

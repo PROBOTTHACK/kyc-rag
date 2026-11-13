@@ -1,7 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 
 import { queryKeys, useResume } from "../../api/hooks";
+import { useFocusWhenLost } from "../../components/useFocusWhenLost";
 import type { PendingClarification } from "../../api/types";
 import { canTryAgain, errorCode, ErrorNotice } from "./ErrorNotice";
 import { optionLabel, QUESTION_REASON_TEXT } from "./labels";
@@ -23,6 +24,8 @@ export function ClarificationForm({
 }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const resume = useResume(sessionId);
+  const heading = useRef<HTMLHeadingElement>(null);
+  useFocusWhenLost(heading);
   const queryClient = useQueryClient();
   const { questions } = clarification;
   const complete = questions.every((q) => answers[q.field] !== undefined);
@@ -57,7 +60,9 @@ export function ClarificationForm({
 
   return (
     <form onSubmit={onSubmit} className="mt-4 rounded border border-amber-300 bg-amber-50 p-4">
-      <h2 className="text-lg font-semibold">More information needed</h2>
+      <h2 ref={heading} tabIndex={-1} className="text-lg font-semibold">
+        More information needed
+      </h2>
       {clarification.round != null && clarification.max_rounds != null && (
         <p className="text-sm text-slate-700">
           Round {clarification.round} of {clarification.max_rounds}

@@ -11,18 +11,18 @@
 ![Qdrant](https://img.shields.io/badge/Qdrant-vector%20search-DC244C)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)
-![Status](https://img.shields.io/badge/status-M4%20complete%20(prototype)-blue)
+![Status](https://img.shields.io/badge/status-M5%20complete%20(prototype)-blue)
 
 </div>
 
 > **Disclaimer:** This is an independent portfolio prototype built on authorized or illustrative documents. It is **not** an official HDFC Bank product, does not approve or reject real applications, and does not replace a bank's compliance team.
 
-> **Status at the close of M4.** The prototype ingests public RBI/HDFC KYC documents, retrieves cited evidence, runs a checkpointed LangGraph workflow and produces an insert-only report.
+> **Status at the close of M5.** The prototype ingests public RBI/HDFC KYC documents, retrieves cited evidence, runs a checkpointed LangGraph workflow and produces an insert-only report. A local web frontend (M5) drives it: Dashboard, KYC Assistant, and the Compliance Report with read-only review cases.
 > - A deterministic validator checks every citation and every MANDATORY.
 > - Claim-level NLI verification is built, but **disabled**: no model qualified under the pre-registered selection. Every claim is therefore reported as *not verified*, the report is labelled DEGRADED, and every item gets an open human-review case.
-> - Every result requires human review. It is not production-ready.
+> - Every result requires human review. It is not production-ready and not deployed.
 >
-> **Handoff:** [architecture](docs/handoff/01-architecture-handoff.md) · [setup](docs/handoff/02-setup-and-reproducibility.md) · [evaluation](docs/handoff/03-evaluation-report.md) · [limitations and known issues](docs/handoff/04-limitations-and-known-issues.md) · [M4 closure report](docs/milestones/M4_CLOSURE_REPORT.md)
+> **Handoff:** [architecture](docs/handoff/01-architecture-handoff.md) · [setup](docs/handoff/02-setup-and-reproducibility.md) · [evaluation](docs/handoff/03-evaluation-report.md) · [limitations and known issues](docs/handoff/04-limitations-and-known-issues.md) · [M5 closure report](docs/milestones/M5_CLOSURE_REPORT.md) · [M4 closure report](docs/milestones/M4_CLOSURE_REPORT.md)
 
 ---
 
@@ -40,7 +40,7 @@ This project connects five things that a chatbot treats separately:
 
 Its guiding rule: **a polished but wrong checklist is worse than an incomplete one that is honest about its uncertainty.** The system knows when it cannot answer.
 
-## Key features (status at M4 close)
+## Key features (status at M5 close)
 
 | | Capability | Status | What it does |
 |---|---|---|---|
@@ -54,6 +54,7 @@ Its guiding rule: **a polished but wrong checklist is worse than an incomplete o
 | 👩‍⚖️ | **Human review cases** | operational (open, read-only) | One open case per requirement and review reason, stored with the report. Reviewer decisions (approve/reject) need authentication and are future work. |
 | 🔒 | **Input screening** | operational (pattern filter) | Blocks ID/financial PII and a narrow list of override phrases. Not a prompt-injection defence; Prompt Guard is not built. |
 | 📈 | **Observability** | partial | Node events over SSE, verification timings in reports. LangSmith tracing is not implemented. |
+| 🖥️ | **Web frontend** | operational (local dev server) | Dashboard (API health, this tab's demo sessions), KYC Assistant (live progress, clarification, retry), Compliance Report (v1/v2) with read-only review cases. Typed from the published OpenAPI contract. No upload, no review decisions, no login. |
 
 ## How it works (as built)
 
@@ -95,7 +96,7 @@ NLI alone is not treated as truth, and its scores are uncalibrated signals, not 
 
 | Layer | Technology |
 |---|---|
-| Frontend | React, Vite, Tailwind CSS, TypeScript, React Router, React Query (M5 in progress: app shell and generated API types; screens not built yet) |
+| Frontend | React, Vite, Tailwind CSS, TypeScript, React Router, React Query (M5; types generated from `docs/api/openapi.json`; Node 26.13.1) |
 | Backend | Python, FastAPI, Pydantic v2, SQLAlchemy, Alembic |
 | Orchestration | LangGraph with Postgres checkpointing |
 | LLMs | Groq-hosted open models (reasoning), Gemini (multimodal forms), behind a provider-agnostic interface |
@@ -226,7 +227,9 @@ backend/app/
   llm/             provider interface + Groq / Gemini adapters
   rules/           empty (a rules layer is not built)
 backend/alembic/   migrations 0001-0008
-frontend/          React + Vite + TypeScript app (M5): shell, routing, disclaimer, generated API types; screens in progress
+frontend/          React + Vite + TypeScript app (M5): Dashboard, KYC Assistant, Compliance Report;
+                   src/api (typed client, SSE), src/screens, src/storage (sessionStorage)
+docs/api/          the published OpenAPI contract (make openapi)
 data/eval/         evaluation datasets and committed evaluation records
 eval/              one M2 diagnostic script
 infra/             docker-compose and env template (no secrets)
@@ -258,6 +261,13 @@ Quality is measured, not assumed; full results are in [`docs/handoff/03-evaluati
 
 This system does **not** approve or reject applications, verify identity against government databases, validate real PAN/Aadhaar records, make legal or regulatory decisions, guarantee compliance, or access any bank's internal systems. Output is decision support that requires human review.
 
+M5 limits (frontend; details in [`docs/milestones/M5_CLOSURE_REPORT.md`](docs/milestones/M5_CLOSURE_REPORT.md)):
+- Local development server only; no production deployment and no authentication (whoever holds a session or report id can open it).
+- Session ids are kept in the browser tab's `sessionStorage`: they survive reloads and are gone when the tab closes. The Dashboard lists only this tab's sessions.
+- The report shows document keys and page ranges but no source text (the API returns none); page references are not re-checked (K5).
+- A run left stuck by a server crash is not offered a retry in the UI (only failed runs are).
+- Review cases are read-only; there is no review-decision workflow.
+
 M2-specific limits:
 - Retrieval quality is measured on 20-query single-annotator sets only.
 - Gemini form extraction runs on the free tier, so it is restricted to public blank forms. Its field labels are corroborated against stored page text, not verified for accuracy.
@@ -286,9 +296,9 @@ M3 limits:
 - [x] Hybrid retrieval and multimodal form extraction (M2: see [`docs/milestones/M2_HANDOFF.md`](docs/milestones/M2_HANDOFF.md))
 - [x] End-to-end LangGraph workflow (M3: see [`docs/milestones/M3_HANDOFF.md`](docs/milestones/M3_HANDOFF.md))
 - [x] Claim verification infrastructure and review cases (M4: NLI built but disabled, no model qualified; see [`docs/milestones/M4_CLOSURE_REPORT.md`](docs/milestones/M4_CLOSURE_REPORT.md))
+- [x] Web frontend: Dashboard, KYC Assistant, Compliance Report with read-only review cases (M5: see [`docs/milestones/M5_CLOSURE_REPORT.md`](docs/milestones/M5_CLOSURE_REPORT.md))
 - [ ] Future security milestone — number TBD: Prompt Guard, rules layer, adversarial suite, reviewer decisions with authentication (per M4 decision D1)
-- [ ] Dashboard frontend
-- [ ] Evaluation benchmark and observability
+- [ ] Evaluation benchmark and observability (M6; also Document Intelligence and Observability screens, moved from M5)
 - [ ] Deployment and demo
 
 ## Documentation
@@ -314,6 +324,8 @@ M3 limits:
 | **Handoff: evaluation report** | [`docs/handoff/03-evaluation-report.md`](docs/handoff/03-evaluation-report.md) |
 | **Handoff: limitations and known issues** | [`docs/handoff/04-limitations-and-known-issues.md`](docs/handoff/04-limitations-and-known-issues.md) |
 | **M4 closure report** | [`docs/milestones/M4_CLOSURE_REPORT.md`](docs/milestones/M4_CLOSURE_REPORT.md) |
+| **M5 plan and closure (frontend)** | [`docs/milestones/M5_PLAN.md`](docs/milestones/M5_PLAN.md), [`docs/milestones/M5_CLOSURE_REPORT.md`](docs/milestones/M5_CLOSURE_REPORT.md) |
+| Published API contract | [`docs/api/openapi.json`](docs/api/openapi.json) |
 
 ## License
 

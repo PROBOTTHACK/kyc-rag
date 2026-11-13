@@ -1,6 +1,6 @@
 # 09 — Frontend Spec (React + Vite + Tailwind)
 
-> **M5 scope (owner decisions, 2026-11-13; [`milestones/M5_PLAN.md`](milestones/M5_PLAN.md)).** This spec predates M3/M4. M5 builds only what the existing API supports and the locked decisions allow:
+> **M5 scope (owner decisions, 2026-11-13; [`milestones/M5_PLAN.md`](milestones/M5_PLAN.md)). M5 is complete (2026-11-14; [`milestones/M5_CLOSURE_REPORT.md`](milestones/M5_CLOSURE_REPORT.md)).** This spec predates M3/M4. M5 built only what the existing API supports and the locked decisions allow:
 > - **In M5:** KYC Assistant (without PDF upload), Compliance Report, read-only Review Cases, and a minimal Dashboard (API health plus sessions known to this browser, labelled demo data).
 > - **Moved to M6:** Document Intelligence and Agent Observability (no document, chunk or run-detail endpoints exist; LangSmith is not built).
 > - **Not built, by decision:**

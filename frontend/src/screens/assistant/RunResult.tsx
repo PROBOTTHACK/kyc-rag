@@ -1,7 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { useRef } from "react";
 import { Link } from "react-router";
 
 import { queryKeys, useRetryRun } from "../../api/hooks";
+import { useFocusWhenLost } from "../../components/useFocusWhenLost";
 import type { WorkflowView } from "../../api/types";
 import { errorCode, ErrorNotice } from "./ErrorNotice";
 import { OUTCOME_TEXT } from "./labels";
@@ -20,29 +22,7 @@ export function RunResult({
   onRetried: () => void;
 }) {
   if (workflow.status === "completed") {
-    const outcome = workflow.outcome != null ? OUTCOME_TEXT[workflow.outcome] : null;
-    return (
-      <section
-        aria-labelledby="result-title"
-        className="mt-4 rounded border border-slate-200 bg-white p-4"
-      >
-        <h2 id="result-title" className="text-lg font-semibold">
-          Result: {outcome?.label ?? "Finished"}
-        </h2>
-        {outcome && <p className="mt-1 text-sm">{outcome.detail}</p>}
-        <p className="mt-1 text-sm font-medium">{REVIEW_NOTE}</p>
-        {workflow.report_id != null ? (
-          <Link
-            to={`/reports/${encodeURIComponent(workflow.report_id)}`}
-            className="mt-2 inline-block underline"
-          >
-            Open the report
-          </Link>
-        ) : (
-          <p className="mt-2 text-sm text-slate-700">No report was stored for this run.</p>
-        )}
-      </section>
-    );
+    return <CompletedRun workflow={workflow} />;
   }
   if (workflow.status === "failed") {
     return <FailedRun sessionId={sessionId} onRetried={onRetried} />;
@@ -58,15 +38,45 @@ export function RunResult({
   return null;
 }
 
+function CompletedRun({ workflow }: { workflow: WorkflowView }) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  useFocusWhenLost(heading);
+  const outcome = workflow.outcome != null ? OUTCOME_TEXT[workflow.outcome] : null;
+  return (
+    <section
+      aria-labelledby="result-title"
+      className="mt-4 rounded border border-slate-200 bg-white p-4"
+    >
+      <h2 id="result-title" ref={heading} tabIndex={-1} className="text-lg font-semibold">
+        Result: {outcome?.label ?? "Finished"}
+      </h2>
+      {outcome && <p className="mt-1 text-sm">{outcome.detail}</p>}
+      <p className="mt-1 text-sm font-medium">{REVIEW_NOTE}</p>
+      {workflow.report_id != null ? (
+        <Link
+          to={`/reports/${encodeURIComponent(workflow.report_id)}`}
+          className="mt-2 inline-block underline"
+        >
+          Open the report
+        </Link>
+      ) : (
+        <p className="mt-2 text-sm text-slate-700">No report was stored for this run.</p>
+      )}
+    </section>
+  );
+}
+
 function FailedRun({ sessionId, onRetried }: { sessionId: string; onRetried: () => void }) {
   const retry = useRetryRun(sessionId);
   const queryClient = useQueryClient();
+  const heading = useRef<HTMLHeadingElement>(null);
+  useFocusWhenLost(heading);
   return (
     <section
       aria-labelledby="failed-title"
       className="mt-4 rounded border border-red-300 bg-white p-4"
     >
-      <h2 id="failed-title" className="text-lg font-semibold">
+      <h2 id="failed-title" ref={heading} tabIndex={-1} className="text-lg font-semibold">
         The run stopped before it finished
       </h2>
       <p className="mt-1 text-sm">

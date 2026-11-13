@@ -1,8 +1,12 @@
-# Architecture and Technical Handoff (M0–M4, as built)
+# Architecture and Technical Handoff (M0–M5, as built)
 
 > **Independent educational prototype.** Not affiliated with, endorsed by, or an official system of HDFC Bank or the RBI. It uses public documents and synthetic data only. It never approves or rejects KYC and gives no legal or compliance determination. Every result requires human review.
 
-This document describes the system **as built at the close of M4** (branch `feat/m4-s0-plan`, 14 commits on top of `main`; merged into `main` as `0b65df0` and pushed after closure). The specification documents (`docs/00`–`docs/15`) also describe planned work. Where they differ, this handoff and the milestone handoffs are authoritative about what exists.
+This document describes the system **as built at the close of M5**.
+- **M4** was merged into `main` as `0b65df0` and pushed after closure.
+- **M5** (frontend) is complete on stacked branches `feat/m5-s0-plan` … `feat/m5-s7-closure`. It is **not merged and not pushed**, pending the owner's decision ([`M5_CLOSURE_REPORT.md`](../milestones/M5_CLOSURE_REPORT.md)).
+
+The specification documents (`docs/00`–`docs/15`) also describe planned work. Where they differ, this handoff and the milestone handoffs are authoritative about what exists.
 
 ## 1. Milestone history
 | Milestone | Delivered | Status | Record |
@@ -12,6 +16,7 @@ This document describes the system **as built at the close of M4** (branch `feat
 | **M2** Retrieval and form intelligence | BM25 and hybrid (RRF) retrieval, registered dev selection and one-time held-out evaluation (dense kept as default), optional cross-encoder reranker (off), deterministic form schemas, Gemini multimodal extraction of 5 approved public blank forms (live-gated), versioned `form_schemas`, Redis read-through cache | complete, merged (`a288b09`) | `docs/milestones/M2_HANDOFF.md` |
 | **M3** LangGraph workflow | Groq text-LLM layer (live-gated), rate limiter, LangGraph workflow (input screening, intake with clarification interrupt/resume, retrieval, form analysis, evidence association, synthesis, deterministic output validation, finalize), Postgres checkpointer, workflow API, leases, idempotency, SSE progress, insert-only reports, two-phase retention, acceptance checker, demo | complete, merged (`5c3250d`) | `docs/milestones/M3_HANDOFF.md` |
 | **M4** Claim verification and review | Claim and report-v2 models, deterministic verification foundation, owner-reviewed claim datasets, local NLI scorer and registered selection (no configuration qualified), `claim_verification` node (NLI disabled), bounded source-conflict scan and supersession rule, open review cases, M4 acceptance rules, real-corpus end-to-end tests | **complete** (S0–S9), merged (`0b65df0`) | `docs/milestones/M4_PLAN.md`, `docs/milestones/M4_CLOSURE_REPORT.md` |
+| **M5** Frontend | Published OpenAPI contract (documentation-only response models; `docs/api/openapi.json`); React + Vite + TypeScript + Tailwind app; typed client with bounded same-key retries and per-code errors; fetch-based SSE with `Last-Event-ID` replay and terminal close; Dashboard, KYC Assistant, Compliance Report (v1/v2) with read-only review cases; session ids in `sessionStorage` (M5-D4) | **complete** (S0–S7); not merged, not pushed | `docs/milestones/M5_PLAN.md`, `docs/milestones/M5_CLOSURE_REPORT.md` |
 
 ## 2. Components and responsibilities
 | Package (`backend/app/`) | Responsibility |
@@ -25,8 +30,16 @@ This document describes the system **as built at the close of M4** (branch `feat
 | `verification/` | M4: claim extraction (`claims.py`), premise windows (`premises.py`), statement analysis (`statements.py`), the decision table (`decide.py`), the NLI scorer interface and `CrossEncoderNLI` (`nli.py`), the dev evaluation and registered selection (`evaluation.py`, `selection.py`, `cli.py`), the source-conflict scan (`conflicts.py`) |
 | `workflow/` | Workflow service and runtime (API back end), retention purge and integrity check, acceptance checker (`acceptance.py`), demo |
 | `db/` | SQLAlchemy models, repositories, workflow persistence (`PostgresReportStore`) |
-| `api/v1/` | REST and SSE endpoints |
+| `api/v1/` | REST and SSE endpoints; `schemas.py` (M5): documentation-only contract models published in OpenAPI |
+| `api/openapi.py` | Writes `docs/api/openapi.json` (`make openapi`); a unit test fails when it is stale |
 | `rules/` | Empty package (a rules layer was planned for a later milestone and is not built) |
+
+| Frontend (`frontend/src/`, M5) | Responsibility |
+|---|---|
+| `api/` | Generated types (`schema.d.ts` from `docs/api/openapi.json`), typed client (`client.ts`), errors with fixed per-code messages, Idempotency-Key tracker, SSE parser and stream controller (`sse.ts`, `events.ts`), React Query hooks |
+| `storage/` | Session ids in `sessionStorage` (M5-D4), validated on read |
+| `components/` | Layout with the persistent disclaimer, error boundaries, focus helper |
+| `screens/` | `dashboard/`, `assistant/`, `report/` |
 
 ## 3. Pipelines
 ### 3.1 Ingestion (M1)
@@ -124,7 +137,7 @@ In the node `claim_verification`, after `output_validation`:
 | GET | `/reports/{id}` | the stored report (v1 or v2) |
 | GET | `/reports/{id}/review-cases` | open review cases (read-only) |
 
-There is no user authentication: possession of the session id is the access model. Details: `docs/07-api-design.md`.
+There is no user authentication: possession of the session id is the access model. Details: `docs/07-api-design.md`. **M5:** the request and response shapes are published in `docs/api/openapi.json` (documentation only: routes do not parse bodies or re-serialize, and responses are byte-identical to the service output). The frontend reaches the API through the Vite dev proxy (`/api` → `127.0.0.1:8000`).
 
 ## 6. Important configuration (names only; values in `infra/.env.example`, secrets only in a local `.env`)
 - **Services:** `DATABASE_URL`, `REDIS_URL`, `QDRANT_URL`, `QDRANT_COLLECTION`.
@@ -137,10 +150,10 @@ There is no user authentication: possession of the session id is the access mode
 - **Workflow limits:** `MAX_CLARIFICATION_ROUNDS`, `GRAPH_RECURSION_LIMIT`, `NODE_TIMEOUT_S`, `RUN_LEASE_S`, `SESSION_TTL_H`, `REPORT_RETENTION_D`, `IDEMPOTENCY_TTL_H`.
 - **Reserved, not implemented:** `PROMPT_GUARD_MODEL`, `MAX_REGENERATIONS` (there is no regeneration loop, decision D3) and `LANGSMITH_TRACING`/`LANGSMITH_*` (no tracing code).
 
-## 7. Feature status at M4 close
+## 7. Feature status at M5 close
 | Status | Features |
 |---|---|
-| **Operational** | Ingestion and reconciliation; dense retrieval (BM25/hybrid selectable); deterministic form schemas and stored Gemini schemas; LangGraph workflow with clarification, checkpointing, recovery and SSE; input screening (pattern filter); deterministic citation and MANDATORY validation; report v1/v2; claim verification in its **NLI-disabled** mode (honest `not_verified`, DEGRADED); open review cases and their read endpoint; two-phase retention and `check-workflow`; acceptance checker; demo |
+| **Operational** | Ingestion and reconciliation; dense retrieval (BM25/hybrid selectable); deterministic form schemas and stored Gemini schemas; LangGraph workflow with clarification, checkpointing, recovery and SSE; input screening (pattern filter); deterministic citation and MANDATORY validation; report v1/v2; claim verification in its **NLI-disabled** mode (honest `not_verified`, DEGRADED); open review cases and their read endpoint; two-phase retention and `check-workflow`; acceptance checker; demo; **the web frontend (M5, local dev server): Dashboard, KYC Assistant, Compliance Report with read-only review cases**; the published OpenAPI contract |
 | **Built, infrastructure only (tested, inactive by default)** | `CrossEncoderNLI` scorer, dev evaluation and registered selection; the enabled claim-verification path (scripted scorer in tests); the bounded conflict scan and supersession rule; cross-encoder reranker; live Groq and live Gemini (gated); opt-in synthetic LLM cache |
 | **Disabled by evidence** | NLI semantic verification (no configuration qualified in S4); the automated conflict scan in production |
-| **Not built** | Prompt Guard and the adversarial suite; a rules layer; reviewer decisions and authentication; LangSmith tracing; a regeneration loop; the React frontend (M5 in progress after M4 close: shell built in S2, screens not yet); the 50-case benchmark (M6); deployment |
+| **Not built** | Prompt Guard and the adversarial suite; a rules layer; reviewer decisions and authentication; LangSmith tracing; a regeneration loop; Document Intelligence and Agent Observability screens (moved to M6); PDF upload and export; the 50-case benchmark (M6); deployment (M7) |

@@ -1,6 +1,6 @@
 # 01 — Architecture
 
-> This is the planned architecture. For what is actually built at the close of M4 (including what is disabled or not built), see [`docs/handoff/01-architecture-handoff.md`](handoff/01-architecture-handoff.md).
+> This is the planned architecture. For what is actually built at the close of M5 (including what is disabled or not built), see [`docs/handoff/01-architecture-handoff.md`](handoff/01-architecture-handoff.md).
 
 ## Layers
 | Layer | Responsibility | Tech |

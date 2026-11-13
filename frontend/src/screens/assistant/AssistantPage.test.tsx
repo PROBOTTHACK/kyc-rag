@@ -126,8 +126,10 @@ describe("KYC Assistant", () => {
     state.session = live.sessionAwaiting();
     push(runFrame(RUN, 0, "running") + nodeFrame(RUN, 1, NODES[0]!) + nodeFrame(RUN, 2, NODES[1]!));
     push(nodeFrame(RUN, 3, NODES[2]!) + runFrame(RUN, 3, "awaiting_clarification"));
-    await screen.findByRole("heading", { name: "More information needed" });
+    const clarHeading = await screen.findByRole("heading", { name: "More information needed" });
     expect(screen.getByRole("status", { name: "" }).textContent).toBeDefined();
+    // S7 accessibility: "Ask" disappeared, so focus moves to the new section, not the body
+    await waitFor(() => expect(document.activeElement).toBe(clarHeading));
     const steps = screen.getByRole("list", { name: "Completed steps" });
     expect(within(steps).getAllByRole("listitem")).toHaveLength(3);
     expect(within(steps).getByText(/Input screening/)).toBeTruthy();
@@ -171,7 +173,8 @@ describe("KYC Assistant", () => {
         .join("") + runFrame(RUN, NODES.length, "completed"),
     );
     act(() => undefined);
-    await screen.findByRole("heading", { name: "Result: Degraded result" });
+    const resultHeading = await screen.findByRole("heading", { name: "Result: Degraded result" });
+    await waitFor(() => expect(document.activeElement).toBe(resultHeading)); // S7: focus kept
     const report = live.sessionCompleted().workflow!.report_id!;
     expect(screen.getByRole("link", { name: "Open the report" }).getAttribute("href")).toBe(
       `/reports/${report}`,

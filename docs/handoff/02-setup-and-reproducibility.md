@@ -11,7 +11,8 @@
   - GNU Make (Windows: `winget install ezwinports.make`);
   - Tesseract OCR 5.x (Windows: `winget install UB-Mannheim.TesseractOCR`), for scanned pages;
   - roughly 2 GB free disk for Docker volumes and model caches;
-  - network access on the first run, to download the BGE-small embedding model (~135 MB) and Python packages.
+  - network access on the first run, to download the BGE-small embedding model (~135 MB) and Python packages;
+  - for the frontend (M5): **Node.js 26.13.1 LTS** with npm 11.20.0 (verified with NVM for Windows). `frontend/package.json` sets `engines: ^26.13.1` and `.npmrc` sets `engine-strict`, so any other Node major is refused. The `npm ci` download needs network access once.
 - **No API key is needed** for ingestion, retrieval, form schemas from stored chunks, the workflow without a live LLM, or any test. Groq, Gemini and LangSmith keys are optional and their live use is gated off by default.
 
 ## 2. From a clean checkout
@@ -54,13 +55,27 @@ make demo                       # second terminal: the synthetic LLP demo throug
 - **Without a live LLM**, intake asks every clarification question and the report is honestly **DEGRADED**.
 - **With NLI disabled** (the M4 default), every report that has a checklist is DEGRADED, every claim is `not_verified`, and every item has an open `not_verified` review case: `GET /api/v1/reports/{id}/review-cases`.
 - **`make demo-live`** requires the owner's live Groq gate and the terms date in `.env`. Set the gate back to `false` afterwards.
-- **Frontend (M5 S2):**
+- **Frontend (M5):**
   - Needs Node.js **26.13.1 LTS** (`engines` plus `engine-strict` refuse any other major; installed here with NVM for Windows).
-  - `make web-install` runs `npm ci` with no install scripts. `make web` starts the dev server on `http://127.0.0.1:5173` and proxies `/api` to `make api`.
+  - `make web-install` runs `npm ci` with no install scripts. `make web` starts the dev server on `http://127.0.0.1:5173` (strict port) and proxies `/api` to `make api` on `127.0.0.1:8000`.
   - Screens: Dashboard (API health and the demo sessions of this browser tab), KYC Assistant, and the Compliance Report with read-only review cases. Session ids are kept in the tab's `sessionStorage` only (M5-D4).
+  - If either port is already in use (for example by a server you started earlier), stop that server first. Two API servers can both bind port 8000 on Windows, which makes it unclear which one answers.
+
+### 4.1 Browser demo (M5; reproduces the S7 smoke test by hand)
+Terminal 1: `make up`, then `make api`. Terminal 2: `make web`. Then open `http://127.0.0.1:5173`:
+1. **Dashboard:** "All services are reachable." (Postgres, Redis, Qdrant with latencies) and "No sessions in this tab yet".
+2. **KYC Assistant → Start a demo session.** The session id appears nowhere on the page or in the URL.
+3. **Sensitive data:** type `Customer PAN ABCPE1234F` (a synthetic test value) and click Ask. The text is rejected with a fixed message and the text box is cleared.
+4. **Ask:** *What KYC documents does an LLP need to open an account?* Steps appear live, and the run pauses with "More information needed" (keyboard focus moves there).
+5. **Answer:** the options are exactly the backend's, with nothing pre-selected. Choose LLP and CURRENT ACCOUNT and send. Without a live LLM the result is **"Degraded result"**, which is expected.
+6. **Open the report:** the human-review notice, "No automated check for conflicting sources was performed.", and read-only review cases with no action buttons. Then **Back to the KYC Assistant** returns to the same session.
+7. **Reload the page:** the same session and result are shown.
+8. **Dashboard:** "Session 1 (open in the Assistant)" with its status and report link.
+9. **Forget sessions:** the list empties. The backend session and report still exist (check them with `GET /api/v1/sessions/{id}` if you noted the id from the browser's sessionStorage).
+10. **Degraded API (optional):** `docker stop infra-redis-1`, then "Check again" shows "Some services are unavailable" with Redis unavailable. Afterwards run `docker start infra-redis-1`.
 
 ## 5. Tests and checks
-| Command | What it runs | Expected at M4 close |
+| Command | What it runs | Expected at M5 close |
 |---|---|---|
 | `make test` | unit tests (markers `integration` and `nli` excluded) | all pass except the known environment-dependent `test_live_calls_and_cache_are_off_by_default` (see §6) |
 | `make test-integration` (or `cd backend && python -m pytest -m integration tests/integration`) | integration tests on throwaway databases plus the dev stack (needs `make up` and an ingested corpus) | all pass except the 2 known Qdrant tied-score tests |
@@ -70,11 +85,13 @@ make demo                       # second terminal: the synthetic LLP demo throug
 | `make check-workflow` | read-only retention and review-case integrity report | `"ok": true` |
 | `make check-dense-golden` | M1 dense regression against the golden snapshot | see the Qdrant note in §6 |
 | `make reconcile` | Postgres ↔ Qdrant | CONSISTENT |
-| `make web-test` (M5) | Vitest + Testing Library (jsdom) | all pass |
+| `make web-test` (M5) | Vitest + Testing Library (jsdom), no network | all pass |
 | `make web-lint` (M5) | `tsc` (strict) + ESLint + Prettier check + `openapi-typescript --check` against `docs/api/openapi.json` | clean |
 | `make web-build` (M5) | production build (`vite build`) | succeeds |
+| `make openapi` (M5) | regenerates `docs/api/openapi.json` from the app (a unit test fails when it is stale; then `make web-types`) | no diff |
+| `cd frontend && npm audit --omit=dev` (M5) | production dependency audit | 0 vulnerabilities (the full tree has the accepted dev-only minimatch advisory, M5_PLAN §F.1) |
 
-Exact counts from the final M4 run are in `docs/handoff/03-evaluation-report.md` §7.
+Exact counts from the final M4 and M5 runs are in `docs/handoff/03-evaluation-report.md`.
 
 ## 6. Troubleshooting
 | Symptom | Cause | Fix |
@@ -88,6 +105,9 @@ Exact counts from the final M4 run are in `docs/handoff/03-evaluation-report.md`
 | A migration test reports drift at an old revision | `alembic check` compares the ORM (head) with the database | Run checks at `head` (the migration tests already do) |
 | A report is DEGRADED with `verification` | Expected: NLI is disabled in M4 | Not an error; see the limitations register |
 | `check_report` reports `citation_mismatch` on a real trust run | Known pre-existing M3 issue: a child-chunk citation carries its parent paragraph's page range | Documented in the known-issues register; not fixed in M4 |
+| `npm ci` fails with `EBADENGINE` (M5) | Not on Node 26.13.x (`engine-strict`) | `nvm install 26.13.1` then `nvm use 26.13.1` |
+| `make web-lint` says "Generated types are not up-to-date" (M5) | The API contract changed (or a checkout converted line endings, which `frontend/.gitattributes` prevents) | `make openapi`, then `make web-types`, then review the diff |
+| The browser shows "Live progress is unavailable" (M5) | The event stream gave up after 5 failed reconnects, or the API is down | Check `make api`, then click Reconnect; the run continues on the server either way |
 
 ## 7. Reproducibility notes
 - **Evaluation datasets and records** are tracked under `data/eval/`, including the S4 NLI selection record (`m4_nli_selection.json`, write-once). The M4 held-out claim set is frozen (SHA-256 `eee0a575…d90203`) and unused.

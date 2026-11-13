@@ -2,7 +2,7 @@
 
 > Independent educational prototype. Not an HDFC Bank or RBI system. Synthetic data only. The UI never approves or rejects anything, and every result requires human review.
 
-**Status:** S0 locked the plan; decisions M5-D1 to M5-D3 were approved by the owner on 2026-11-13, and M5-D4 on 2026-11-14 (before S6). Stages run one at a time on the branch `feat/m5-s0-plan` and its successors, with one review and one commit per stage. **Previous milestone:** [`M4_CLOSURE_REPORT.md`](M4_CLOSURE_REPORT.md).
+**Status: M5 complete (S0–S7, 2026-11-14), see [`M5_CLOSURE_REPORT.md`](M5_CLOSURE_REPORT.md). Not merged, not pushed, not tagged.** S0 locked the plan; decisions M5-D1 to M5-D3 were approved by the owner on 2026-11-13, and M5-D4 on 2026-11-14 (before S6). Stages run one at a time on the branch `feat/m5-s0-plan` and its successors, with one review and one commit per stage. **Previous milestone:** [`M4_CLOSURE_REPORT.md`](M4_CLOSURE_REPORT.md).
 
 ## A. Why M5 is the frontend
 - docs/12 defines "M5 — Frontend": "Build the 5 screens + review queue per docs/09 with typed API client and SSE progress. Done: full demo flow in browser."
@@ -455,3 +455,79 @@ No backend change, no new endpoint, no new dependency. No Document Intelligence,
 - a run stuck after a server crash is not offered a retry in the UI (only `failed` runs are);
 - the question's 2,000-character limit is the backend default (`QUERY_MAX_CHARS`); confirm it against the configured value;
 - the S5 report limitations (no source text, the stale validator wording on checked v2 items, the prescribed fallback wording, access by possession of an id).
+
+## S7 outcome (2026-11-14): browser demo, accessibility, documentation, closure. **M5 is complete.**
+No new feature, no backend change, no new endpoint, no new dependency.
+
+**Browser smoke test.**
+- **Setup:** real headless Chrome 157, driven through its DevTools protocol by a throwaway script outside the repository (no dependency added). It used real mouse clicks and key presses against the real backend (`make api`, dev corpus, no live LLM) through the Vite dev server.
+- **Result: 14/14 steps passed**, then again 14/14 after the S7 fixes:
+  1. Dashboard health "All services are reachable" with the three checks, and the empty list;
+  2. start a `synthetic_demo` session, with its id in neither the page nor the URL;
+  3. a synthetic PAN is rejected with the fixed message, the box is cleared, and nothing is echoed;
+  4. the question streams live steps and pauses for clarification (in about 0.6 s);
+  5. the questions and options equal the API's exactly (10 and 5 options), with none pre-selected and "Send" disabled until both are answered. The resume finishes as "Result: Degraded result" with 11 steps (expected without an LLM);
+  6. the report (a v1 DEGRADED report, no checklist) has the exact conflict-scan sentence, a review-case section and no action controls;
+  7. back to the same session;
+  8. a full reload recovers the session;
+  9. the Dashboard lists "Session 1 (open in the Assistant)" with "Finished · Result: Degraded result" and the report link;
+  10. "Forget sessions" removes the `sessionStorage` key, while the backend session (still `active`, workflow `completed`) and its report still return 200;
+  11. an unknown report shows the not-found message;
+  12. a stored session the server does not know shows as "No longer available", with no Open action;
+  13. malformed stored data is discarded, and `localStorage` is empty;
+  14. the console never logged the question, the rejected value or the session id.
+- **States reproduced live:**
+  - empty lists;
+  - **degraded health**: Redis stopped, the API returned 503, and the Dashboard showed "Some services are unavailable", with Redis unavailable, as data; Redis was then restarted and health returned to ok;
+  - not found (report and session);
+  - the sensitive-data rejection.
+- **Not reproduced live** (covered by component tests on recorded or derived responses):
+  - an unreachable API, which would have meant stopping an API server the owner was running;
+  - a failed run, an expired session or 410, a lease conflict, a stream reconnect;
+  - a v2 report, which a live run cannot produce without an LLM.
+
+**Accessibility review (same browser):**
+- **Accessibility tree:**
+  - every page: no unnamed controls, no unlabelled inputs, one `h1`, no skipped heading levels, `lang="en"`;
+  - landmarks: banner, navigation "Main", main, and the disclaimer as a named complementary region;
+  - status and alert live regions present where content changes.
+- **Contrast:** every visible text element passes WCAG AA. The browser resolved Tailwind's oklch colours; the minimum ratio is 4.55 against 4.5 required, and disabled controls are exempt.
+- **Keyboard:**
+  - the full flow works by keyboard alone (Tab, Enter, arrow keys and Space for the radios);
+  - every Tab stop shows a visible focus indicator;
+  - the Tab order matches the visual order on all six audited screens.
+- **Found and fixed:**
+  1. After "Ask" and "Send answers" the focused button disappeared and focus fell to the page body. `useFocusWhenLost` (`frontend/src/components/useFocusWhenLost.ts`) now moves lost focus to the new section's heading ("More information needed", "Result: …", "The run stopped…"). It never takes focus the user placed elsewhere. Verified in the browser: focus lands on the heading with a visible ring.
+  2. The Dashboard's "Check again" disabled itself while checking, which threw keyboard focus away. It now stays enabled and shows "Checking…"; React Query restarts the check rather than duplicating it.
+- **Not changed (judged acceptable):** there is no skip link. Only two navigation links precede the main content, and the landmarks provide the bypass.
+
+**Disclaimer and wording:**
+- The banner's second sentence now also states "Not affiliated with or endorsed by HDFC Bank or the RBI." The first sentence is unchanged, the report shows the backend's own disclaimer, and a test pins both.
+- A wording scan of all hand-written screen code found "verified" only in negations ("Not verified", "not claim-verified") or internal keys. There is no approval, rejection, endorsement or compliance claim, and no HDFC or RBI wording besides the non-affiliation statements.
+
+**Dependency audit (GHSA-g3hv-75wg-m249 recheck):**
+- `npm audit --omit=dev`: 0 vulnerabilities.
+- `npm audit`: 10 moderate, all this advisory (`minimatch` 10.2.6 via ESLint 10 and typescript-eslint 8).
+- **Registry recheck** (two-week cutoff 2026-10-31):
+  - the newest eligible ESLint (10.14.0) still requires minimatch `^10.2.6` (and `@eslint/config-array` 0.23.5 requires `^10.2.4`);
+  - typescript-eslint has no eligible release beyond the pinned 8.72.1, and even the latest, 8.72.2 (2026-11-09), requires `^10.2.2`;
+  - the only patched line is minimatch 11.0.1+.
+- **Decision unchanged:** accepted, no override, recorded as K16 with a recheck trigger.
+
+**Repository hygiene (all of M5):**
+- Backend files changed: only S1's approved documentation-only contract (`api/v1/schemas.py`, `api/openapi.py`, routes, `main.py`, `health.py`) and its two test files; S2–S7 touched no backend file.
+- No tracked `.env`, build output or `node_modules`.
+- No credential-like strings; the only hit is a fake test string. No PAN- or Aadhaar-shaped values except the synthetic test value `ABCPE1234F`.
+
+**Documentation updated:**
+- README: status, features (web frontend), stack, structure, M5 limits, roadmap, documentation table.
+- `docs/handoff/01`: M0–M5, components including the frontend, API contract, feature status.
+- `docs/handoff/02`: Node prerequisite, a browser demo walkthrough (§4.1), expected checks, troubleshooting.
+- `docs/handoff/03`: §9 M5 results.
+- `docs/handoff/04`: L10 updated; L11–L13 and K13–K16 added; the frontend privacy notes.
+- `docs/09`, `docs/12`, `docs/01`: M5 marked complete or as built.
+- This plan, and `M5_CLOSURE_REPORT.md`.
+
+**Tests:** 120 frontend tests (3 new in S7: two for the focus hook and one for "Check again"; the Assistant flow test also asserts where focus lands). Mutation-checked: making the focus hook a no-op fails the hook test and the flow test.
+
+**Final checks:** recorded in `docs/handoff/03-evaluation-report.md` §9 and `M5_CLOSURE_REPORT.md` §4.

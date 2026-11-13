@@ -144,6 +144,22 @@ describe("Dashboard: API health", () => {
     await user.click(screen.getByRole("button", { name: "Check again" }));
     await screen.findByText("All services are reachable.");
   });
+
+  it("'Check again' stays enabled and focused while it checks (S7 accessibility)", async () => {
+    let finish: () => void = () => undefined;
+    const { client, user } = setup({});
+    await screen.findByText("All services are reachable.");
+    client.health.mockImplementation(
+      () => new Promise<HealthResponse>((resolve) => (finish = () => resolve(HEALTH_OK))),
+    );
+    const button = screen.getByRole("button", { name: "Check again" });
+    await user.click(button);
+    const checking = await screen.findByRole("button", { name: "Checking…" });
+    expect((checking as HTMLButtonElement).disabled).toBe(false);
+    expect(document.activeElement).toBe(checking);
+    finish();
+    await screen.findByRole("button", { name: "Check again" });
+  });
 });
 
 describe("Dashboard: sessions in this browser tab", () => {

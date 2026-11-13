@@ -117,3 +117,30 @@ Total S4.2 compute was 62.4 min for the registered run plus 65.6 min for a first
 3. `tests/integration/test_hybrid_dev.py::test_hybrid_on_the_dev_stack_preserves_dense_provenance`: the same tie.
 
 **The suite is not entirely green:** these three failures remain.
+
+## 9. M5: frontend (S7 final run, 2026-11-14)
+Exact results, measured on the M5 branch (`feat/m5-s7-closure`). No backend code changed after S1. The frontend has no evaluation metric of its own: these are correctness checks, not quality results.
+
+| Check | Result |
+|---|---|
+| Frontend `make web-test` (Vitest, jsdom, no network) | **120 passed / 120**, 3 consecutive runs (13 test files) |
+| Frontend `make web-lint` (tsc strict, ESLint, Prettier, `openapi-typescript --check`) | clean |
+| Frontend `make web-build` (Vite production build) | pass (JS 348.9 kB, 107.7 kB gzipped) |
+| Fresh clone of `feat/m5-s7-closure` | recorded in the follow-up commit below |
+| `npm audit --omit=dev` | 0 vulnerabilities |
+| `npm audit` (full tree) | 10 moderate, all GHSA-g3hv-75wg-m249 (minimatch via ESLint/typescript-eslint; dev tooling only; accepted, K16) |
+| Backend unit (`make test`) | 1,505 passed, 1 failed (**K7**, environment-dependent), 512 deselected |
+| Backend integration (`make test-integration`) | 507 passed, 1 failed (**K8**: `test_dense_golden`, the known tied pair at m1-03 ranks 5/6; `test_hybrid_dev` passed this run), 1,510 deselected |
+| `make lint` (ruff, black, strict mypy on 126 files) | clean |
+| `make check-schema` | "No new upgrade operations detected" |
+| `make check-workflow` | `"ok": true`, no review-case problems |
+| Browser smoke test (headless Chrome 157, real backend, no live LLM) | **14/14** steps (details: `docs/milestones/M5_PLAN.md`, S7 outcome) |
+| Accessibility audit (same browser; 6 screens) | 0 unnamed controls, 0 unlabelled inputs, 1 `h1` and no skipped levels per page, landmarks present, every Tab stop with a visible focus ring, WCAG AA contrast (minimum 4.55), full flow by keyboard |
+
+**Known failures (none new):**
+- **K7:** the Groq environment test, failing because the local environment carries the owner's terms-review date;
+- **K8:** a Qdrant tied-score order. The flaky query and test vary between runs (m1-14 at M4 close; m1-03 in S1 and S7).
+
+Neither is caused by M5 code.
+
+**Growth of the frontend suite by stage:** S2 15 → S3 52 → S4 67 → S5 100 → S6 117 → S7 120.

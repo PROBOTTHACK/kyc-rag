@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import type { ApiClient } from "./api/client";
 import { ApiContext } from "./api/hooks";
 import { App } from "./App";
-import { DISCLAIMER } from "./components/Disclaimer";
+import { DISCLAIMER, DISCLAIMER_DETAIL } from "./components/Disclaimer";
 
 // The screens read server state (S4+), so the shell needs React Query and an API client.
 // The Dashboard (S6) checks health on load; a fake client keeps these tests off the network.
@@ -39,6 +39,10 @@ describe("application shell", () => {
     renderAt(path);
     const disclaimer = screen.getByRole("complementary", { name: "Disclaimer" });
     expect(within(disclaimer).getByText(DISCLAIMER)).toBeTruthy();
+    expect(disclaimer.textContent).toContain(DISCLAIMER_DETAIL);
+    expect(disclaimer.textContent).toContain(
+      "Not affiliated with or endorsed by HDFC Bank or the RBI.",
+    );
     expect(screen.getByRole("heading", { level: 1, name: heading })).toBeTruthy();
   });
 
