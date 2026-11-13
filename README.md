@@ -15,6 +15,8 @@
 
 </div>
 
+> **Product direction change (2026-11-14).** New work builds the **HDFC Bank Account Opening Assistant**: a customer-facing conversational assistant that uses only HDFC material from the corpus. See [`docs/assistant/A1_PRODUCT_SPEC.md`](docs/assistant/A1_PRODUCT_SPEC.md) and [`docs/assistant/A0_AUDIT.md`](docs/assistant/A0_AUDIT.md). The rest of this README describes the preserved compliance-engine implementation (M0–M5), which remains in the repository.
+
 > **Disclaimer:** This is an independent portfolio prototype built on authorized or illustrative documents. It is **not** an official HDFC Bank product, does not approve or reject real applications, and does not replace a bank's compliance team.
 
 > **Status at the close of M5.** The prototype ingests public RBI/HDFC KYC documents, retrieves cited evidence, runs a checkpointed LangGraph workflow and produces an insert-only report. A local web frontend (M5) drives it: Dashboard, KYC Assistant, and the Compliance Report with read-only review cases.
