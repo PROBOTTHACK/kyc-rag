@@ -57,7 +57,7 @@ make demo                       # second terminal: the synthetic LLP demo throug
 - **Frontend (M5 S2):**
   - Needs Node.js **26.13.1 LTS** (`engines` plus `engine-strict` refuse any other major; installed here with NVM for Windows).
   - `make web-install` runs `npm ci` with no install scripts. `make web` starts the dev server on `http://127.0.0.1:5173` and proxies `/api` to `make api`.
-  - Only the app shell exists so far (disclaimer, navigation, error boundary, placeholder pages).
+  - Screens: Dashboard (API health and the demo sessions of this browser tab), KYC Assistant, and the Compliance Report with read-only review cases. Session ids are kept in the tab's `sessionStorage` only (M5-D4).
 
 ## 5. Tests and checks
 | Command | What it runs | Expected at M4 close |

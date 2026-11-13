@@ -2,7 +2,7 @@
 
 > Independent educational prototype. Not an HDFC Bank or RBI system. Synthetic data only. The UI never approves or rejects anything, and every result requires human review.
 
-**Status:** S0. The plan and decisions M5-D1 to M5-D3 were approved by the owner on 2026-11-13. M5-D4 is **open** and must be decided before S6. Stages run one at a time on the branch `feat/m5-s0-plan` and its successors, with one review and one commit per stage. **Previous milestone:** [`M4_CLOSURE_REPORT.md`](M4_CLOSURE_REPORT.md).
+**Status:** S0 locked the plan; decisions M5-D1 to M5-D3 were approved by the owner on 2026-11-13, and M5-D4 on 2026-11-14 (before S6). Stages run one at a time on the branch `feat/m5-s0-plan` and its successors, with one review and one commit per stage. **Previous milestone:** [`M4_CLOSURE_REPORT.md`](M4_CLOSURE_REPORT.md).
 
 ## A. Why M5 is the frontend
 - docs/12 defines "M5 — Frontend": "Build the 5 screens + review queue per docs/09 with typed API client and SSE progress. Done: full demo flow in browser."
@@ -37,7 +37,7 @@
 | M5-D1 | Scope | **Core on the existing API:** KYC Assistant (no upload), Compliance Report, read-only Review Cases, minimal Dashboard (API health plus sessions known to this browser, labelled demo data). Document Intelligence and Observability move to M6. PDF upload and review decisions are out. | approved 2026-11-13 |
 | M5-D2 | Backend changes | **Pydantic response models on existing routes only.** The JSON returned stays identical, enforced by contract tests. No new endpoint. The raw-body, screen-before-parse request handling is unchanged. | approved 2026-11-13 |
 | M5-D3 | Toolchain | TypeScript, React, Vite, Tailwind CSS, React Router, TanStack React Query, Vitest, Testing Library, ESLint, Prettier, openapi-typescript. **No Playwright:** the browser demo is documented and run manually. Exact versions are pinned (each release at least two weeks old) and listed in S2 for owner confirmation before install. | approved 2026-11-13 |
-| M5-D4 | Where the browser keeps session ids for the Dashboard | **Open.** A session id is the only access credential (L6: possession of the id gives access). Options: (a) `localStorage`, which survives restarts but leaves the ids readable by any script on the origin until cleared; (b) `sessionStorage`, which is cleared when the tab closes; (c) memory only, with no Dashboard history. Recommended: (b), with a "forget sessions" control. | **to decide before S6** |
+| M5-D4 | Where the browser keeps session ids for the Dashboard | **`sessionStorage`, never `localStorage`.** Session ids survive reloads and navigation in the same tab and do not persist once the tab or browser session closes. The Dashboard has a "Forget sessions" action that clears only the locally stored ids; it never deletes, abandons or modifies backend sessions or reports. Ids are not shown in the UI, logs or error messages, and malformed or expired stored entries are handled safely. A session id is the only access credential (L6). Options considered: `localStorage` (survives restarts; readable by any script on the origin until cleared) and memory only (no Dashboard history). | approved 2026-11-14 |
 
 ## D. Scope
 **In M5:**
@@ -314,7 +314,7 @@ Built on the S3 client and hooks only. No backend change, no new endpoint, no ne
 
 **Known issues and limits (S4):**
 - **A crashed run can't be recovered from the UI yet.** A run left `running` by a server crash, with its lease expired, can be recovered by `POST /retry`, but the UI offers Retry only for `failed` runs; until the lease expires the backend refuses anyway (409 with `Retry-After`). The screen shows the run as in progress, and the live-progress notice offers Reconnect and Refresh. This is left to the owner (S7 or later).
-- **Session is lost on reload** (memory only), until M5-D4 is decided.
+- **Session is lost on reload** (memory only), until M5-D4 is decided. *Resolved in S6: kept in `sessionStorage` per M5-D4.*
 - **Character limit:** the 2,000-character limit is the backend default; the server enforces its own configured value.
 - **No browser run in S4:** the screen has not been driven in a real browser yet. The full flow is covered by component tests on recorded responses, the live SSE path was verified through the proxy in S3, and the manual browser demo is S7.
 - **Dev database:** recording the fixtures left synthetic sessions there (removed by `make purge` after they expire).
@@ -388,6 +388,70 @@ Built on the S3 hooks (`useReport`, `useReviewCases`). No backend change, no new
 - **Access to reports:** anyone with a report id can open the report (L6, no authentication). Review cases have no decision workflow (L5).
 
 **Known issues carried forward from S4 (unchanged):**
-- the session is lost on a page reload (memory only; M5-D4 open);
+- the session is lost on a page reload (memory only; M5-D4 open). *Resolved in S6 (M5-D4: `sessionStorage`).*
 - a run stuck after a server crash is not offered a retry in the UI (only `failed` runs are);
 - the question's 2,000-character limit is the backend default and must be confirmed against the configured `QUERY_MAX_CHARS`.
+
+## S6 outcome (2026-11-14): M5-D4 locked; minimal Dashboard
+No backend change, no new endpoint, no new dependency. No Document Intelligence, observability, upload, review decision or authentication.
+
+**M5-D4 implementation (`frontend/src/storage/sessions.ts`):**
+- **Key:** one `sessionStorage` key, `kyc-assistant.sessions.v1`, holding `{sessions: [{id, addedAt}], current}`.
+  - `addedAt` is when this tab first saw the session; it is local metadata, not from the API.
+  - `localStorage` is never used.
+- **Validation on every read:**
+  - Invalid JSON or a non-object discards the value and clears the key.
+  - Entries must be lowercase UUIDs with a parseable `addedAt`; anything else is dropped, and duplicates are removed.
+  - `current` must be in the list, otherwise it becomes `null`.
+  - The list is capped at 20 (the most recent). A cleaned value is written back, so malformed data never lingers.
+- **Storage failures:** storage that is unavailable or throws degrades to memory only and never throws to the UI.
+- **Expired or purged sessions:** the API decides. A stored id whose session is expired shows as expired; one the server no longer knows (404) shows as "No longer available on the server". Neither is ever shown as active or complete.
+- **Forget sessions:** removes only that key (other keys untouched). No API call is made; backend sessions and reports expire on their own schedule.
+- **Session provider:** `AssistantSessionProvider` loads from the store and persists after each change, from an effect, so state updaters stay pure. The Assistant's session therefore survives reloads and navigation in the same tab, which resolves the S4 "lost on reload" issue.
+- **Ids:** never shown in the page, the URL, logs or errors. Sessions are labelled "Session 1, 2, …".
+
+**Dashboard (`frontend/src/screens/dashboard/DashboardPage.tsx`):**
+- **API health** (`GET /health`):
+  - ok: all services reachable, with latency per check;
+  - degraded (the 503 body is data, not an error): which service is unavailable, without exception names;
+  - unreachable: the fixed error message;
+  - loading; and "Check again".
+- **Sessions in this browser tab:**
+  - Stated as browser-local and "not a complete history".
+  - Each stored session is read with the existing `GET /sessions/{id}` (at most 20).
+  - What is shown, all of it from the API's own fields, nothing inferred:
+    - active until a time, or expired;
+    - "No question asked yet";
+    - the latest question's run status;
+    - for a completed run only: the outcome label and "Open the report", or "No report was stored";
+    - 404 shown as no longer available, with no "Open" action;
+    - other errors with "Try again".
+  - "Open in the Assistant" makes the session current and navigates; the Assistant then marks it "(open in the Assistant)".
+  - Empty state links to the Assistant.
+- **Other:** a "Demo data" label, and the disclaimer stays in the layout.
+
+**Tests (17 new; 117 in total):**
+- `storage/sessions.test.ts` (8): survives a reload; never uses `localStorage`; malformed values discarded and cleared (6 shapes); only valid entries kept (bad ids, bad dates, duplicates, an unknown current); the cap; remember/switch/ignore-invalid; forget removes only its key; no throw when storage is unavailable.
+- `DashboardPage.test.tsx` (9):
+  - health ok / degraded / loading → unreachable → check again;
+  - empty and browser-local wording;
+  - real per-session status across 7 states (no run, running, awaiting, completed with report, expired, 404, 503), with only the completed run showing a result or report link, no id in the page, and no approval wording;
+  - "Open in the Assistant";
+  - "Forget sessions" clears the list and the key, makes no state-changing call, and leaves the Assistant on its start screen;
+  - malformed stored data at load;
+  - a session started in the Assistant survives a reload (unmount plus a fresh render), is resumed without a second `createSession`, and is listed on the Dashboard.
+- **Shared test setup:** clears `sessionStorage` and `localStorage` after each test (isolation).
+- **`App.test.tsx`:** the shell tests now use a fake client, because the Dashboard checks health on load. Their assertions are unchanged.
+- **Mutation checks:**
+  - storing in `localStorage` made 6 tests fail;
+  - a forget that kept the key was caught by the storage test (the provider also removes the key when it saves an empty state, so behaviour stays correct through either path);
+  - both were restored.
+
+**Checks:**
+- **Frontend:** `make web-lint`, `make web-test` (117/117, 3 consecutive runs) and `make web-build` pass, also on a fresh clone.
+- **Backend (no backend file modified):** `make lint` is clean; `make test` gives 1,505 passed and 1 failed (K7, environment-dependent, as before). The integration suite was not re-run in S6 because no backend code changed; the last full run (S1) was 507 passed and 1 failed (K8).
+
+**Known issues carried forward:**
+- a run stuck after a server crash is not offered a retry in the UI (only `failed` runs are);
+- the question's 2,000-character limit is the backend default (`QUERY_MAX_CHARS`); confirm it against the configured value;
+- the S5 report limitations (no source text, the stale validator wording on checked v2 items, the prescribed fallback wording, access by possession of an id).

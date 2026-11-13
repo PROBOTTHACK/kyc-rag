@@ -4,17 +4,27 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 
+import type { ApiClient } from "./api/client";
+import { ApiContext } from "./api/hooks";
 import { App } from "./App";
 import { DISCLAIMER } from "./components/Disclaimer";
 
+// The screens read server state (S4+), so the shell needs React Query and an API client.
+// The Dashboard (S6) checks health on load; a fake client keeps these tests off the network.
+const fakeClient = {
+  health: async () => ({ status: "ok" as const, checks: {} }),
+} as unknown as ApiClient;
+
 function renderAt(path: string) {
-  // The assistant (S4) reads server state, so the shell needs the React Query provider.
-  // No request is made: no screen fetches anything until the user acts.
   return render(
-    <QueryClientProvider client={new QueryClient()}>
-      <MemoryRouter initialEntries={[path]}>
-        <App />
-      </MemoryRouter>
+    <QueryClientProvider
+      client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+    >
+      <ApiContext.Provider value={fakeClient}>
+        <MemoryRouter initialEntries={[path]}>
+          <App />
+        </MemoryRouter>
+      </ApiContext.Provider>
     </QueryClientProvider>,
   );
 }

@@ -41,8 +41,8 @@ function StartSession({ onCreated }: { onCreated: (id: string) => void }) {
   return (
     <div className="mt-4 rounded border border-slate-200 bg-white p-4">
       <p className="text-sm">
-        Sessions use <strong>synthetic demo data only</strong>. A session is kept only while this
-        page stays open; reloading the page forgets it.
+        Sessions use <strong>synthetic demo data only</strong>. This browser tab remembers its
+        sessions across reloads and forgets them when the tab is closed.
       </p>
       <button
         type="button"

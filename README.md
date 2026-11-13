@@ -153,7 +153,8 @@ make api                            # http://localhost:8000/docs, health at /api
 #    GET /api/v1/sessions/{id}/events streams progress (SSE; open it before the message).
 #    Without Groq live calls enabled, intake asks every question and the report is DEGRADED.
 
-# 6b. Frontend (M5, Node 26.13.1): app shell only so far; the screens arrive in later M5 stages
+# 6b. Frontend (M5, Node 26.13.1): Dashboard (API health, this tab's sessions), KYC Assistant,
+#     Compliance Report with read-only review cases. Needs `make api` running.
 make web-install                    # npm ci from frontend/package-lock.json (no install scripts)
 make web                            # http://127.0.0.1:5173; /api is proxied to `make api`
 make web-test web-lint              # Vitest; type-check + ESLint + Prettier + API types up to date
