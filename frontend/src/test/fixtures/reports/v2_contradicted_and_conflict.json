@@ -1,0 +1,237 @@
+{
+  "report_version": 2,
+  "report_id": "b1466c08-223a-550f-ae6c-959a710ff07f",
+  "session_id": "s-1",
+  "run_id": "r-1",
+  "outcome": "CHECKLIST_REVIEW_REQUIRED",
+  "human_review_required": true,
+  "notice": "Decision support only. Not a KYC decision. Where shown, claims were checked against the cited text by an automated model; this is not a legal determination.",
+  "disclaimer": "Independent educational prototype. Not affiliated with, endorsed by, or an official system of HDFC Bank.",
+  "user_message": "Below is a draft checklist built only from the cited sources. Each item shows its source document and page. It is decision support for human review, not a KYC decision. An automated check compared 1 pair(s) of retrieved passages from different sources (0 not compared). Not finding a conflict does not prove that none exists. 1 possible conflict(s) between sources are listed for review with both sources; 1 could not be resolved automatically.\n\nIndependent educational prototype. Not affiliated with, endorsed by, or an official system of HDFC Bank.",
+  "profile": {
+    "entity_type": {
+      "value": "TRUST",
+      "source": "user_stated"
+    },
+    "residency": {
+      "value": null,
+      "source": "unknown"
+    },
+    "account_type": {
+      "value": "CURRENT_ACCOUNT",
+      "source": "user_stated"
+    }
+  },
+  "missing_fields": [],
+  "evidence_status": "found",
+  "gaps": [],
+  "checklist": [
+    {
+      "requirement_id": "REQ_001",
+      "name": "Certified copy of the trust deed",
+      "explanation": "The cited paragraph lists the trust deed.",
+      "explanation_status": "unverified",
+      "applicability": "UNCLEAR",
+      "proposed_applicability": "MANDATORY",
+      "citations": [
+        {
+          "evidence_id": "6fe70a1c-6278-517c-a262-a86903caed62",
+          "document_key": "rbi_directions",
+          "page": 1,
+          "page_end": null,
+          "paragraph": null,
+          "match_scope": "entity",
+          "evidence_eligibility": "primary",
+          "text_reliability": "native",
+          "source_status": "active",
+          "can_support_mandatory": true
+        }
+      ],
+      "related_form_fields": [
+        {
+          "form_key": "hdfc_ni_form",
+          "field_label": "Name of Trust",
+          "link_kind": "topic_match",
+          "note": "related form field (relationship only)"
+        }
+      ],
+      "uncertainty_label": "Stated in a cited primary source for this customer type; proposed, not claim-verified (M4).",
+      "verification_status": "contradicted"
+    }
+  ],
+  "dropped_requirements": 0,
+  "unresolved_items": [
+    "applicability_lowered_by_verification:REQ_001",
+    "conflicting_sources:REQ_001"
+  ],
+  "findings": [],
+  "degradations": [],
+  "forms": [
+    {
+      "form_key": "hdfc_ni_form",
+      "method": "m1_chunks",
+      "version": 1,
+      "flags": [],
+      "fields_analysed": 2,
+      "subset_only": false
+    }
+  ],
+  "security_reasons": [],
+  "verification": "claim_check_ran",
+  "claim_verification": [
+    {
+      "requirement_id": "REQ_001",
+      "claims": [
+        {
+          "claim_id": "REQ_001-C0",
+          "requirement_id": "REQ_001",
+          "claim_type": "policy_obligation",
+          "asserted_strength": "unconditional",
+          "text": "Certified copy of the trust deed must be obtained for a trust customer.",
+          "template_version": "t1",
+          "source_sentence_index": null
+        },
+        {
+          "claim_id": "REQ_001-C1",
+          "requirement_id": "REQ_001",
+          "claim_type": "explanatory_claim",
+          "asserted_strength": "none",
+          "text": "The cited paragraph lists the trust deed.",
+          "template_version": null,
+          "source_sentence_index": 0
+        }
+      ],
+      "judgements": [
+        {
+          "claim_id": "REQ_001-C0",
+          "evidence_id": "6fe70a1c-6278-517c-a262-a86903caed62",
+          "document_key": "rbi_directions",
+          "document_type": "regulatory",
+          "page": 1,
+          "page_end": null,
+          "window_chunk_id": null,
+          "window_start": 0,
+          "window_end": 117,
+          "evidence_role": "primary_policy",
+          "evidence_eligibility": "primary",
+          "match_scope": "entity",
+          "text_reliability": "native",
+          "source_status": "active",
+          "can_support_mandatory": true,
+          "analysis": {
+            "modality": "obligation",
+            "polarity": "affirmative",
+            "object_match": true,
+            "subject": null,
+            "scope": "match",
+            "cues": ["obl:shall"]
+          },
+          "logits": [0.0, 0.0, 8.0],
+          "probs": [0.00033523770845720973, 0.00033523770845720973, 0.9993295245830855],
+          "score_semantics": "softmax_of_logits_uncalibrated",
+          "not_scored_reason": null
+        },
+        {
+          "claim_id": "REQ_001-C1",
+          "evidence_id": "6fe70a1c-6278-517c-a262-a86903caed62",
+          "document_key": "rbi_directions",
+          "document_type": "regulatory",
+          "page": 1,
+          "page_end": null,
+          "window_chunk_id": null,
+          "window_start": 0,
+          "window_end": 117,
+          "evidence_role": "primary_policy",
+          "evidence_eligibility": "primary",
+          "match_scope": "entity",
+          "text_reliability": "native",
+          "source_status": "active",
+          "can_support_mandatory": true,
+          "analysis": {
+            "modality": "obligation",
+            "polarity": "affirmative",
+            "object_match": false,
+            "subject": null,
+            "scope": "match",
+            "cues": ["obl:shall"]
+          },
+          "logits": [0.0, 0.0, 8.0],
+          "probs": [0.00033523770845720973, 0.00033523770845720973, 0.9993295245830855],
+          "score_semantics": "softmax_of_logits_uncalibrated",
+          "not_scored_reason": null
+        }
+      ],
+      "verdicts": [
+        {
+          "claim_id": "REQ_001-C0",
+          "verdict": "contradicted",
+          "best_evidence_id": "6fe70a1c-6278-517c-a262-a86903caed62",
+          "reason_codes": ["nli_contradiction"]
+        },
+        {
+          "claim_id": "REQ_001-C1",
+          "verdict": "insufficient",
+          "best_evidence_id": null,
+          "reason_codes": ["anchors_missing", "below_entailment_threshold"]
+        }
+      ],
+      "requirement_verdict": "contradicted",
+      "applicability_before": "MANDATORY",
+      "applicability_after": "UNCLEAR",
+      "review_flags": ["contradicted", "conflicting_sources"]
+    }
+  ],
+  "verification_meta": {
+    "status": "ran",
+    "model_id": "fake-nli",
+    "model_revision": "0000000000000000000000000000000000000000",
+    "label_map": {
+      "0": "entailment",
+      "1": "neutral",
+      "2": "contradiction"
+    },
+    "templates_version": "t1",
+    "thresholds_version": "test-only",
+    "pairs_scored": 2,
+    "pairs_capped": 0,
+    "contradiction_scan": "bounded",
+    "contradiction_scan_size": 1,
+    "contradiction_pairs_not_scanned": 0,
+    "timings_ms": {
+      "total_ms": 3.253
+    }
+  },
+  "unverified_items": [],
+  "source_conflicts": [
+    {
+      "requirement_id": "REQ_001",
+      "side_a": {
+        "evidence_id": "6fe70a1c-6278-517c-a262-a86903caed62",
+        "document_key": "rbi_directions",
+        "page": 1,
+        "page_end": null,
+        "window_start": 0,
+        "window_end": 117,
+        "source_status": "active",
+        "evidence_eligibility": "primary",
+        "cited": true
+      },
+      "side_b": {
+        "evidence_id": "c86cd37b-78a9-58f8-9b31-1c7ed6c90cbb",
+        "document_key": "rbi_faq",
+        "page": 1,
+        "page_end": null,
+        "window_start": 0,
+        "window_end": 62,
+        "source_status": "dated",
+        "evidence_eligibility": "supporting",
+        "cited": false
+      },
+      "detected_by": "nli_contradiction",
+      "max_contradiction": 0.99933,
+      "resolution": "unresolved",
+      "resolution_reason": "no_supersession_relation",
+      "superseding_document_key": null
+    }
+  ]
+}

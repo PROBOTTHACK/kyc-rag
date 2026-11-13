@@ -20,6 +20,7 @@ import {
   recordedError,
   SYNTHETIC_PAN,
 } from "../../test/fixtures/live";
+import { liveFixture } from "../../test/fixtures/reports";
 import { envelope, nodeFrame, Pipe, runFrame } from "../../test/http";
 
 const QUESTION = "What KYC documents does an LLP need to open an account?";
@@ -48,6 +49,9 @@ function setup(initial: SessionView = live.sessionNoRun()) {
       keys.retry!.push(key);
       return live.messageAccepted();
     }),
+    // S5: the report the completed run links to, as recorded from the real API.
+    getReport: vi.fn(async () => structuredClone(liveFixture.report)),
+    getReviewCases: vi.fn(async () => structuredClone(liveFixture.reviewCases)),
     fetchEvents: vi.fn(async (_s: string, _last: string | null, signal: AbortSignal) => {
       const pipe = new Pipe();
       pipes.push(pipe);
@@ -341,6 +345,17 @@ describe("KYC Assistant", () => {
     await startSession(user);
     await user.click(await screen.findByRole("link", { name: "Open the report" }));
     expect(screen.getByRole("heading", { level: 1, name: "Compliance Report" })).toBeTruthy();
+    // the real report the run produced (S5)
+    await screen.findByRole("heading", { name: "Outcome: Degraded result" });
+    expect(client.getReport).toHaveBeenCalledWith(
+      live.sessionCompleted().workflow!.report_id,
+      expect.anything(),
+    );
+    // back through the report's own link, then through the main navigation
+    await user.click(screen.getByRole("link", { name: "Back to the KYC Assistant" }));
+    await screen.findByRole("heading", { name: "Result: Degraded result" });
+    await user.click(screen.getByRole("link", { name: "Open the report" }));
+    await screen.findByRole("heading", { name: "Outcome: Degraded result" });
     await user.click(screen.getByRole("link", { name: "KYC Assistant" }));
     await screen.findByRole("heading", { name: "Result: Degraded result" });
     expect(client.createSession).toHaveBeenCalledTimes(1);

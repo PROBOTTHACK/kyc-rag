@@ -318,3 +318,76 @@ Built on the S3 client and hooks only. No backend change, no new endpoint, no ne
 - **Character limit:** the 2,000-character limit is the backend default; the server enforces its own configured value.
 - **No browser run in S4:** the screen has not been driven in a real browser yet. The full flow is covered by component tests on recorded responses, the live SSE path was verified through the proxy in S3, and the manual browser demo is S7.
 - **Dev database:** recording the fixtures left synthetic sessions there (removed by `make purge` after they expire).
+
+## S5 outcome (2026-11-14): Compliance Report and read-only review cases
+Built on the S3 hooks (`useReport`, `useReviewCases`). No backend change, no new endpoint, no new dependency. The Dashboard (S6) is not built here.
+
+**Screen (`frontend/src/screens/report/`):**
+- **Rendering:** `ReportView` renders one stored report, v1 (M3) or v2 (M4), from its own fields only. Absent keys stay absent; stored v1 rows lack the defaults the API adds, and are handled as they are.
+- **Outcome:** the outcome label, "Human review required" with the report's own `notice`, and the report format version.
+- **Summary:** the backend's `user_message`, verbatim, including its disclaimer, its verification note and its conflict-scan sentence.
+- **Profile:** the customer profile used (value and source: stated, answered, not provided) and any missing details.
+- **Checks:**
+  - **Evidence status:** `retrieval_failed` is shown as a technical problem, distinct from `none`, which says that it "does not mean that nothing is required".
+  - **Claim checking:** v1 gives "not checked"; v2 `not_configured` gives "not enabled… not a finding that any item is wrong"; ran / partial / failed each have their own text. For ran or partial, the model id and thresholds version are shown, with "scores are uncalibrated signals, not confidence".
+  - **Conflicting sources:** word for word as the backend writes it. `not_run`, and every v1 report, gives **"No automated check for conflicting sources was performed."**; `failed` and `bounded` give the backend's own sentences, with the counts for a bounded scan.
+- **Checklist:**
+  - Grouped Mandatory → Conditional → Optional → Unclear. A `null` checklist and an empty one each get their own message, and the empty one says it "does not mean that nothing is required".
+  - Each item shows:
+    - its applicability, and the proposed one when it was lowered;
+    - its claim-check status (a label and an explanation per verdict). "Supported" wording appears only for supported verdicts, always qualified "(automated check)". `not_verified` reads "Not verified … not a finding that the item is wrong"; `not_claim_verified` reads "Not claim-verified";
+    - the validator's `uncertainty_label`, verbatim;
+    - the model-drafted explanation with its status;
+    - its citations, as `document_key, p./pp.` plus eligibility, text reliability, source status and a broader-group scope;
+    - related form fields, labelled "the form asks for this; not an obligation";
+    - review flags.
+- **K5 note:** wherever citations are listed, "Page references are copied from the stored source records and have not been independently re-checked … (known issue K5)".
+- **Set aside for review:** v2 `unverified_items` with their prior applicability, reason codes and citations, and "This does not mean they are not required."
+- **Possible conflicts between sources:** both sides (document, pages, eligibility, status, cited or not), resolved or unresolved, and the reason, with "a newer date never settles a conflict". The uncalibrated contradiction score is not shown.
+- **Open points:** unresolved items and gaps with readable labels plus the raw code, degradations (component and code), validation findings, and screening codes for BLOCKED.
+- **Forms analysed:** the extraction method, version, fields analysed, subset-only and flags, with "Form fields are never policy obligations."
+- **Review cases (`ReviewCasesPanel`):**
+  - read-only, listed as requirement (name and id), reason, "Open", and the time it was opened;
+  - states that recording a review decision is not available (it needs authentication);
+  - **no buttons or inputs**; an empty list still states that every result requires human review;
+  - if loading them fails, the report stays visible with its own retry.
+- **States:** loading; `REPORT_NOT_FOUND` (deleted after retention, or a wrong address; no retry); unreachable or other errors (fixed message and "Try again").
+- **Session:** the page never touches the assistant session and links "Back to the KYC Assistant".
+- **Labels (`labels.ts`):** typed by the generated enums, so a new backend value fails the type-check until it is labelled. Unknown free-form codes are shown raw, never guessed.
+
+**Fixtures (no hand-written reports):**
+- **v1:** the 8 committed fixtures, read directly from `backend/tests/fixtures/m3_reports_v1/` with `import.meta.glob` (no copies).
+- **v2:** `frontend/src/test/fixtures/reports/v2_*.json`, 8 genuine reports from the backend's M4 acceptance helper (`test_m4_acceptance_s8.py::reports`: real graph runs, synthetic corpus, NLI disabled or scripted, no model), serialized with `ComplianceReport.model_dump(mode="json")`.
+  - Each has a `*.review_cases.json` derived with the backend's `review_cases()`.
+  - Together they cover verification `ran` / `partial` / `failed` / `not_configured`, scans `not_run` / `bounded` / `failed`, an unsupported item set aside, a source conflict, and a contradicted item.
+- **Live:** the DEGRADED v1 report and its empty review cases recorded from the real API in S4.
+
+**Tests (`ReportPage.test.tsx`, 33):**
+- **Every one of the 17 reports renders its own data:**
+  - the human-review line and the notice;
+  - the backend message verbatim;
+  - the conflict-scan sentence, also asserted to occur in the backend's own `user_message` for v2;
+  - each item's applicability, claim-check label, validator note and every citation's `document_key, pages`;
+  - no "Supported" wording for not-verified items, and the K5 note;
+  - no approve/approval/reject/rejection/compliant anywhere;
+  - no unnegated "verified" in the UI's own text. The backend's prescribed fallback ("I don't have sufficient verified information …") is shown verbatim and excluded from this check only;
+  - **no button, checkbox or radio on the page.**
+- **Specific states:** not-configured review cases; check ran (qualified, uncalibrated); unsupported set aside; conflict; contradicted; v1 notice and form links; retrieval failure vs no evidence; no evidence ≠ not required; blocked; missing information; degradations and empty review cases.
+- **Loading, missing and unavailable:** loading, not found, unreachable, and a review-cases failure that keeps the report visible.
+- **Guard check:** relabelling `not_verified` as "Verified" made 4 tests fail; the label was then restored.
+- **Assistant navigation (`AssistantPage.test.tsx`):** the test now opens the real report the run produced, returns through "Back to the KYC Assistant" and through the main navigation, and confirms the same in-memory session and a single `createSession`.
+
+**Checks:**
+- **Frontend:** `make web-lint`, `make web-test` (100/100, 3 consecutive runs) and `make web-build` pass.
+- **Backend (no backend file modified):** `make lint` is clean; `make test` gives 1,505 passed and 1 failed (K7).
+
+**Limitations (S5, documented rather than worked around):**
+- **No source text:** the API returns no evidence text, so the report shows document keys and page ranges but no passage preview. Page references are not re-checked (K5).
+- **Stale validator wording on checked items:** on a v2 report whose claim check ran, an item's `uncertainty_label` still carries the M3 validator wording ("…proposed, not claim-verified (M4)"), because the backend sets it before verification. It is shown verbatim, labelled "Validator note", next to the item's actual claim-check status.
+- **Fallback message wording:** the backend's fallback ("I don't have sufficient verified information …") is shown as written; it is the prescribed M3 message.
+- **Access to reports:** anyone with a report id can open the report (L6, no authentication). Review cases have no decision workflow (L5).
+
+**Known issues carried forward from S4 (unchanged):**
+- the session is lost on a page reload (memory only; M5-D4 open);
+- a run stuck after a server crash is not offered a retry in the UI (only `failed` runs are);
+- the question's 2,000-character limit is the backend default and must be confirmed against the configured `QUERY_MAX_CHARS`.

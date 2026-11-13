@@ -1,0 +1,13 @@
+{
+  "report_id": "b1466c08-223a-550f-ae6c-959a710ff07f",
+  "review_cases": [
+    {
+      "id": "da70154d-2e86-58b9-bf37-d50ba0ebc8b0",
+      "requirement_id": "REQ_001",
+      "claim_id": null,
+      "reason": "unsupported",
+      "status": "open",
+      "created_at": "2026-11-14T09:00:00+00:00"
+    }
+  ]
+}

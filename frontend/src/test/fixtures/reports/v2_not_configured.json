@@ -1,0 +1,151 @@
+{
+  "report_version": 2,
+  "report_id": "b1466c08-223a-550f-ae6c-959a710ff07f",
+  "session_id": "s-1",
+  "run_id": "r-1",
+  "outcome": "DEGRADED",
+  "human_review_required": true,
+  "notice": "Decision support only. Not a KYC decision. Where shown, claims were checked against the cited text by an automated model; this is not a legal determination.",
+  "disclaimer": "Independent educational prototype. Not affiliated with, endorsed by, or an official system of HDFC Bank.",
+  "user_message": "Below is a draft checklist built only from the cited sources. Each item shows its source document and page. It is decision support for human review, not a KYC decision. Part of the processing did not complete normally (verification), so this result may be incomplete. Automated checking of each claim against its cited text is not enabled, so every claim is marked not verified and no item is shown as more than conditional. This is not a finding that any item is wrong or unsupported; the cited sources and pages are unchanged. No automated check for conflicting sources was performed.\n\nIndependent educational prototype. Not affiliated with, endorsed by, or an official system of HDFC Bank.",
+  "profile": {
+    "entity_type": {
+      "value": "TRUST",
+      "source": "user_stated"
+    },
+    "residency": {
+      "value": null,
+      "source": "unknown"
+    },
+    "account_type": {
+      "value": "CURRENT_ACCOUNT",
+      "source": "user_stated"
+    }
+  },
+  "missing_fields": [],
+  "evidence_status": "found",
+  "gaps": [],
+  "checklist": [
+    {
+      "requirement_id": "REQ_001",
+      "name": "Certified copy of the trust deed",
+      "explanation": "The cited paragraph lists the trust deed.",
+      "explanation_status": "model_drafted_not_verified",
+      "applicability": "CONDITIONAL",
+      "proposed_applicability": "MANDATORY",
+      "citations": [
+        {
+          "evidence_id": "6fe70a1c-6278-517c-a262-a86903caed62",
+          "document_key": "rbi_directions",
+          "page": 1,
+          "page_end": null,
+          "paragraph": null,
+          "match_scope": "entity",
+          "evidence_eligibility": "primary",
+          "text_reliability": "native",
+          "source_status": "active",
+          "can_support_mandatory": true
+        }
+      ],
+      "related_form_fields": [
+        {
+          "form_key": "hdfc_ni_form",
+          "field_label": "Name of Trust",
+          "link_kind": "topic_match",
+          "note": "related form field (relationship only)"
+        },
+        {
+          "form_key": "hdfc_ni_form",
+          "field_label": "PAN of Trust",
+          "link_kind": "topic_match",
+          "note": "related form field (relationship only)"
+        }
+      ],
+      "uncertainty_label": "Stated in a cited primary source for this customer type; proposed, not claim-verified (M4).",
+      "verification_status": "not_verified"
+    }
+  ],
+  "dropped_requirements": 0,
+  "unresolved_items": ["claims_not_verified:1", "applicability_lowered_by_verification:REQ_001"],
+  "findings": [],
+  "degradations": [
+    {
+      "component": "verification",
+      "reason": "nli_not_configured"
+    }
+  ],
+  "forms": [
+    {
+      "form_key": "hdfc_ni_form",
+      "method": "m1_chunks",
+      "version": 1,
+      "flags": [],
+      "fields_analysed": 4,
+      "subset_only": false
+    }
+  ],
+  "security_reasons": [],
+  "verification": "not_claim_verified",
+  "claim_verification": [
+    {
+      "requirement_id": "REQ_001",
+      "claims": [
+        {
+          "claim_id": "REQ_001-C0",
+          "requirement_id": "REQ_001",
+          "claim_type": "policy_obligation",
+          "asserted_strength": "unconditional",
+          "text": "Certified copy of the trust deed must be obtained for a trust customer.",
+          "template_version": "t1",
+          "source_sentence_index": null
+        },
+        {
+          "claim_id": "REQ_001-C1",
+          "requirement_id": "REQ_001",
+          "claim_type": "explanatory_claim",
+          "asserted_strength": "none",
+          "text": "The cited paragraph lists the trust deed.",
+          "template_version": null,
+          "source_sentence_index": 0
+        }
+      ],
+      "judgements": [],
+      "verdicts": [
+        {
+          "claim_id": "REQ_001-C0",
+          "verdict": "not_verified",
+          "best_evidence_id": null,
+          "reason_codes": ["nli_not_configured"]
+        },
+        {
+          "claim_id": "REQ_001-C1",
+          "verdict": "not_verified",
+          "best_evidence_id": null,
+          "reason_codes": ["nli_not_configured"]
+        }
+      ],
+      "requirement_verdict": "not_verified",
+      "applicability_before": "MANDATORY",
+      "applicability_after": "CONDITIONAL",
+      "review_flags": ["not_verified"]
+    }
+  ],
+  "verification_meta": {
+    "status": "not_configured",
+    "model_id": null,
+    "model_revision": null,
+    "label_map": null,
+    "templates_version": "t1",
+    "thresholds_version": null,
+    "pairs_scored": 0,
+    "pairs_capped": 0,
+    "contradiction_scan": "not_run",
+    "contradiction_scan_size": 0,
+    "contradiction_pairs_not_scanned": 0,
+    "timings_ms": {
+      "total_ms": 0.871
+    }
+  },
+  "unverified_items": [],
+  "source_conflicts": []
+}
