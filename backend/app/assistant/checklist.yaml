@@ -1,0 +1,491 @@
+# Checklist item catalogue of the HDFC Bank Account Opening Assistant (A4).
+#
+# What it is: the items each applicable HDFC form asks for, as DATA that cites stored text
+# (CLAUDE.md principle 5: no requirement text in code). Every evidence entry names a stored
+# chunk (chunks.id), its document and page, and `quote`: text that must occur EXACTLY in the
+# stored chunk. The quote is re-checked against Postgres on every checklist build and by the
+# integration tests; an item whose evidence fails is dropped, never shown.
+#
+# What it is not: a classification. Classes are assigned by code from the source role
+# (A1 §3): an applicable opening form gives `form_indicated`, nothing here can make an item
+# `policy_supported`, and re-KYC / legacy / not-used documents can never be cited (the
+# loader refuses them). OCR-uncertain quotes are stored exactly as the OCR read them, to
+# verify the citation; they are never shown as verified quotations (A1 §8.2 rule 3a).
+#
+# Rules enforced by app/assistant/catalogue.py (fail closed):
+# - opening items cite only `opening_form` documents, and only for covered cells whose
+#   sources include that document; conversion items cite only the `conversion_form`;
+# - a `condition` is verbatim source text and occurs in one of the item's quotes;
+# - items backed by an A2 item ruling (coverage.yaml `item_rulings`) must match the ruling
+#   exactly (kind, categories, condition, cited chunks); every ruling appears here once;
+# - `not_confirmed` entries never carry evidence of their own.
+
+version: a4-1
+basis: coverage.yaml a2-2 and A1 §3-§8 (owner-approved)
+
+# --- documents, declarations and information (Groups A and B) ----------------------------------
+# when: facet constraints (A3 slots). If the profile's value is unknown, the item is shown with
+# an "applies if" note; if it is known and different, the item is left out.
+# accounts: omitted = every covered account type of the listed categories.
+# only_when_asked: shown only when the customer asked about one of its topics.
+items:
+  # NRI individual: native-text opening form ---------------------------------------------------
+  - id: nri_photo_first
+    title: Latest passport-size photograph of the first applicant
+    kind: document
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    topics: [photograph]
+    note: The form names the photograph in its own words; it gives no further specification.
+    evidence:
+      - {chunk_id: e7434b9c-91ea-5442-af95-afec79c2f89f, document_key: hdfc_nri_account_opening, page: 5, quote: "1st Applicant's latest passport size photo"}
+  - id: nri_photo_second
+    title: Latest passport-size photograph of the second applicant
+    kind: document
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    when: {holding: [JOINT]}
+    topics: [photograph]
+    note: The form names the photograph in its own words; it gives no further specification.
+    evidence:
+      - {chunk_id: e7434b9c-91ea-5442-af95-afec79c2f89f, document_key: hdfc_nri_account_opening, page: 5, quote: "2nd Applicant's latest passport size photo"}
+  - id: nri_form_60
+    title: Form 60, if you do not have a PAN
+    kind: document
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    condition: If PAN not available
+    topics: [form_60, pan_not_available]
+    evidence:
+      - {chunk_id: a37c01f2-8338-5a70-aae0-0a808d075e6e, document_key: hdfc_nri_account_opening, page: 1, quote: "If PAN not available, kindly attach Form 60"}
+  - id: nri_address_proof
+    title: Proof of address, of the type you tick on the form
+    kind: document
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    topics: [address_proof]
+    note: The form lists the types of address proof to choose from; it does not say which one HDFC Bank currently accepts.
+    evidence:
+      - {chunk_id: a37c01f2-8338-5a70-aae0-0a808d075e6e, document_key: hdfc_nri_account_opening, page: 1, quote: "Attached Address Proof of"}
+      - {chunk_id: a37c01f2-8338-5a70-aae0-0a808d075e6e, document_key: hdfc_nri_account_opening, page: 1, quote: "Name of Proof of Address"}
+  - id: nri_mandate_poa
+    title: The relevant document, if you choose a mandate or power of attorney (POA)
+    kind: document
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    condition: Mandate / POA
+    evidence:
+      - {chunk_id: 94504e3d-b4a9-5dcf-95cd-7c9e250c6188, document_key: hdfc_nri_account_opening, page: 1, quote: "Mandate / POA (please attach relevant document)"}
+  - id: nri_deposit_payout_instruction
+    title: A separate instruction for the payout details of the deposit
+    kind: document
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    accounts: [FIXED_DEPOSIT, FCNR_RFC]
+    condition: For Payout details
+    evidence:
+      - {chunk_id: 6917713f-d6ca-5974-ab58-56aefd0074c9, document_key: hdfc_nri_account_opening, page: 3, quote: "For Payout details, please attach a separate instruction"}
+  - id: nri_name
+    title: Your name, as it appears on your ID proof
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    evidence:
+      - {chunk_id: 94504e3d-b4a9-5dcf-95cd-7c9e250c6188, document_key: hdfc_nri_account_opening, page: 1, quote: "APPLICANT'S NAME (SAME AS ID PROOF)"}
+  - id: nri_date_of_birth
+    title: Date of birth
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    evidence:
+      - {chunk_id: a37c01f2-8338-5a70-aae0-0a808d075e6e, document_key: hdfc_nri_account_opening, page: 1, quote: "Date of Birth"}
+  - id: nri_pan_number
+    title: PAN number
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    topics: [pan]
+    note: The form has a field for the PAN number. A number field does not establish that a copy of the PAN card has to be submitted.
+    evidence:
+      - {chunk_id: a37c01f2-8338-5a70-aae0-0a808d075e6e, document_key: hdfc_nri_account_opening, page: 1, quote: "PAN No."}
+  - id: nri_passport_number
+    title: Passport number
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    topics: [passport]
+    note: The form has a field for the passport number. A number field does not establish that a copy of the passport has to be submitted.
+    evidence:
+      - {chunk_id: a37c01f2-8338-5a70-aae0-0a808d075e6e, document_key: hdfc_nri_account_opening, page: 1, quote: "Passport No."}
+  - id: nri_nationality
+    title: Nationality
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    evidence:
+      - {chunk_id: a37c01f2-8338-5a70-aae0-0a808d075e6e, document_key: hdfc_nri_account_opening, page: 1, quote: "Nationality"}
+  - id: nri_tax_residency
+    title: Country or countries of tax residency outside India
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    evidence:
+      - {chunk_id: a37c01f2-8338-5a70-aae0-0a808d075e6e, document_key: hdfc_nri_account_opening, page: 1, quote: "Country / ies of Tax Residency (Outside India)"}
+  - id: nri_tin
+    title: Tax identification number (TIN), for a tax resident of a country other than India
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    condition: For tax resident of other country than India
+    evidence:
+      - {chunk_id: 2423c9e3-a6b6-519b-af3f-800b181958a1, document_key: hdfc_nri_account_opening, page: 1, quote: "Tax Id No. (TIN) For tax resident of other country than India"}
+  - id: nri_place_of_birth
+    title: City and country of birth
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    evidence:
+      - {chunk_id: a37c01f2-8338-5a70-aae0-0a808d075e6e, document_key: hdfc_nri_account_opening, page: 1, quote: "City of birth"}
+      - {chunk_id: a37c01f2-8338-5a70-aae0-0a808d075e6e, document_key: hdfc_nri_account_opening, page: 1, quote: "Country of birth"}
+  - id: nri_mothers_maiden_name
+    title: Mother's maiden name
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    evidence:
+      - {chunk_id: a37c01f2-8338-5a70-aae0-0a808d075e6e, document_key: hdfc_nri_account_opening, page: 1, quote: "Mother's Maiden Name"}
+  - id: nri_overseas_address
+    title: Overseas address
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    evidence:
+      - {chunk_id: a37c01f2-8338-5a70-aae0-0a808d075e6e, document_key: hdfc_nri_account_opening, page: 1, quote: "OVERSEAS ADDRESS"}
+  - id: nri_email
+    title: E-mail address
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    evidence:
+      - {chunk_id: a37c01f2-8338-5a70-aae0-0a808d075e6e, document_key: hdfc_nri_account_opening, page: 1, quote: "E-mail ID"}
+  - id: nri_mobile
+    title: Mobile number
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    evidence:
+      - {chunk_id: a37c01f2-8338-5a70-aae0-0a808d075e6e, document_key: hdfc_nri_account_opening, page: 1, quote: "Mobile No."}
+  - id: nri_aadhaar_number
+    title: Aadhaar number (a field on the form)
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    topics: [aadhaar]
+    only_when_asked: true
+    note: The form has a field for an Aadhaar number. It does not establish that an Aadhaar number has to be given.
+    evidence:
+      - {chunk_id: a37c01f2-8338-5a70-aae0-0a808d075e6e, document_key: hdfc_nri_account_opening, page: 1, quote: "Aadhaar No."}
+  - id: nri_nominee
+    title: Nominee details, if you choose to make a nomination
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    condition: Yes, I/ We wish to nominate
+    topics: [nominee]
+    evidence:
+      - {chunk_id: b5497a8b-f838-525c-b14b-1b13c6bfb060, document_key: hdfc_nri_account_opening, page: 3, quote: "Yes, I/ We wish to nominate"}
+      - {chunk_id: 3b700903-da6c-57b6-892c-0416dbb4546e, document_key: hdfc_nri_account_opening, page: 3, quote: "Nominee Name"}
+  - id: nri_second_applicant
+    title: Details of the second applicant
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    when: {holding: [JOINT]}
+    evidence:
+      - {chunk_id: 3322b2d0-c699-5b02-88bd-59ce9a08b849, document_key: hdfc_nri_account_opening, page: 2, quote: "D) SECOND APPLICANT'S DETAILS / GUARDIAN (in case of minor account)"}
+  - id: nri_guardian
+    title: Details of the guardian, for an account opened for a minor
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    when: {minor: ["YES"]}
+    condition: in case of minor account
+    evidence:
+      - {chunk_id: 3322b2d0-c699-5b02-88bd-59ce9a08b849, document_key: hdfc_nri_account_opening, page: 2, quote: "D) SECOND APPLICANT'S DETAILS / GUARDIAN (in case of minor account)"}
+  - id: nri_nre_account_choice
+    title: Your choice of NRE Savings or NRE Current
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    accounts: [SAVINGS, CURRENT]
+    when: {nri_scheme: [NRE]}
+    evidence:
+      - {chunk_id: ac5d4793-795a-5b7f-8238-df6523e8d88a, document_key: hdfc_nri_account_opening, page: 3, quote: "NRE Savings NRE Current Select any one"}
+  - id: nri_nro_account_choice
+    title: Your choice of NRO Savings or NRO Current
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    accounts: [SAVINGS, CURRENT]
+    when: {nri_scheme: [NRO]}
+    evidence:
+      - {chunk_id: 042dfa85-1b9b-548f-9b0b-32e4263d7055, document_key: hdfc_nri_account_opening, page: 3, quote: "NRO Savings NRO Current"}
+  - id: nri_recurring_deposit_details
+    title: Recurring deposit amount and tenor
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    accounts: [RECURRING_DEPOSIT]
+    evidence:
+      - {chunk_id: 66c99a5c-b1ce-52a4-86ff-d5cf62682dd0, document_key: hdfc_nri_account_opening, page: 3, quote: "Deposit Amount Tenor Months"}
+  - id: nri_term_deposit_type
+    title: The type of term deposit (NRE FD or NRO FD)
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    accounts: [FIXED_DEPOSIT]
+    evidence:
+      - {chunk_id: 905c3f50-d152-5512-91fd-32e96f63ab2f, document_key: hdfc_nri_account_opening, page: 3, quote: "NRE FD NRO FD"}
+  - id: nri_fcnr_option
+    title: The FCNR deposit option on the form
+    kind: information
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    accounts: [FCNR_RFC]
+    condition: only face to face
+    evidence:
+      - {chunk_id: 905c3f50-d152-5512-91fd-32e96f63ab2f, document_key: hdfc_nri_account_opening, page: 3, quote: "FCNR (only face to face)"}
+
+  # Organisations: scanned opening form (every quote is OCR-uncertain stored text) ---------------
+  - id: org_form_60_61
+    ruling: org_form_60_61
+    title: Form 60/61, for existing customers
+    kind: document
+    scope: opening
+    categories: [SOLE_PROPRIETORSHIP, PARTNERSHIP_FIRM, LLP, COMPANY, TRUST, HUF, OTHER_ORGANISATION]
+    condition: for existing customers
+    topics: [form_60]
+    evidence:
+      - {chunk_id: 1c8150b4-c49f-5b26-9c14-a1a2c5535102, document_key: hdfc_non_individual_account_opening, page: 1, quote: "Form 60/61 attached for existing customers"}
+  - id: org_partnership_declaration
+    title: The declaration section for a partnership firm
+    kind: declaration
+    scope: opening
+    categories: [PARTNERSHIP_FIRM]
+    evidence:
+      - {chunk_id: 0609fd10-8280-501a-a00c-b4bbec51e1ca, document_key: hdfc_non_individual_account_opening, page: 2, quote: "Please fl in fora partnership firm"}
+  - id: org_huf_declaration
+    title: The declaration section for an HUF
+    kind: declaration
+    scope: opening
+    categories: [HUF]
+    evidence:
+      - {chunk_id: 0609fd10-8280-501a-a00c-b4bbec51e1ca, document_key: hdfc_non_individual_account_opening, page: 2, quote: "As our HUF firm wishes to open an ancount"}
+  - id: org_proprietorship_declaration
+    title: The declaration section for a sole proprietorship
+    kind: declaration
+    scope: opening
+    categories: [SOLE_PROPRIETORSHIP]
+    evidence:
+      - {chunk_id: 305d1ccb-08db-5311-a257-c576ffadf65c, document_key: hdfc_non_individual_account_opening, page: 2, quote: "Please fill in for a Sole Proprietorship Account"}
+  - id: org_type_of_entity
+    title: Type of entity
+    kind: information
+    scope: opening
+    categories: [SOLE_PROPRIETORSHIP, PARTNERSHIP_FIRM, LLP, COMPANY, TRUST, HUF, OTHER_ORGANISATION]
+    evidence:
+      - {chunk_id: 1a6efe5d-463c-50ec-8041-641d0ca7524e, document_key: hdfc_non_individual_account_opening, page: 1, quote: "Type of Entity"}
+  - id: org_signatory_details
+    title: Details of each authorised signatory
+    kind: information
+    scope: opening
+    categories: [SOLE_PROPRIETORSHIP, PARTNERSHIP_FIRM, LLP, COMPANY, TRUST, HUF, OTHER_ORGANISATION]
+    topics: [signatories]
+    evidence:
+      - {chunk_id: f51508ae-d9ec-5594-bd70-c0cada97e60a, document_key: hdfc_non_individual_account_opening, page: 2, quote: "Authorized Signatory Details"}
+  - id: org_signatory_pan_number
+    ruling: org_signatory_pan_number
+    title: PAN number of each authorised signatory or partner
+    kind: information
+    scope: opening
+    categories: [SOLE_PROPRIETORSHIP, PARTNERSHIP_FIRM, LLP, COMPANY, TRUST, HUF, OTHER_ORGANISATION]
+    topics: [pan]
+    note: The form has PAN number fields for signatories and partners. A number field does not establish that a copy of any PAN card has to be submitted.
+    evidence:
+      - {chunk_id: f51508ae-d9ec-5594-bd70-c0cada97e60a, document_key: hdfc_non_individual_account_opening, page: 2, quote: "PAN No."}
+      - {chunk_id: 600f4dd7-c142-5dc8-9b38-fd2d6fb00f61, document_key: hdfc_non_individual_account_opening, page: 2, quote: "PAN No"}
+  - id: org_mobile
+    title: Mobile number
+    kind: information
+    scope: opening
+    categories: [SOLE_PROPRIETORSHIP, PARTNERSHIP_FIRM, LLP, COMPANY, TRUST, HUF, OTHER_ORGANISATION]
+    evidence:
+      - {chunk_id: 1c8150b4-c49f-5b26-9c14-a1a2c5535102, document_key: hdfc_non_individual_account_opening, page: 1, quote: "Mobile No."}
+  - id: org_proprietorship_nominee
+    title: Nominee details, for a sole proprietorship
+    kind: information
+    scope: opening
+    categories: [SOLE_PROPRIETORSHIP]
+    condition: Applicable only for Sole Proprietorship
+    topics: [nominee]
+    evidence:
+      - {chunk_id: 748e7a3c-e35f-5912-8b78-aef7da5a9b49, document_key: hdfc_non_individual_account_opening, page: 1, quote: "Applicable only for Sole Proprietorship"}
+      - {chunk_id: 748e7a3c-e35f-5912-8b78-aef7da5a9b49, document_key: hdfc_non_individual_account_opening, page: 1, quote: "Personal Details of your Nominee"}
+
+  # Resident -> NRO conversion: only for the conversion request ----------------------------------
+  - id: conv_request
+    title: Your request to convert the resident account to an NRO account
+    kind: declaration
+    scope: conversion
+    evidence:
+      - {chunk_id: 361bc297-3a33-5149-ad1d-bf980cda19d7, document_key: hdfc_resident_to_nro_conversion, page: 1, quote: 'I/we hereby request you to convert my resident a\c to NRO a\c as I have become NRI'}
+  - id: conv_photo_first
+    title: Latest passport-size photograph of the first applicant
+    kind: document
+    scope: conversion
+    topics: [photograph]
+    note: The form names the photograph in its own words; it gives no further specification.
+    evidence:
+      - {chunk_id: c163bc13-1d72-5e33-966b-2fdcaefb9da8, document_key: hdfc_resident_to_nro_conversion, page: 3, quote: "1st Applicant's latest passport size photo"}
+  - id: conv_photo_second
+    title: Latest passport-size photograph of the second applicant
+    kind: document
+    scope: conversion
+    when: {holding: [JOINT]}
+    topics: [photograph]
+    note: The form names the photograph in its own words; it gives no further specification.
+    evidence:
+      - {chunk_id: 802155dd-cfeb-507e-bf20-42da56844794, document_key: hdfc_resident_to_nro_conversion, page: 3, quote: "2nd Applicant's latest passport size photo"}
+  - id: conv_form_60
+    title: Form 60, if you do not have a PAN
+    kind: document
+    scope: conversion
+    condition: If PAN not available
+    topics: [form_60, pan_not_available]
+    evidence:
+      - {chunk_id: 0bed9f1f-a1a9-56a6-ba92-dcb32ee1e4d7, document_key: hdfc_resident_to_nro_conversion, page: 1, quote: "If PAN not available, kindly attach Form 60"}
+  - id: conv_address_proof
+    title: Proof of address, of the type you tick on the form
+    kind: document
+    scope: conversion
+    topics: [address_proof]
+    evidence:
+      - {chunk_id: 0bed9f1f-a1a9-56a6-ba92-dcb32ee1e4d7, document_key: hdfc_resident_to_nro_conversion, page: 1, quote: "Attached Address Proof of"}
+  - id: conv_pan_number
+    title: PAN number
+    kind: information
+    scope: conversion
+    topics: [pan]
+    note: The form has a field for the PAN number. A number field does not establish that a copy of the PAN card has to be submitted.
+    evidence:
+      - {chunk_id: 0bed9f1f-a1a9-56a6-ba92-dcb32ee1e4d7, document_key: hdfc_resident_to_nro_conversion, page: 1, quote: "PAN No."}
+  - id: conv_passport_number
+    title: Passport number
+    kind: information
+    scope: conversion
+    topics: [passport]
+    evidence:
+      - {chunk_id: 0bed9f1f-a1a9-56a6-ba92-dcb32ee1e4d7, document_key: hdfc_resident_to_nro_conversion, page: 1, quote: "Passport No."}
+  - id: conv_nationality
+    title: Nationality
+    kind: information
+    scope: conversion
+    evidence:
+      - {chunk_id: 0bed9f1f-a1a9-56a6-ba92-dcb32ee1e4d7, document_key: hdfc_resident_to_nro_conversion, page: 1, quote: "Nationality"}
+  - id: conv_tax_residency
+    title: Country or countries of tax residency outside India
+    kind: information
+    scope: conversion
+    evidence:
+      - {chunk_id: 0bed9f1f-a1a9-56a6-ba92-dcb32ee1e4d7, document_key: hdfc_resident_to_nro_conversion, page: 1, quote: "Country / ies of Tax Residency (Outside India)"}
+  - id: conv_email
+    title: E-mail address
+    kind: information
+    scope: conversion
+    evidence:
+      - {chunk_id: 0bed9f1f-a1a9-56a6-ba92-dcb32ee1e4d7, document_key: hdfc_resident_to_nro_conversion, page: 1, quote: "E-mail ID"}
+  - id: conv_mobile
+    title: Mobile number
+    kind: information
+    scope: conversion
+    evidence:
+      - {chunk_id: 0bed9f1f-a1a9-56a6-ba92-dcb32ee1e4d7, document_key: hdfc_resident_to_nro_conversion, page: 1, quote: "Mobile No."}
+
+# --- could not be confirmed (Group C; classification `unconfirmed`) -----------------------------
+# Natural assumptions that no applicable source establishes. Never cited as evidence; `related`
+# names the item whose field the assumption comes from (shown for context only).
+not_confirmed:
+  - id: org_signatory_photograph
+    ruling: org_signatory_photograph
+    title: Photographs of authorised signatories
+    scope: opening
+    topics: [photograph]
+  - id: org_entity_pan_card_copy
+    ruling: org_entity_pan_card_copy
+    title: A copy of the organisation's PAN card
+    scope: opening
+    topics: [pan_card_copy]
+    related: [org_signatory_pan_number]
+  - id: nri_pan_card_copy
+    title: A copy of the PAN card
+    scope: opening
+    categories: [NRI_INDIVIDUAL]
+    topics: [pan_card_copy]
+    related: [nri_pan_number]
+    reason: The form asks for the PAN number. A number field does not establish that a copy of the PAN card has to be submitted, and no applicable HDFC Bank document asks for one (A1 §4 rule 1).
+  - id: conv_pan_card_copy
+    title: A copy of the PAN card
+    scope: conversion
+    topics: [pan_card_copy]
+    related: [conv_pan_number]
+    reason: The conversion form asks for the PAN number. A number field does not establish that a copy of the PAN card has to be submitted, and no applicable HDFC Bank document asks for one (A1 §4 rule 1).
+
+# --- fixed customer-facing wording for checklists (A1 §3, §7, §8) -------------------------------
+wording:
+  classification_labels:
+    policy_supported: Required by HDFC Bank policy
+    form_indicated: Asked for on the HDFC Bank form
+    unconfirmed: Could not be confirmed
+    legacy_reference: Older reference, not confirmed by HDFC Bank
+    unknown: Not found in the available documents
+  establishes:
+    document: The HDFC Bank form asks you to provide this.
+    declaration: The HDFC Bank form has this section for you to complete and sign.
+    information: The HDFC Bank form has a field for this.
+  does_not_establish: >-
+    This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements,
+    and it does not mean the item is mandatory.
+  unconfirmed_explanation: >-
+    No applicable HDFC Bank document in the corpus establishes this.
+  ocr_warning: Text read automatically from a scanned page; it may contain errors
+  caveats:
+    dated_source: "Source: {date_basis}. The current version has not been verified."
+    scanned_text: From a scanned form; the text may be inaccurate.
+    conditional: "The form states a condition: {condition}"
+  applies_if:
+    holding.JOINT: Applies if the account is held jointly.
+    holding.SINGLE: Applies if the account has a single holder.
+    minor.YES: Applies if the account is for a minor.
+    minor.NO: Applies if the account is not for a minor.
+    nri_scheme.NRE: Applies to an NRE account.
+    nri_scheme.NRO: Applies to an NRO account.
+  unknown_topics:
+    photograph: Photographs
+    pan: PAN
+    pan_card_copy: A copy of the PAN card
+    pan_not_available: Opening an account without a PAN
+    form_60: Form 60 / Form 61
+    passport: Passport
+    visa_or_status_proof: Visa or proof of NRI / PIO / OCI status
+    address_proof: Proof of address
+    identity_proof: Proof of identity
+    aadhaar: Aadhaar
+    signatories: Authorised signatories
+    nominee: Nominee
+  coverage_note: >-
+    This checklist is built only from the HDFC Bank form copies held in this prototype. It shows
+    what those forms ask for; it is not a confirmed statement of HDFC Bank's current requirements,
+    not an official HDFC Bank document and not a KYC approval.
+  fallback: I couldn't find this information in the available HDFC Bank documents. I don't want to give you an incorrect answer.
+  notice: These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply.
+  technical_error: I couldn't check the HDFC Bank documents just now. Please try again in a moment.
