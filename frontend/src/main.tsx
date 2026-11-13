@@ -7,11 +7,11 @@ import { App } from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./index.css";
 
-// Conservative defaults: one retry, no refetch on window focus (the backend is a local
-// prototype; state-changing calls are never retried implicitly).
+// Retries are bounded in the API client itself (transient failures only, same
+// Idempotency-Key), so React Query adds none; no refetch on window focus.
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, refetchOnWindowFocus: false },
+    queries: { retry: false, refetchOnWindowFocus: false },
     mutations: { retry: 0 },
   },
 });

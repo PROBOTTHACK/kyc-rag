@@ -86,7 +86,7 @@
 | S0 | Lock the plan and decisions; fix the docs discrepancies found in the readiness audit | this file, docs/00, 07, 09, 12, M4 closure report, handoff/01 | decisions recorded; docs state what is built | — |
 | S1 | Typed API contract: Pydantic response models on the existing routes, published in OpenAPI; a committed OpenAPI snapshot | `app/api/v1/schemas.py` (new), `sessions.py`, `health.py`, tests | every existing API test unchanged and green; each route's JSON is identical before and after (contract tests on real service output, including report v1 fixtures and v2); OpenAPI snapshot test; screening order unchanged; ruff, black, strict mypy clean | a response model that drops, renames or coerces a field; mitigated with `extra="forbid"` checks and byte-equality tests |
 | S2 | Frontend scaffold | `frontend/` (Vite + React + TS + Tailwind), Makefile `web`, `web-install`, `web-test`, `web-lint`, `web-types`, .gitignore, README prerequisites | pinned versions approved by the owner; `npm ci` reproducible from the lockfile; type check, lint and a smoke test pass; dev proxy `/api` → `:8000`; app shell with routing, error boundary and the persistent disclaimer | dependency footprint; Node version drift |
-| S3 | Typed client and SSE hook | `frontend/src/api/` | uses the types generated in S2 from the S1 snapshot (not hand-written); one `Idempotency-Key` per user action, reused on a network retry of that action; error envelope → fixed messages per code; SSE hook follows the docs/07 semantics (current-status `run` events, durable `node` events, close on terminal status, browser reconnect with `Last-Event-ID`); React Query for reads; unit tests for each | SSE close and reconnect edge cases |
+| S3 | Typed client and SSE hook | `frontend/src/api/` | uses the types generated in S2 from the S1 snapshot (not hand-written); one `Idempotency-Key` per user action, reused on a network retry of that action; error envelope → fixed messages per code; SSE hook follows the docs/07 semantics (current-status `run` events, durable `node` events, close on terminal status, reconnect with `Last-Event-ID`; read with `fetch`, not `EventSource`, see the S3 outcome); React Query for reads; unit tests for each | SSE close and reconnect edge cases |
 | S4 | KYC Assistant screen | `frontend/src/screens/assistant/` | create, submit, track, clarify and resume; Retry; every error code handled; the §E rules; loading, empty and error states; component tests with recorded fixtures | clarification UX; stale checkpoints |
 | S5 | Compliance Report and Review Cases screens | `frontend/src/screens/report/` | renders all 8 committed v1 fixtures (`backend/tests/fixtures/m3_reports_v1/`) and v2 fixtures (NLI off, and a scripted-enabled shape); §E rule tests (no "approved"/"rejected"/"no conflicts"; no "verified" with NLI off; applicability as stored); read-only review-cases list with no action controls | wording that overstates certainty |
 | S6 | Minimal Dashboard | `frontend/src/screens/dashboard/` | health panel (an outage shows as an error state); session list per M5-D4; demo-data labels; empty, loading and error states | M5-D4 risk |
@@ -189,3 +189,66 @@ M5 shows these as they are and fixes none of them.
 - **Smoke test:** `make api` + `make web`. The page is served; `/assistant` is served by the SPA fallback; `/api/v1/health` returns 200 through the proxy; `POST /api/v1/sessions` (`synthetic_demo`) returns 201 through the proxy. That left one synthetic session in the dev database, which `make purge` removes after it expires.
 - **Backend:** unchanged in S2.
 - **Line endings (found during S2 verification):** with `core.autocrlf=true`, a fresh Windows clone checked frontend files out as CRLF, and `make web-lint` failed there (Prettier and `check:api`) although it passed in the original working copy. `frontend/.gitattributes` (`* text=auto eol=lf`) fixes it. Verified on a fresh clone: `npm ci`, type-check, ESLint and Prettier, `check:api`, 15 tests and the build all pass.
+
+## S3 outcome (2026-11-13): typed API client, idempotency, SSE progress
+No backend change, no new endpoint, no new dependency, and no screen (the KYC Assistant is S4).
+
+**Client (`frontend/src/api/client.ts`):**
+- Functions exist for the existing routes only: `health`, `createSession`, `getSession`, `submitMessage`, `resume`, `retry`, `getReport`, `getReviewCases`, and the raw `fetchEvents` used by the stream.
+- Request and response types come from the generated contract; request bodies are derived from `paths[...]` in `types.ts` and not redeclared.
+- **Timeout:** every call has one (15 s).
+- **Bounded retries:**
+  - only for transient failures (no response, 502/503/504), at most 3 attempts with 500 ms then 1 s backoff;
+  - only for GETs and for POSTs carrying an `Idempotency-Key`, which are retried with the **same** key;
+  - `POST /sessions` has no key and is never retried.
+- React Query adds no retries of its own (`retry: false`).
+- **Health:** a 503 `degraded` response is returned as data, not thrown.
+
+**Errors (`errors.ts`):**
+- `ApiError` carries `status`, `code`, `categories` (code-shaped values only) and `retryAfter` (from the envelope or the `Retry-After` header).
+- Its `userMessage` is a fixed text per code. The server's message, the request body and user input are never copied into an error.
+- An unknown or malformed code becomes `UNKNOWN_ERROR`; a non-JSON error body becomes `BAD_RESPONSE`. Client-side codes: `NETWORK_ERROR`, `TIMEOUT`, `BAD_RESPONSE`, `UNKNOWN_ERROR`.
+
+**Idempotency (`idempotency.ts`, used by the mutation hooks):**
+- A new action gets a new key.
+- A retry of the same action (same endpoint, session and body, with key order ignored) after an unknown outcome (no response or 5xx) reuses its key.
+- The key is retired after success or a definitive 4xx.
+- So two separate `/retry` actions never share a key. This matters because the backend's retry hash covers only the session, so a reused key would replay the old response.
+- The fingerprint is held in memory only.
+
+**React Query (`hooks.ts`):**
+- `useHealth`, `useSession`, and `useReport` / `useReviewCases` (immutable reports: `staleTime: Infinity`).
+- Mutations: `useCreateSession`, `useSubmitMessage`, `useResume`, `useRetryRun`. They invalidate the session view when they settle.
+- An `ApiContext` lets tests inject a client.
+
+**SSE (`sse.ts`, `events.ts`, `useSessionEvents`).** The stream is read with `fetch` rather than `EventSource` (a deviation from the S3 row's original wording). A browser `EventSource` reconnects after every server close, so after a completed run it would reconnect every few seconds indefinitely. It also cannot send `Last-Event-ID` on a new connection and cannot be bounded. Reading with `fetch` gives:
+- **Applying events:** `node` events are durable and applied once (by event id, so replays never duplicate). `run` events are current-status only, so the latest wins (S7-D3).
+- **`Last-Event-ID`:** sent on every reconnect.
+- **Terminal close:** when the server closes with the latest run `completed`, `failed` or `abandoned`, the stream stays closed. `follow()` reopens it after a new message or retry and continues from the last id into the next run.
+- **Other ends:** an idle timeout, a dropped connection, a 5xx or a silent connection (no bytes for 45 s, three keep-alive intervals) reconnect with backoff of 1, 2, 4 and 8 s. After 5 consecutive failures the stream stops with an error, and `follow()` starts over.
+- **4xx:** e.g. `SESSION_NOT_FOUND`; the stream stops without retrying.
+- **Other details:**
+  - A connection that delivered anything resets the failure count.
+  - `stop()` and the watchdog cancel the reader explicitly.
+  - Events outside the contract (bad JSON, a kind mismatch, no id) are ignored.
+  - The parser reports only a message's own id, a deliberate difference from the EventSource spec, documented in `sse.ts`.
+- **The hook:** `useSessionEvents` refetches the session view on every run-status change (to get clarification questions or the report id) and closes the connection on unmount.
+- **Storage (M5-D4 still open):** nothing is written to browser storage; session ids and progress live in memory only.
+
+**Tests (Vitest; 52 in total, 37 new):**
+- `client.test.ts` (13): routes, methods and headers; the key only where the API defines it; the error envelope, fixed messages and no request input in errors; `retry_after`; malformed codes; non-JSON 502; same-key bounded retries; no retry of a 4xx, 500 or `POST /sessions`; timeout; caller cancellation.
+- `idempotency.test.tsx` (7): tracker rules and fingerprints; through the mutation hooks: a user's retry reuses the key, a new message gets a new one, a corrected answer is new, two run retries never share a key, and pending keys are per action.
+- `sse.test.ts` (4): the parser at every split point, with CRLF and CR, and multi-line data.
+- `events.test.ts` (10): replay to a terminal close with no reconnect; reconnect with `Last-Event-ID` after a non-terminal end, with duplicates ignored and the latest status winning; resume after a dropped connection; bounded failures with backoff and a manual restart; 5xx retried and 4xx not; a non-SSE response; the silence watchdog vs keep-alives; continuing into the next run; open with no run and `stop()`; malformed events.
+- `hooks.test.tsx` (3): session refetch on run-status changes only, cleanup on unmount, the query key.
+- Timing-dependent tests were run 6 times in a row, all green.
+
+**Live check (`make api` + `make web`, synthetic LLP question, no live LLM):**
+- **Streaming:** the stream opened through the Vite proxy before posting; events arrived 0.3 to 1.6 s after the post while the connection stayed open (the run paused for clarification), so the proxy streams and does not buffer.
+- **`Last-Event-ID`:** it passes through the proxy. `<run>.1` returned only seq 2 and the current status; the latest id returned nothing new.
+- **Unknown session:** returns the 404 envelope.
+- This left one more synthetic session in the dev database, removed by `make purge` after it expires.
+
+**Checks:**
+- **Frontend:** `make web-lint` (tsc, ESLint, Prettier, `check:api`), `make web-test` (52/52) and `make web-build` all pass.
+- **Backend (unchanged):** `make lint` is clean; `make test` gives 1,505 passed and 1 failed (K7, as before).
