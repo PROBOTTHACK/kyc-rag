@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { live } from "../test/fixtures/live";
+import recordedCompletedStream from "../test/fixtures/live/events_completed.txt?raw";
 import { envelope, nodeFrame, Pipe, runFrame, sseResponse, until } from "../test/http";
 import { MAX_CONSECUTIVE_FAILURES, SessionEventStream, type StreamDeps } from "./events";
 
@@ -209,6 +211,24 @@ describe("SessionEventStream", () => {
     await until(() => pipe.closed);
     expect(stream.getSnapshot().status).toBe("idle");
     expect(s.sent).toHaveLength(1);
+  });
+
+  it("replays a stream recorded from the real backend to a terminal close", async () => {
+    const recorded = live.sessionCompleted().workflow!;
+    const s = server(() => sseResponse(recordedCompletedStream));
+    const stream = new SessionEventStream(SID, s.deps);
+    stream.follow();
+    await stream.settled();
+    const snap = stream.getSnapshot();
+    expect(snap.status).toBe("closed");
+    expect(s.sent).toEqual([null]); // closed on the terminal status: no reconnect
+    expect(snap.runs).toHaveLength(1);
+    expect(snap.runs[0]!.runId).toBe(recorded.run_id);
+    expect(snap.runs[0]!.status).toBe("completed");
+    // the replay carries exactly the durable node events of the session view
+    expect(snap.runs[0]!.nodes.map((n) => [n.seq, n.node, n.status])).toEqual(
+      recorded.node_events.map((e) => [e.seq, e.node, e.status]),
+    );
   });
 
   it("ignores events outside the contract", async () => {
