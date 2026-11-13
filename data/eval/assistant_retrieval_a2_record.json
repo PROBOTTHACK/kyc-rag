@@ -1,0 +1,3956 @@
+[
+  {
+    "mode": "dense",
+    "k": 5,
+    "overall": {
+      "cases": 25,
+      "recall_at_k": 0.7333
+    },
+    "cases": [
+      {
+        "id": "a2-01",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 2,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "ac5d4793-795a-5b7f-8238-df6523e8d88a",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "3f56302b-2d02-53d8-8a3d-8e94a7904718",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "042dfa85-1b9b-548f-9b0b-32e4263d7055",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-02",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "042dfa85-1b9b-548f-9b0b-32e4263d7055",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "ac5d4793-795a-5b7f-8238-df6523e8d88a",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "3f56302b-2d02-53d8-8a3d-8e94a7904718",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-03",
+        "recall_at_k": 0.0,
+        "first_gold_rank": null,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "3f56302b-2d02-53d8-8a3d-8e94a7904718",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "bab254ef-246c-55dc-ac0c-9a891895882d",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "905c3f50-d152-5512-91fd-32e96f63ab2f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-04",
+        "recall_at_k": 0.0,
+        "first_gold_rank": null,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "bab254ef-246c-55dc-ac0c-9a891895882d",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "042dfa85-1b9b-548f-9b0b-32e4263d7055",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "905c3f50-d152-5512-91fd-32e96f63ab2f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "ac5d4793-795a-5b7f-8238-df6523e8d88a",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-05",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 5,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "3f56302b-2d02-53d8-8a3d-8e94a7904718",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "905c3f50-d152-5512-91fd-32e96f63ab2f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-06",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "bab254ef-246c-55dc-ac0c-9a891895882d",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "3f56302b-2d02-53d8-8a3d-8e94a7904718",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "767ffbbd-837e-5a7c-bea1-f4e3cac79666",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-07",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 2,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "9b3cf202-c120-5145-a694-28e99351941c",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "4259b9ff-b142-52fa-b84e-101d909baf3f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-08",
+        "recall_at_k": 0.0,
+        "first_gold_rank": null,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "bab254ef-246c-55dc-ac0c-9a891895882d",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "d553b42d-be54-5ad9-b8cd-9f6f1557b93a",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "3f56302b-2d02-53d8-8a3d-8e94a7904718",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-09",
+        "recall_at_k": 0.3333333333333333,
+        "first_gold_rank": 2,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "d6de91d9-4b64-51c8-be5e-49a5bd3b2ba7",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "905c3f50-d152-5512-91fd-32e96f63ab2f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-10",
+        "recall_at_k": 0.5,
+        "first_gold_rank": 2,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "e4a09bb4-5e18-5d7e-b00b-35848d4cb495",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "905c3f50-d152-5512-91fd-32e96f63ab2f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "6917713f-d6ca-5974-ab58-56aefd0074c9",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "3963b55f-c85f-5b3d-85a2-6cf6b413a530",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "7b897961-2b27-5b27-830e-d5c50a239433",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-11",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 2,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "66c99a5c-b1ce-52a4-86ff-d5cf62682dd0",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "905c3f50-d152-5512-91fd-32e96f63ab2f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "6dd04ba7-4dfb-55e5-884d-3e6b8523a8bb",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "042dfa85-1b9b-548f-9b0b-32e4263d7055",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-12",
+        "recall_at_k": 0.5,
+        "first_gold_rank": 2,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "ac5d4793-795a-5b7f-8238-df6523e8d88a",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "905c3f50-d152-5512-91fd-32e96f63ab2f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "3f56302b-2d02-53d8-8a3d-8e94a7904718",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "042dfa85-1b9b-548f-9b0b-32e4263d7055",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-13",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 5,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "042dfa85-1b9b-548f-9b0b-32e4263d7055",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "bab254ef-246c-55dc-ac0c-9a891895882d",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "905c3f50-d152-5512-91fd-32e96f63ab2f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "3b322915-275e-5384-a281-8618187d9f9e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 5,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-14",
+        "recall_at_k": 0.5,
+        "first_gold_rank": 4,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "4259b9ff-b142-52fa-b84e-101d909baf3f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "60eafe74-98db-5f80-8200-e31ca5a38fad",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-15",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "905c3f50-d152-5512-91fd-32e96f63ab2f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "042dfa85-1b9b-548f-9b0b-32e4263d7055",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "ac5d4793-795a-5b7f-8238-df6523e8d88a",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "c8b04783-8b2c-5d86-869d-03f53e34143e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-16",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 3,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "4259b9ff-b142-52fa-b84e-101d909baf3f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "f3ef2c76-0384-5403-94c0-cf9c729ee9af",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "767ffbbd-837e-5a7c-bea1-f4e3cac79666",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "b9b5b462-49b6-5fe4-8d46-02cb88736cfd",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-17",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "bf04945b-7dac-5a01-93de-a44f9414acaa",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "a830037e-f9ad-5b55-b5a1-05308807fef2",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "305d1ccb-08db-5311-a257-c576ffadf65c",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "1c8150b4-c49f-5b26-9c14-a1a2c5535102",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-18",
+        "recall_at_k": 0.6666666666666666,
+        "first_gold_rank": 2,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "0609fd10-8280-501a-a00c-b4bbec51e1ca",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "f51508ae-d9ec-5594-bd70-c0cada97e60a",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "bf04945b-7dac-5a01-93de-a44f9414acaa",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "600f4dd7-c142-5dc8-9b38-fd2d6fb00f61",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0eb1a4e9-90c1-5f82-bacd-631f5b98aa44",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-19",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "0609fd10-8280-501a-a00c-b4bbec51e1ca",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "f51508ae-d9ec-5594-bd70-c0cada97e60a",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "bf04945b-7dac-5a01-93de-a44f9414acaa",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "600f4dd7-c142-5dc8-9b38-fd2d6fb00f61",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-20",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 2,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "bf04945b-7dac-5a01-93de-a44f9414acaa",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "6d9cfaeb-844f-5880-a8ca-31981d9ab67d",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "1a6efe5d-463c-50ec-8041-641d0ca7524e",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0609fd10-8280-501a-a00c-b4bbec51e1ca",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-21",
+        "recall_at_k": 0.3333333333333333,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "1a6efe5d-463c-50ec-8041-641d0ca7524e",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "bf04945b-7dac-5a01-93de-a44f9414acaa",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0609fd10-8280-501a-a00c-b4bbec51e1ca",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "6d9cfaeb-844f-5880-a8ca-31981d9ab67d",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-22",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "a830037e-f9ad-5b55-b5a1-05308807fef2",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "f3f9a9cd-cfd6-5ea1-bbbf-9ad845c2dd38",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0eb1a4e9-90c1-5f82-bacd-631f5b98aa44",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "bf04945b-7dac-5a01-93de-a44f9414acaa",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-23",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "305d1ccb-08db-5311-a257-c576ffadf65c",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0609fd10-8280-501a-a00c-b4bbec51e1ca",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "bf04945b-7dac-5a01-93de-a44f9414acaa",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "1a6efe5d-463c-50ec-8041-641d0ca7524e",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "6d9cfaeb-844f-5880-a8ca-31981d9ab67d",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-24",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "bf04945b-7dac-5a01-93de-a44f9414acaa",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "305d1ccb-08db-5311-a257-c576ffadf65c",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "f51508ae-d9ec-5594-bd70-c0cada97e60a",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "600f4dd7-c142-5dc8-9b38-fd2d6fb00f61",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-25",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "1a6efe5d-463c-50ec-8041-641d0ca7524e",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0609fd10-8280-501a-a00c-b4bbec51e1ca",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "bf04945b-7dac-5a01-93de-a44f9414acaa",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "6d9cfaeb-844f-5880-a8ca-31981d9ab67d",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-26",
+        "recall_at_k": 0.5,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "bf04945b-7dac-5a01-93de-a44f9414acaa",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0eb1a4e9-90c1-5f82-bacd-631f5b98aa44",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "305d1ccb-08db-5311-a257-c576ffadf65c",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0720c6a3-787b-5911-8e11-ea9727f11831",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-27",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": false,
+        "top": []
+      },
+      {
+        "id": "a2-28",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": false,
+        "top": []
+      },
+      {
+        "id": "a2-29",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": false,
+        "top": []
+      },
+      {
+        "id": "a2-30",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": false,
+        "top": []
+      },
+      {
+        "id": "a2-31",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "1a47e28b-707c-53af-80f6-fd245a50bae1",
+            "document_key": "hdfc_resident_to_nro_conversion",
+            "page": 1,
+            "source_role": "conversion_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "361bc297-3a33-5149-ad1d-bf980cda19d7",
+            "document_key": "hdfc_resident_to_nro_conversion",
+            "page": 1,
+            "source_role": "conversion_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "e32b40b7-e464-5a27-bb7d-65f4376fab1e",
+            "document_key": "hdfc_resident_to_nro_conversion",
+            "page": 6,
+            "source_role": "conversion_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "30d50046-6420-5142-888b-d8ec67c4fb29",
+            "document_key": "hdfc_resident_to_nro_conversion",
+            "page": 6,
+            "source_role": "conversion_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "e4559230-8598-5618-9e04-465aaf9bdc77",
+            "document_key": "hdfc_resident_to_nro_conversion",
+            "page": 6,
+            "source_role": "conversion_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-32",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "932eff95-b707-549f-b432-b3e064dfc036",
+            "document_key": "hdfc_nri_rekyc",
+            "page": 3,
+            "source_role": "context",
+            "text_reliability": "ocr_reliable"
+          },
+          {
+            "chunk_id": "3d6f3390-f885-5a79-bb5e-e8c616edd631",
+            "document_key": "hdfc_nri_rekyc",
+            "page": 3,
+            "source_role": "context",
+            "text_reliability": "ocr_reliable"
+          },
+          {
+            "chunk_id": "03a2aea8-86ee-5b4f-8738-80248b0ef6c1",
+            "document_key": "hdfc_nri_rekyc",
+            "page": 3,
+            "source_role": "context",
+            "text_reliability": "ocr_reliable"
+          },
+          {
+            "chunk_id": "a50d12d1-4afb-5910-8b8f-71514df83d19",
+            "document_key": "hdfc_nri_rekyc",
+            "page": 3,
+            "source_role": "context",
+            "text_reliability": "ocr_reliable"
+          },
+          {
+            "chunk_id": "db2fad95-6fac-5dc9-a95d-97bc88538d5d",
+            "document_key": "hdfc_nri_rekyc",
+            "page": 1,
+            "source_role": "context",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-33",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "7e75bac0-8546-56b5-b42c-d0c6fe77aa78",
+            "document_key": "hdfc_resident_rekyc_dormant",
+            "page": 2,
+            "source_role": "context",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "0512902c-17dd-5c4d-ad7c-acfd1969d2ca",
+            "document_key": "hdfc_resident_rekyc_dormant",
+            "page": 2,
+            "source_role": "context",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "6acd70ed-3e03-526f-b575-f7441b8fb7eb",
+            "document_key": "hdfc_resident_rekyc_dormant",
+            "page": 1,
+            "source_role": "context",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "06d027cf-16ac-52a4-b245-6950a2904c88",
+            "document_key": "hdfc_resident_rekyc_dormant",
+            "page": 1,
+            "source_role": "context",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "ac308965-9f4f-579d-b4f0-5dddc031df28",
+            "document_key": "hdfc_resident_rekyc_dormant",
+            "page": 2,
+            "source_role": "context",
+            "text_reliability": "native"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "mode": "bm25",
+    "k": 5,
+    "overall": {
+      "cases": 25,
+      "recall_at_k": 0.6133
+    },
+    "cases": [
+      {
+        "id": "a2-01",
+        "recall_at_k": 0.5,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "ac5d4793-795a-5b7f-8238-df6523e8d88a",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "d6de91d9-4b64-51c8-be5e-49a5bd3b2ba7",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "c8b04783-8b2c-5d86-869d-03f53e34143e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "905c3f50-d152-5512-91fd-32e96f63ab2f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-02",
+        "recall_at_k": 0.5,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "042dfa85-1b9b-548f-9b0b-32e4263d7055",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "9ef22fc1-561a-5977-a505-908723982514",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 5,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "767ffbbd-837e-5a7c-bea1-f4e3cac79666",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "c8b04783-8b2c-5d86-869d-03f53e34143e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "d6de91d9-4b64-51c8-be5e-49a5bd3b2ba7",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-03",
+        "recall_at_k": 0.0,
+        "first_gold_rank": null,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "76cc3a74-df61-5b23-9f4a-dd3f77038ad1",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 5,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "60eafe74-98db-5f80-8200-e31ca5a38fad",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "7ea6131c-f35d-5b50-aeeb-aa24b2297e38",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 5,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-04",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 2,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "d6de91d9-4b64-51c8-be5e-49a5bd3b2ba7",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "4259b9ff-b142-52fa-b84e-101d909baf3f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "bab254ef-246c-55dc-ac0c-9a891895882d",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "e507094b-9d66-5653-881d-62382d061c16",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-05",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 3,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "52a140a1-4b8d-58da-8922-4eb9d9a5c1e2",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "4259b9ff-b142-52fa-b84e-101d909baf3f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "bab254ef-246c-55dc-ac0c-9a891895882d",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "94504e3d-b4a9-5dcf-95cd-7c9e250c6188",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-06",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "bab254ef-246c-55dc-ac0c-9a891895882d",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "4259b9ff-b142-52fa-b84e-101d909baf3f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "d6de91d9-4b64-51c8-be5e-49a5bd3b2ba7",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "09a68b39-8e29-5b15-80d3-60b680821513",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 5,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-07",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "4259b9ff-b142-52fa-b84e-101d909baf3f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "9b3cf202-c120-5145-a694-28e99351941c",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "bab254ef-246c-55dc-ac0c-9a891895882d",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "09a68b39-8e29-5b15-80d3-60b680821513",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 5,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-08",
+        "recall_at_k": 0.0,
+        "first_gold_rank": null,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "76cc3a74-df61-5b23-9f4a-dd3f77038ad1",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 5,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "d6de91d9-4b64-51c8-be5e-49a5bd3b2ba7",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "7ea6131c-f35d-5b50-aeeb-aa24b2297e38",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 5,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "767ffbbd-837e-5a7c-bea1-f4e3cac79666",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-09",
+        "recall_at_k": 0.3333333333333333,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "d6de91d9-4b64-51c8-be5e-49a5bd3b2ba7",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "5df7ca42-3b29-566c-b6ae-3d30af28caab",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "b5497a8b-f838-525c-b14b-1b13c6bfb060",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "4259b9ff-b142-52fa-b84e-101d909baf3f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-10",
+        "recall_at_k": 0.5,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "905c3f50-d152-5512-91fd-32e96f63ab2f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "e4a09bb4-5e18-5d7e-b00b-35848d4cb495",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "6917713f-d6ca-5974-ab58-56aefd0074c9",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "b5497a8b-f838-525c-b14b-1b13c6bfb060",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "9ef22fc1-561a-5977-a505-908723982514",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 5,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-11",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "66c99a5c-b1ce-52a4-86ff-d5cf62682dd0",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "6dd04ba7-4dfb-55e5-884d-3e6b8523a8bb",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "9ef22fc1-561a-5977-a505-908723982514",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 5,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "905c3f50-d152-5512-91fd-32e96f63ab2f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "7b897961-2b27-5b27-830e-d5c50a239433",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-12",
+        "recall_at_k": 0.5,
+        "first_gold_rank": 3,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "767ffbbd-837e-5a7c-bea1-f4e3cac79666",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "66c99a5c-b1ce-52a4-86ff-d5cf62682dd0",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "905c3f50-d152-5512-91fd-32e96f63ab2f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "bb27bd69-649f-50f7-83fd-1fd90fda2325",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "7b897961-2b27-5b27-830e-d5c50a239433",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-13",
+        "recall_at_k": 0.0,
+        "first_gold_rank": null,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "d6de91d9-4b64-51c8-be5e-49a5bd3b2ba7",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "bab254ef-246c-55dc-ac0c-9a891895882d",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "4259b9ff-b142-52fa-b84e-101d909baf3f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "d74ef8e8-633c-5ee5-a0c6-7cde596bd12b",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-14",
+        "recall_at_k": 0.5,
+        "first_gold_rank": 3,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "4259b9ff-b142-52fa-b84e-101d909baf3f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "52a140a1-4b8d-58da-8922-4eb9d9a5c1e2",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "76cc3a74-df61-5b23-9f4a-dd3f77038ad1",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 5,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-15",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "d553b42d-be54-5ad9-b8cd-9f6f1557b93a",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "ac5d4793-795a-5b7f-8238-df6523e8d88a",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "66c99a5c-b1ce-52a4-86ff-d5cf62682dd0",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "c8b04783-8b2c-5d86-869d-03f53e34143e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "9ef22fc1-561a-5977-a505-908723982514",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 5,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-16",
+        "recall_at_k": 0.0,
+        "first_gold_rank": null,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "4259b9ff-b142-52fa-b84e-101d909baf3f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "bab254ef-246c-55dc-ac0c-9a891895882d",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "09a68b39-8e29-5b15-80d3-60b680821513",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 5,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "36730a55-8aca-512f-8a93-5fef97fda37f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-17",
+        "recall_at_k": 0.0,
+        "first_gold_rank": null,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "34cff849-ba7a-5bdc-9508-05234c8843ac",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0609fd10-8280-501a-a00c-b4bbec51e1ca",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "7b25f7b4-fb14-5ed1-8cdc-e69011ef7652",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "1a6efe5d-463c-50ec-8041-641d0ca7524e",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-18",
+        "recall_at_k": 0.6666666666666666,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "600f4dd7-c142-5dc8-9b38-fd2d6fb00f61",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "f51508ae-d9ec-5594-bd70-c0cada97e60a",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "e9044d29-0381-5af6-aa31-f7f30a10dca0",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0609fd10-8280-501a-a00c-b4bbec51e1ca",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-19",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "600f4dd7-c142-5dc8-9b38-fd2d6fb00f61",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "f51508ae-d9ec-5594-bd70-c0cada97e60a",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "e9044d29-0381-5af6-aa31-f7f30a10dca0",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0609fd10-8280-501a-a00c-b4bbec51e1ca",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-20",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "0609fd10-8280-501a-a00c-b4bbec51e1ca",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "6d9cfaeb-844f-5880-a8ca-31981d9ab67d",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "34cff849-ba7a-5bdc-9508-05234c8843ac",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "1a6efe5d-463c-50ec-8041-641d0ca7524e",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-21",
+        "recall_at_k": 0.3333333333333333,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "1a6efe5d-463c-50ec-8041-641d0ca7524e",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "e4cf195f-c5e3-527d-bd12-0b0b7e9dd863",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "6d9cfaeb-844f-5880-a8ca-31981d9ab67d",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "7b25f7b4-fb14-5ed1-8cdc-e69011ef7652",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "34cff849-ba7a-5bdc-9508-05234c8843ac",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-22",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 3,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "f3f9a9cd-cfd6-5ea1-bbbf-9ad845c2dd38",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0eb1a4e9-90c1-5f82-bacd-631f5b98aa44",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "a830037e-f9ad-5b55-b5a1-05308807fef2",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "1c8150b4-c49f-5b26-9c14-a1a2c5535102",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-23",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "0609fd10-8280-501a-a00c-b4bbec51e1ca",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "1a6efe5d-463c-50ec-8041-641d0ca7524e",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "34cff849-ba7a-5bdc-9508-05234c8843ac",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "6d9cfaeb-844f-5880-a8ca-31981d9ab67d",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "305d1ccb-08db-5311-a257-c576ffadf65c",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-24",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "305d1ccb-08db-5311-a257-c576ffadf65c",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "1c8150b4-c49f-5b26-9c14-a1a2c5535102",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "6949a5c5-c2bc-5d1a-ab92-8fb4e5fab82c",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "1a6efe5d-463c-50ec-8041-641d0ca7524e",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-25",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "7b25f7b4-fb14-5ed1-8cdc-e69011ef7652",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "1a6efe5d-463c-50ec-8041-641d0ca7524e",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "34cff849-ba7a-5bdc-9508-05234c8843ac",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "e4cf195f-c5e3-527d-bd12-0b0b7e9dd863",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "6d9cfaeb-844f-5880-a8ca-31981d9ab67d",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-26",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "bf04945b-7dac-5a01-93de-a44f9414acaa",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0609fd10-8280-501a-a00c-b4bbec51e1ca",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "1c8150b4-c49f-5b26-9c14-a1a2c5535102",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0720c6a3-787b-5911-8e11-ea9727f11831",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-27",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": false,
+        "top": []
+      },
+      {
+        "id": "a2-28",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": false,
+        "top": []
+      },
+      {
+        "id": "a2-29",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": false,
+        "top": []
+      },
+      {
+        "id": "a2-30",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": false,
+        "top": []
+      },
+      {
+        "id": "a2-31",
+        "recall_at_k": 0.5,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "361bc297-3a33-5149-ad1d-bf980cda19d7",
+            "document_key": "hdfc_resident_to_nro_conversion",
+            "page": 1,
+            "source_role": "conversion_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "e32b40b7-e464-5a27-bb7d-65f4376fab1e",
+            "document_key": "hdfc_resident_to_nro_conversion",
+            "page": 6,
+            "source_role": "conversion_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "e4559230-8598-5618-9e04-465aaf9bdc77",
+            "document_key": "hdfc_resident_to_nro_conversion",
+            "page": 6,
+            "source_role": "conversion_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "30d50046-6420-5142-888b-d8ec67c4fb29",
+            "document_key": "hdfc_resident_to_nro_conversion",
+            "page": 6,
+            "source_role": "conversion_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "e589355a-1f86-54ec-aa1f-7566ea4adeab",
+            "document_key": "hdfc_resident_to_nro_conversion",
+            "page": 5,
+            "source_role": "conversion_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-32",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 2,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "3d6f3390-f885-5a79-bb5e-e8c616edd631",
+            "document_key": "hdfc_nri_rekyc",
+            "page": 3,
+            "source_role": "context",
+            "text_reliability": "ocr_reliable"
+          },
+          {
+            "chunk_id": "932eff95-b707-549f-b432-b3e064dfc036",
+            "document_key": "hdfc_nri_rekyc",
+            "page": 3,
+            "source_role": "context",
+            "text_reliability": "ocr_reliable"
+          },
+          {
+            "chunk_id": "98ea0cc9-b947-5aa1-a8d1-397895ad09f6",
+            "document_key": "hdfc_nri_rekyc",
+            "page": 3,
+            "source_role": "context",
+            "text_reliability": "ocr_reliable"
+          },
+          {
+            "chunk_id": "7014ffc0-e863-5080-92c2-4f14707dd335",
+            "document_key": "hdfc_nri_rekyc",
+            "page": 2,
+            "source_role": "context",
+            "text_reliability": "ocr_reliable"
+          },
+          {
+            "chunk_id": "f6751aa1-754b-504d-bc26-2e4c7d0076fa",
+            "document_key": "hdfc_nri_rekyc",
+            "page": 2,
+            "source_role": "context",
+            "text_reliability": "ocr_reliable"
+          }
+        ]
+      },
+      {
+        "id": "a2-33",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "7e75bac0-8546-56b5-b42c-d0c6fe77aa78",
+            "document_key": "hdfc_resident_rekyc_dormant",
+            "page": 2,
+            "source_role": "context",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "06d027cf-16ac-52a4-b245-6950a2904c88",
+            "document_key": "hdfc_resident_rekyc_dormant",
+            "page": 1,
+            "source_role": "context",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "0512902c-17dd-5c4d-ad7c-acfd1969d2ca",
+            "document_key": "hdfc_resident_rekyc_dormant",
+            "page": 2,
+            "source_role": "context",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "6acd70ed-3e03-526f-b575-f7441b8fb7eb",
+            "document_key": "hdfc_resident_rekyc_dormant",
+            "page": 1,
+            "source_role": "context",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "bfe48e0f-8463-5df7-ba46-973bd2460e88",
+            "document_key": "hdfc_resident_rekyc_dormant",
+            "page": 2,
+            "source_role": "context",
+            "text_reliability": "native"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "mode": "hybrid",
+    "k": 5,
+    "overall": {
+      "cases": 25,
+      "recall_at_k": 0.7933
+    },
+    "cases": [
+      {
+        "id": "a2-01",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "ac5d4793-795a-5b7f-8238-df6523e8d88a",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "3f56302b-2d02-53d8-8a3d-8e94a7904718",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "c8b04783-8b2c-5d86-869d-03f53e34143e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "905c3f50-d152-5512-91fd-32e96f63ab2f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-02",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "042dfa85-1b9b-548f-9b0b-32e4263d7055",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "ac5d4793-795a-5b7f-8238-df6523e8d88a",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "9ef22fc1-561a-5977-a505-908723982514",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 5,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-03",
+        "recall_at_k": 0.0,
+        "first_gold_rank": null,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "76cc3a74-df61-5b23-9f4a-dd3f77038ad1",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 5,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "4259b9ff-b142-52fa-b84e-101d909baf3f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-04",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 2,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "bab254ef-246c-55dc-ac0c-9a891895882d",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "d6de91d9-4b64-51c8-be5e-49a5bd3b2ba7",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-05",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 2,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "3f56302b-2d02-53d8-8a3d-8e94a7904718",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "4259b9ff-b142-52fa-b84e-101d909baf3f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "94504e3d-b4a9-5dcf-95cd-7c9e250c6188",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "bab254ef-246c-55dc-ac0c-9a891895882d",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-06",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "bab254ef-246c-55dc-ac0c-9a891895882d",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "4259b9ff-b142-52fa-b84e-101d909baf3f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "94504e3d-b4a9-5dcf-95cd-7c9e250c6188",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-07",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "9b3cf202-c120-5145-a694-28e99351941c",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "4259b9ff-b142-52fa-b84e-101d909baf3f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "bab254ef-246c-55dc-ac0c-9a891895882d",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-08",
+        "recall_at_k": 0.0,
+        "first_gold_rank": null,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "bab254ef-246c-55dc-ac0c-9a891895882d",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "d553b42d-be54-5ad9-b8cd-9f6f1557b93a",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "767ffbbd-837e-5a7c-bea1-f4e3cac79666",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "ac5d4793-795a-5b7f-8238-df6523e8d88a",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-09",
+        "recall_at_k": 0.3333333333333333,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "d6de91d9-4b64-51c8-be5e-49a5bd3b2ba7",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "4259b9ff-b142-52fa-b84e-101d909baf3f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "b5497a8b-f838-525c-b14b-1b13c6bfb060",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-10",
+        "recall_at_k": 0.5,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "905c3f50-d152-5512-91fd-32e96f63ab2f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "e4a09bb4-5e18-5d7e-b00b-35848d4cb495",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "6917713f-d6ca-5974-ab58-56aefd0074c9",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "7b897961-2b27-5b27-830e-d5c50a239433",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "9ef22fc1-561a-5977-a505-908723982514",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 5,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-11",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "66c99a5c-b1ce-52a4-86ff-d5cf62682dd0",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "6dd04ba7-4dfb-55e5-884d-3e6b8523a8bb",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "905c3f50-d152-5512-91fd-32e96f63ab2f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "9ef22fc1-561a-5977-a505-908723982514",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 5,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-12",
+        "recall_at_k": 0.5,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "905c3f50-d152-5512-91fd-32e96f63ab2f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "ac5d4793-795a-5b7f-8238-df6523e8d88a",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "66c99a5c-b1ce-52a4-86ff-d5cf62682dd0",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "3f56302b-2d02-53d8-8a3d-8e94a7904718",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "767ffbbd-837e-5a7c-bea1-f4e3cac79666",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-13",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 4,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "bab254ef-246c-55dc-ac0c-9a891895882d",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "d6de91d9-4b64-51c8-be5e-49a5bd3b2ba7",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "3b322915-275e-5384-a281-8618187d9f9e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 5,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "042dfa85-1b9b-548f-9b0b-32e4263d7055",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-14",
+        "recall_at_k": 0.5,
+        "first_gold_rank": 3,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "fa2aed72-b1c7-5f22-a45e-336fc2a76dc3",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "4259b9ff-b142-52fa-b84e-101d909baf3f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "60eafe74-98db-5f80-8200-e31ca5a38fad",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "76cc3a74-df61-5b23-9f4a-dd3f77038ad1",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 5,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-15",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "ac5d4793-795a-5b7f-8238-df6523e8d88a",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "905c3f50-d152-5512-91fd-32e96f63ab2f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "d553b42d-be54-5ad9-b8cd-9f6f1557b93a",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "c8b04783-8b2c-5d86-869d-03f53e34143e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 6,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "d4f03f81-b73a-58d2-bbcf-c06177ee3381",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 3,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-16",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 4,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "4259b9ff-b142-52fa-b84e-101d909baf3f",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "a37c01f2-8338-5a70-aae0-0a808d075e6e",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "f3ef2c76-0384-5403-94c0-cf9c729ee9af",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "767ffbbd-837e-5a7c-bea1-f4e3cac79666",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "bab254ef-246c-55dc-ac0c-9a891895882d",
+            "document_key": "hdfc_nri_account_opening",
+            "page": 4,
+            "source_role": "opening_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-17",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 3,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "a830037e-f9ad-5b55-b5a1-05308807fef2",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "1c8150b4-c49f-5b26-9c14-a1a2c5535102",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "bf04945b-7dac-5a01-93de-a44f9414acaa",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "7b25f7b4-fb14-5ed1-8cdc-e69011ef7652",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-18",
+        "recall_at_k": 0.6666666666666666,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "f51508ae-d9ec-5594-bd70-c0cada97e60a",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0609fd10-8280-501a-a00c-b4bbec51e1ca",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "600f4dd7-c142-5dc8-9b38-fd2d6fb00f61",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "e9044d29-0381-5af6-aa31-f7f30a10dca0",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-19",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "f51508ae-d9ec-5594-bd70-c0cada97e60a",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0609fd10-8280-501a-a00c-b4bbec51e1ca",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "600f4dd7-c142-5dc8-9b38-fd2d6fb00f61",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "e9044d29-0381-5af6-aa31-f7f30a10dca0",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-20",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "6d9cfaeb-844f-5880-a8ca-31981d9ab67d",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0609fd10-8280-501a-a00c-b4bbec51e1ca",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "1a6efe5d-463c-50ec-8041-641d0ca7524e",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "bf04945b-7dac-5a01-93de-a44f9414acaa",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-21",
+        "recall_at_k": 0.3333333333333333,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "1a6efe5d-463c-50ec-8041-641d0ca7524e",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "6d9cfaeb-844f-5880-a8ca-31981d9ab67d",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "bf04945b-7dac-5a01-93de-a44f9414acaa",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "e4cf195f-c5e3-527d-bd12-0b0b7e9dd863",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-22",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 2,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "f3f9a9cd-cfd6-5ea1-bbbf-9ad845c2dd38",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "a830037e-f9ad-5b55-b5a1-05308807fef2",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0eb1a4e9-90c1-5f82-bacd-631f5b98aa44",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "bf04945b-7dac-5a01-93de-a44f9414acaa",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-23",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "0609fd10-8280-501a-a00c-b4bbec51e1ca",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "305d1ccb-08db-5311-a257-c576ffadf65c",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "1a6efe5d-463c-50ec-8041-641d0ca7524e",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "6d9cfaeb-844f-5880-a8ca-31981d9ab67d",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "1c8150b4-c49f-5b26-9c14-a1a2c5535102",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-24",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "305d1ccb-08db-5311-a257-c576ffadf65c",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "1c8150b4-c49f-5b26-9c14-a1a2c5535102",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "1a6efe5d-463c-50ec-8041-641d0ca7524e",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0609fd10-8280-501a-a00c-b4bbec51e1ca",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-25",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "1a6efe5d-463c-50ec-8041-641d0ca7524e",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "34cff849-ba7a-5bdc-9508-05234c8843ac",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "6d9cfaeb-844f-5880-a8ca-31981d9ab67d",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "7b25f7b4-fb14-5ed1-8cdc-e69011ef7652",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-26",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "bf04945b-7dac-5a01-93de-a44f9414acaa",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "748e7a3c-e35f-5912-8b78-aef7da5a9b49",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0720c6a3-787b-5911-8e11-ea9727f11831",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "1c8150b4-c49f-5b26-9c14-a1a2c5535102",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 1,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          },
+          {
+            "chunk_id": "0609fd10-8280-501a-a00c-b4bbec51e1ca",
+            "document_key": "hdfc_non_individual_account_opening",
+            "page": 2,
+            "source_role": "opening_form",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-27",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": false,
+        "top": []
+      },
+      {
+        "id": "a2-28",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": false,
+        "top": []
+      },
+      {
+        "id": "a2-29",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": false,
+        "top": []
+      },
+      {
+        "id": "a2-30",
+        "recall_at_k": null,
+        "first_gold_rank": null,
+        "no_evidence_passed": true,
+        "searched": false,
+        "top": []
+      },
+      {
+        "id": "a2-31",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "361bc297-3a33-5149-ad1d-bf980cda19d7",
+            "document_key": "hdfc_resident_to_nro_conversion",
+            "page": 1,
+            "source_role": "conversion_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "e32b40b7-e464-5a27-bb7d-65f4376fab1e",
+            "document_key": "hdfc_resident_to_nro_conversion",
+            "page": 6,
+            "source_role": "conversion_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "e4559230-8598-5618-9e04-465aaf9bdc77",
+            "document_key": "hdfc_resident_to_nro_conversion",
+            "page": 6,
+            "source_role": "conversion_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "30d50046-6420-5142-888b-d8ec67c4fb29",
+            "document_key": "hdfc_resident_to_nro_conversion",
+            "page": 6,
+            "source_role": "conversion_form",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "1a47e28b-707c-53af-80f6-fd245a50bae1",
+            "document_key": "hdfc_resident_to_nro_conversion",
+            "page": 1,
+            "source_role": "conversion_form",
+            "text_reliability": "native"
+          }
+        ]
+      },
+      {
+        "id": "a2-32",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 2,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "3d6f3390-f885-5a79-bb5e-e8c616edd631",
+            "document_key": "hdfc_nri_rekyc",
+            "page": 3,
+            "source_role": "context",
+            "text_reliability": "ocr_reliable"
+          },
+          {
+            "chunk_id": "932eff95-b707-549f-b432-b3e064dfc036",
+            "document_key": "hdfc_nri_rekyc",
+            "page": 3,
+            "source_role": "context",
+            "text_reliability": "ocr_reliable"
+          },
+          {
+            "chunk_id": "03a2aea8-86ee-5b4f-8738-80248b0ef6c1",
+            "document_key": "hdfc_nri_rekyc",
+            "page": 3,
+            "source_role": "context",
+            "text_reliability": "ocr_reliable"
+          },
+          {
+            "chunk_id": "a50d12d1-4afb-5910-8b8f-71514df83d19",
+            "document_key": "hdfc_nri_rekyc",
+            "page": 3,
+            "source_role": "context",
+            "text_reliability": "ocr_reliable"
+          },
+          {
+            "chunk_id": "db2fad95-6fac-5dc9-a95d-97bc88538d5d",
+            "document_key": "hdfc_nri_rekyc",
+            "page": 1,
+            "source_role": "context",
+            "text_reliability": "ocr_uncertain"
+          }
+        ]
+      },
+      {
+        "id": "a2-33",
+        "recall_at_k": 1.0,
+        "first_gold_rank": 1,
+        "no_evidence_passed": null,
+        "searched": true,
+        "top": [
+          {
+            "chunk_id": "7e75bac0-8546-56b5-b42c-d0c6fe77aa78",
+            "document_key": "hdfc_resident_rekyc_dormant",
+            "page": 2,
+            "source_role": "context",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "0512902c-17dd-5c4d-ad7c-acfd1969d2ca",
+            "document_key": "hdfc_resident_rekyc_dormant",
+            "page": 2,
+            "source_role": "context",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "06d027cf-16ac-52a4-b245-6950a2904c88",
+            "document_key": "hdfc_resident_rekyc_dormant",
+            "page": 1,
+            "source_role": "context",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "6acd70ed-3e03-526f-b575-f7441b8fb7eb",
+            "document_key": "hdfc_resident_rekyc_dormant",
+            "page": 1,
+            "source_role": "context",
+            "text_reliability": "native"
+          },
+          {
+            "chunk_id": "bfe48e0f-8463-5df7-ba46-973bd2460e88",
+            "document_key": "hdfc_resident_rekyc_dormant",
+            "page": 2,
+            "source_role": "context",
+            "text_reliability": "native"
+          }
+        ]
+      }
+    ]
+  }
+]

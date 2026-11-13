@@ -67,7 +67,8 @@ Python 3.11+, FastAPI, Pydantic v2, SQLAlchemy 2 + Alembic, PostgreSQL, Redis (w
 - `make test` / `make test-integration` / `make lint`: backend checks
 - `make web` / `make web-install` / `make web-test` / `make web-lint` / `make web-build`: frontend
 - `make openapi` / `make web-types`: the published API contract and the generated frontend types
-- `make eval`: retrieval benchmark (legacy M1 set; the assistant's HDFC-only set arrives in A2)
+- `make eval`: retrieval benchmark (legacy M1 set)
+- `make assistant-eval [MODE=dense|bm25|hybrid|all]`: the assistant's HDFC-only retrieval evaluation (A2; `docs/assistant/A2_RETRIEVAL_EVAL.md`)
 
 ## Definition of done (every stage)
 Tests pass (known legacy baseline failures K7/K8 excepted and reported), lint clean, docs updated, no secrets committed, demo path documented.

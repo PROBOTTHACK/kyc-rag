@@ -34,6 +34,7 @@ DOCS = $(foreach d,$(DOC),--document $(d))
 .PHONY: api test test-integration lint fmt openapi
 .PHONY: web web-install web-test web-lint web-build web-types
 .PHONY: purge purge-dry check-workflow demo demo-live
+.PHONY: assistant-eval
 .PHONY: nli-check eval-claims eval-claims-select test-nli
 
 # Printed by make itself ($(info)), so it needs no shell and looks the same everywhere.
@@ -45,6 +46,7 @@ help:
 	$(info Ingestion: ingest ingest-dry persist index retry reconcile repair runs check-corpus)
 	$(info Forms:     forms [DOC="key ..."]  (then: cli forms list | show KEY))
 	$(info Retrieval: search Q="..."  eval  eval-compare  eval-select  check-dense-golden)
+	$(info Assistant: assistant-eval [MODE=dense|bm25|hybrid|all]  (A2, HDFC-only, read-only))
 	$(info Dev:       api test test-integration lint fmt openapi)
 	$(info Frontend:  web-install web web-test web-lint web-build web-types  (Node 26.13.1))
 	$(info Workflow:  purge purge-dry check-workflow demo demo-live  (demo needs `make api`))
@@ -171,6 +173,11 @@ eval-select:
 # to run again once data/eval/m2_heldout_results.json exists.
 eval-heldout:
 	$(CLI) evaluate --final-heldout --report data/processed/m2_heldout_report.md --record data/eval/m2_heldout_results.json
+
+# A2 assistant: HDFC-only retrieval evaluation (data/eval/assistant_retrieval.jsonl). Read-only.
+# MODE=dense (default) | bm25 | hybrid | all; `all` also rewrites the committed per-case record.
+assistant-eval:
+	cd $(BACKEND) && $(PY) -m app.assistant.eval --mode $(if $(MODE),$(MODE),dense) --report ../data/processed/assistant_retrieval_$(if $(MODE),$(MODE),dense)_report.md $(if $(filter all,$(MODE)),--record ../data/eval/assistant_retrieval_a2_record.json,)
 
 # M4 S4 claim verification (dev set only; the held-out set is refused). Models load from the
 # local Hugging Face cache at their pinned revisions; a first run downloads them (decision D12).
