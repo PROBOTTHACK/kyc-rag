@@ -1,0 +1,3 @@
+# Keep LF in the working tree on every platform (also with core.autocrlf=true on Windows):
+# Prettier checks for LF, and `npm run check:api` compares the generated types byte for byte.
+* text=auto eol=lf
