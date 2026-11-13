@@ -12,7 +12,7 @@
 | M1 Document ingestion | complete | merged into `main` (`d8d8b7b`) |
 | M2 Retrieval and form intelligence | complete | merged into `main` (`a288b09`) |
 | M3 LangGraph workflow | complete | merged into `main` (`5c3250d`) |
-| **M4 Claim verification and review** | **complete** | branch `feat/m4-s0-plan`, 14 commits on top of `main` (13 through S8, plus the S9 commit). **Not merged and not pushed**, pending the owner's decision. |
+| **M4 Claim verification and review** | **complete** | branch `feat/m4-s0-plan`, 14 commits on top of `main` (13 through S8, plus the S9 commit). At closure: not merged and not pushed, pending the owner's decision. **Update (2026-11-13, M5 S0):** merged into `main` (`0b65df0`) and pushed by the owner. |
 
 ## 2. M4 commit history (`main..feat/m4-s0-plan`)
 | Commit | Stage |
@@ -86,5 +86,5 @@ See [`docs/handoff/04-limitations-and-known-issues.md`](../handoff/04-limitation
 - [`M4_PLAN.md`](M4_PLAN.md): the locked plan and the per-stage outcomes S0–S9.
 
 ## 7. Owner actions after M4
-1. Review this closure, then decide whether to merge `feat/m4-s0-plan` into `main` and push. Neither was done in M4.
+1. Review this closure, then decide whether to merge `feat/m4-s0-plan` into `main` and push. Neither was done in M4. **Done after closure:** merged as `0b65df0` and pushed to `origin/main` (recorded in M5 S0).
 2. Optionally, run the test suite in an environment without `GROQ_DATA_TERMS_VERIFIED_ON`, to confirm K7 is environmental.

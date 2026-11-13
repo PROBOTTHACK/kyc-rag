@@ -1,5 +1,7 @@
 # 00 — Project Overview
 
+> This is the original project vision. Some planned parts were changed or not built: there is no regeneration loop (M4 decision D3), scores are uncalibrated signals and never "confidence" (M4 D4), NLI is disabled (no model qualified), and LangSmith is not implemented. For what exists, see [`docs/handoff/01-architecture-handoff.md`](handoff/01-architecture-handoff.md) and [`docs/handoff/04-limitations-and-known-issues.md`](handoff/04-limitations-and-known-issues.md).
+
 **Name:** Agentic KYC Compliance Engine (portfolio prototype; configured for HDFC Bank documents + RBI regulation)
 **Category:** Agentic AI · FinTech · Multimodal RAG · Document Intelligence
 

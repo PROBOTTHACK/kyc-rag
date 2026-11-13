@@ -2,7 +2,7 @@
 
 > **Independent educational prototype.** Not affiliated with, endorsed by, or an official system of HDFC Bank or the RBI. It uses public documents and synthetic data only. It never approves or rejects KYC and gives no legal or compliance determination. Every result requires human review.
 
-This document describes the system **as built at the close of M4** (branch `feat/m4-s0-plan`, 13 commits on top of `main`). The specification documents (`docs/00`–`docs/15`) also describe planned work. Where they differ, this handoff and the milestone handoffs are authoritative about what exists.
+This document describes the system **as built at the close of M4** (branch `feat/m4-s0-plan`, 14 commits on top of `main`; merged into `main` as `0b65df0` and pushed after closure). The specification documents (`docs/00`–`docs/15`) also describe planned work. Where they differ, this handoff and the milestone handoffs are authoritative about what exists.
 
 ## 1. Milestone history
 | Milestone | Delivered | Status | Record |
@@ -11,7 +11,7 @@ This document describes the system **as built at the close of M4** (branch `feat
 | **M1** Document ingestion | Manifest validation (SHA-256), PyMuPDF extraction, Tesseract OCR fallback, section-aware chunking (parent/child), evidence-eligibility and OCR-reliability policies, Postgres persistence, BGE-small embeddings, Qdrant index, reconciliation/repair, filtered dense search, Recall@5 benchmark | complete, merged (`d8d8b7b`) | `docs/milestones/M1_HANDOFF.md` |
 | **M2** Retrieval and form intelligence | BM25 and hybrid (RRF) retrieval, registered dev selection and one-time held-out evaluation (dense kept as default), optional cross-encoder reranker (off), deterministic form schemas, Gemini multimodal extraction of 5 approved public blank forms (live-gated), versioned `form_schemas`, Redis read-through cache | complete, merged (`a288b09`) | `docs/milestones/M2_HANDOFF.md` |
 | **M3** LangGraph workflow | Groq text-LLM layer (live-gated), rate limiter, LangGraph workflow (input screening, intake with clarification interrupt/resume, retrieval, form analysis, evidence association, synthesis, deterministic output validation, finalize), Postgres checkpointer, workflow API, leases, idempotency, SSE progress, insert-only reports, two-phase retention, acceptance checker, demo | complete, merged (`5c3250d`) | `docs/milestones/M3_HANDOFF.md` |
-| **M4** Claim verification and review | Claim and report-v2 models, deterministic verification foundation, owner-reviewed claim datasets, local NLI scorer and registered selection (no configuration qualified), `claim_verification` node (NLI disabled), bounded source-conflict scan and supersession rule, open review cases, M4 acceptance rules, real-corpus end-to-end tests | **complete** (S0–S9; not merged, not pushed) | `docs/milestones/M4_PLAN.md`, `docs/milestones/M4_CLOSURE_REPORT.md` |
+| **M4** Claim verification and review | Claim and report-v2 models, deterministic verification foundation, owner-reviewed claim datasets, local NLI scorer and registered selection (no configuration qualified), `claim_verification` node (NLI disabled), bounded source-conflict scan and supersession rule, open review cases, M4 acceptance rules, real-corpus end-to-end tests | **complete** (S0–S9), merged (`0b65df0`) | `docs/milestones/M4_PLAN.md`, `docs/milestones/M4_CLOSURE_REPORT.md` |
 
 ## 2. Components and responsibilities
 | Package (`backend/app/`) | Responsibility |

@@ -1,21 +1,24 @@
 # 07 — API Design (`/api/v1`)
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| POST | `/sessions` | Create session |
-| GET | `/sessions/{id}` | Get session |
-| POST | `/sessions/{id}/messages` | Submit query (starts graph) |
-| POST | `/sessions/{id}/resume` | Resume after clarification: structured enum answers + `checkpoint_id` only, no free text (M3 decision D7) |
-| POST | `/sessions/{id}/retry` | Explicitly resume a run whose lease expired after a crash, from its last checkpoint (M3) |
-| GET | `/sessions/{id}/events` | **SSE** progress stream |
-| POST | `/documents/upload` | Upload PDF |
-| GET | `/documents` , `/documents/{id}` | List / details |
-| POST | `/ingestion/run` | Enqueue ingestion job |
-| GET | `/reports/{id}` | Compliance report |
-| GET | `/reports/{id}/export` | PDF export (enhancement) |
-| GET | `/reviews` , POST `/reviews/{id}/decision` | Human review queue |
-| GET | `/observability/runs/{id}` | Node-level execution details |
-| GET | `/health` | Health (db, redis, qdrant). 200 when all ok, 503 `degraded` otherwise; per-check `ok`, `latency_ms`, `error` (exception class only, never URLs/credentials); each check times out after `HEALTH_CHECK_TIMEOUT_S` (default 2s) |
+> **Planned vs built.** The table below is the original plan. The **Status** column records what exists at the close of M4. Only the rows marked *built* exist. The others are not implemented, and M5 adds no endpoint (M5 decision M5-D2: response models on existing routes only). The authoritative contract is the "Workflow API as implemented" section below.
+
+| Method | Endpoint | Purpose | Status |
+|---|---|---|---|
+| POST | `/sessions` | Create session | built (M3) |
+| GET | `/sessions/{id}` | Get session | built (M3) |
+| POST | `/sessions/{id}/messages` | Submit query (starts graph) | built (M3) |
+| POST | `/sessions/{id}/resume` | Resume after clarification: structured enum answers + `checkpoint_id` only, no free text (M3 decision D7) | built (M3) |
+| POST | `/sessions/{id}/retry` | Explicitly resume a run whose lease expired after a crash, from its last checkpoint (M3) | built (M3) |
+| GET | `/sessions/{id}/events` | **SSE** progress stream | built (M3) |
+| POST | `/documents/upload` | Upload PDF | not built |
+| GET | `/documents` , `/documents/{id}` | List / details | not built |
+| POST | `/ingestion/run` | Enqueue ingestion job | not built (ingestion is CLI-only) |
+| GET | `/reports/{id}` | Compliance report | built (M3; v2 in M4) |
+| GET | `/reports/{id}/review-cases` | Open review cases (read-only) | built (M4 S7) |
+| GET | `/reports/{id}/export` | PDF export (enhancement) | not built |
+| GET | `/reviews` , POST `/reviews/{id}/decision` | Human review queue | not built; a decision route needs authentication (M4 D5, future security milestone) |
+| GET | `/observability/runs/{id}` | Node-level execution details | not built (M6) |
+| GET | `/health` | Health (db, redis, qdrant). 200 when all ok, 503 `degraded` otherwise; per-check `ok`, `latency_ms`, `error` (exception class only, never URLs/credentials); each check times out after `HEALTH_CHECK_TIMEOUT_S` (default 2s) | built (M0) |
 
 ## Workflow API as implemented (M3 S6; `app/api/v1/sessions.py`, `app/workflow/service.py`)
 | Method | Endpoint | Body | Success |
