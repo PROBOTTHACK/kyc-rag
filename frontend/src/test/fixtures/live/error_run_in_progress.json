@@ -1,0 +1,9 @@
+{
+  "status": 409,
+  "body": {
+    "error": {
+      "code": "RUN_IN_PROGRESS",
+      "message": "A workflow is already running or awaiting clarification in this session."
+    }
+  }
+}

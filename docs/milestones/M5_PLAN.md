@@ -252,3 +252,68 @@ No backend change, no new endpoint, no new dependency, and no screen (the KYC As
 **Checks:**
 - **Frontend:** `make web-lint` (tsc, ESLint, Prettier, `check:api`), `make web-test` (52/52) and `make web-build` all pass.
 - **Backend (unchanged):** `make lint` is clean; `make test` gives 1,505 passed and 1 failed (K7, as before).
+
+## S4 outcome (2026-11-14): KYC Assistant screen
+Built on the S3 client and hooks only. No backend change, no new endpoint, no new dependency. Report details (S5) and the Dashboard (S6) are not built here.
+
+**Screen (`frontend/src/screens/assistant/`):**
+- **Start:** creates a `synthetic_demo` session (the only kind the UI offers).
+- **Session:**
+  - The session id is held in memory by `AssistantSessionProvider` (`session.tsx`) above the routes, so opening the report and coming back keeps it.
+  - It is never written to browser storage, the URL or the page, and a reload forgets it (M5-D4 remains open).
+  - The event stream opens with the session, before the first question (docs/07).
+- **Question (`QuestionForm`):**
+  - The text box is cleared after a successful submit, and also after `SENSITIVE_DATA_DETECTED` so personal data does not stay on screen.
+  - Rejected text is never echoed or logged.
+  - "Try again" appears only after an unknown outcome and only while the text is unchanged, so it resends the same action with the same key.
+  - The client-side limit is 2,000 characters (the backend's default `QUERY_MAX_CHARS`).
+- **Progress (`ProgressTracker`):**
+  - shows the run status (an `aria-live` region) and the completed steps from the live stream, falling back to the session view's `node_events`;
+  - steps have readable labels; an `error:<Class>` step shows as "Stopped by an error", without the class name.
+- **Clarification (`ClarificationForm`):**
+  - Questions and options come only from the backend's `clarification`, rendered as radio groups with nothing pre-selected and no guessed answer. Option text is the enum value with underscores shown as spaces; the submitted value is unchanged.
+  - Every asked question must be answered before sending (an unanswered field would be asked again and use up a round). It shows "Round n of m".
+  - The form is keyed by `checkpoint_id`, so a new checkpoint always starts with empty answers.
+  - `STALE_CHECKPOINT`, `NOT_AWAITING_CLARIFICATION`, `RUN_IN_PROGRESS` and `SESSION_EXPIRED` reload the session view.
+  - A `null` clarification shows "could not be loaded" with a reload button.
+- **Result (`RunResult`):**
+  - Completed: the outcome label (neutral wording for all five outcomes; nothing approves, rejects or certifies), the human-review note, and a link to `/reports/{id}` (or "No report was stored"). Report details are S5.
+  - Failed: an explicit "Retry the run" (`POST /retry` with its own key). Lease-conflict errors show "try again in about N seconds"; `NOTHING_TO_RETRY` reloads the session. A new question is also possible.
+  - Abandoned: explained, and a new question is possible.
+- **Expired session (status `expired`, or a 410 on a write):** inputs are hidden, with an offer to start a new session.
+- **Unknown session (404):** the same offer.
+- **Connection notices:** "reconnecting (attempt n)" while the stream retries. "Live progress is unavailable" after it gives up, with Reconnect and Refresh buttons; only the error code is shown.
+- **Messages:** all errors use the fixed per-code messages from S3 (`ErrorNotice`).
+
+**Fixtures (`frontend/src/test/fixtures/`):**
+- **Recorded:** `live/*.json` and `live/events_completed.txt` were recorded from the real backend (dev corpus, no live LLM, synthetic LLP question) by a one-off script.
+  - Every server UUID was replaced by a stable fake one.
+  - The question text and the rejected synthetic PAN appear nowhere in them; the backend never echoes input.
+  - Recorded states and errors: session created / no run / awaiting clarification (`entity_type` and `account_type`, with the real option lists) / completed (DEGRADED, 11 steps), the report and its review cases, and the errors `RUN_IN_PROGRESS`, `STALE_CHECKPOINT`, `INVALID_ANSWER`, `SENSITIVE_DATA_DETECTED` (message and resume), `NOTHING_TO_RETRY` and `SESSION_NOT_FOUND`.
+- **Derived:** shapes that cannot be produced on demand are derived from the recorded ones in `live.ts` and labelled: a failed run, an expired session, a 410, a lease-valid `RUN_IN_PROGRESS` with `retry_after`, a new checkpoint, an unreadable clarification.
+- **Error parsing:** test errors go through the real `errorFromResponse`.
+
+**Tests:**
+- `AssistantPage.test.tsx` (14) runs the real `App` (disclaimer, routes, in-memory session), hooks, idempotency tracker and SSE stream; only the network is replaced. It covers:
+  - a `synthetic_demo` session, with the disclaimer always visible and the id never shown;
+  - the whole flow (question → live steps → clarification with exactly the backend's options → resume body → result and report link), with the box cleared after submit, the question text not echoed, and no approval or rejection wording;
+  - a stale checkpoint (reload, answers cleared, the next resume uses the new checkpoint);
+  - an invalid answer; `RUN_IN_PROGRESS`; `SENSITIVE_DATA_DETECTED` (cleared, never in the page or in any console call, no "Try again");
+  - a 410 expiry;
+  - "Try again" reusing the key;
+  - a failed-run retry (the error class is hidden) and the lease-valid retry message;
+  - an unreadable clarification; an unknown session;
+  - reconnecting and unavailable live-progress states with a manual reconnect;
+  - session kept across navigation to the report and back.
+- `App.test.tsx`: the S2 shell tests now render inside a React Query provider (the assistant needs one). Their assertions are unchanged.
+
+**Checks:**
+- **Frontend:** `make web-lint`, `make web-test` (66/66, 3 consecutive runs) and `make web-build` pass.
+- **Backend (unchanged; no backend file modified):** `make lint` is clean; `make test` gives 1,505 passed and 1 failed (K7).
+
+**Known issues and limits (S4):**
+- **A crashed run can't be recovered from the UI yet.** A run left `running` by a server crash, with its lease expired, can be recovered by `POST /retry`, but the UI offers Retry only for `failed` runs; until the lease expires the backend refuses anyway (409 with `Retry-After`). The screen shows the run as in progress, and the live-progress notice offers Reconnect and Refresh. This is left to the owner (S7 or later).
+- **Session is lost on reload** (memory only), until M5-D4 is decided.
+- **Character limit:** the 2,000-character limit is the backend default; the server enforces its own configured value.
+- **No browser run in S4:** the screen has not been driven in a real browser yet. The full flow is covered by component tests on recorded responses, the live SSE path was verified through the proxy in S3, and the manual browser demo is S7.
+- **Dev database:** recording the fixtures left synthetic sessions there (removed by `make purge` after they expire).

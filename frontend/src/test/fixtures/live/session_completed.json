@@ -1,0 +1,86 @@
+{
+  "status": 200,
+  "body": {
+    "session_id": "00000000-0000-4000-8000-000000000002",
+    "status": "active",
+    "data_class": "synthetic_demo",
+    "expires_at": "2026-11-14T18:21:31.387007+00:00",
+    "workflow": {
+      "run_id": "00000000-0000-4000-8000-000000000001",
+      "thread_id": "00000000-0000-4000-8000-000000000001",
+      "status": "completed",
+      "started_at": "2026-11-13T18:21:31.443307+00:00",
+      "finished_at": "2026-11-13T18:21:33.489826+00:00",
+      "node_events": [
+        {
+          "at": "2026-11-13T18:21:31.584547+00:00",
+          "seq": 1,
+          "node": "input_security",
+          "status": "completed"
+        },
+        {
+          "at": "2026-11-13T18:21:31.598914+00:00",
+          "seq": 2,
+          "node": "entity_intake",
+          "status": "completed"
+        },
+        {
+          "at": "2026-11-13T18:21:32.537534+00:00",
+          "seq": 3,
+          "node": "clarify",
+          "status": "completed"
+        },
+        {
+          "at": "2026-11-13T18:21:32.551024+00:00",
+          "seq": 4,
+          "node": "input_security",
+          "status": "completed"
+        },
+        {
+          "at": "2026-11-13T18:21:32.562958+00:00",
+          "seq": 5,
+          "node": "entity_intake",
+          "status": "completed"
+        },
+        {
+          "at": "2026-11-13T18:21:32.779945+00:00",
+          "seq": 6,
+          "node": "policy_retrieval",
+          "status": "completed"
+        },
+        {
+          "at": "2026-11-13T18:21:32.87485+00:00",
+          "seq": 7,
+          "node": "form_analysis",
+          "status": "completed"
+        },
+        {
+          "at": "2026-11-13T18:21:32.898886+00:00",
+          "seq": 8,
+          "node": "evidence_association",
+          "status": "completed"
+        },
+        {
+          "at": "2026-11-13T18:21:32.90979+00:00",
+          "seq": 9,
+          "node": "compliance_synthesis",
+          "status": "completed"
+        },
+        {
+          "at": "2026-11-13T18:21:32.921856+00:00",
+          "seq": 10,
+          "node": "output_validation",
+          "status": "completed"
+        },
+        {
+          "at": "2026-11-13T18:21:33.456641+00:00",
+          "seq": 11,
+          "node": "finalize",
+          "status": "completed"
+        }
+      ],
+      "report_id": "00000000-0000-4000-8000-000000000004",
+      "outcome": "DEGRADED"
+    }
+  }
+}

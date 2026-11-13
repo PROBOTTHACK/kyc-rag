@@ -1,0 +1,74 @@
+{
+  "status": 200,
+  "body": {
+    "report_version": 1,
+    "report_id": "00000000-0000-4000-8000-000000000004",
+    "session_id": "00000000-0000-4000-8000-000000000002",
+    "run_id": "00000000-0000-4000-8000-000000000001",
+    "outcome": "DEGRADED",
+    "human_review_required": true,
+    "notice": "Decision support only. Not a KYC decision. Not claim-verified (M4).",
+    "disclaimer": "Independent educational prototype. Not affiliated with, endorsed by, or an official system of HDFC Bank.",
+    "user_message": "Part of the processing did not complete normally (llm), so this result may be incomplete. I don't have sufficient verified information in my available knowledge base to answer this query. Please visit https://www.hdfcbank.com/ or contact HDFC Bank customer service for accurate information.\n\nIndependent educational prototype. Not affiliated with, endorsed by, or an official system of HDFC Bank.",
+    "profile": {
+      "residency": {
+        "value": null,
+        "source": "unknown"
+      },
+      "entity_type": {
+        "value": "LLP",
+        "source": "user_answered"
+      },
+      "account_type": {
+        "value": "CURRENT_ACCOUNT",
+        "source": "user_answered"
+      }
+    },
+    "missing_fields": [],
+    "evidence_status": "partial",
+    "gaps": [
+      "no_entity_specific_primary_evidence",
+      "primary_evidence_only_via_entity_group"
+    ],
+    "checklist": null,
+    "dropped_requirements": 0,
+    "unresolved_items": [
+      "no_entity_specific_primary_evidence",
+      "primary_evidence_only_via_entity_group"
+    ],
+    "findings": [],
+    "degradations": [
+      {
+        "component": "llm",
+        "reason": "not_configured"
+      },
+      {
+        "component": "llm",
+        "reason": "not_configured"
+      }
+    ],
+    "forms": [
+      {
+        "form_key": "hdfc_non_individual_account_opening",
+        "method": "gemini_multimodal",
+        "version": 2,
+        "flags": [
+          "ambiguous_required_markers",
+          "multimodal_model_output",
+          "repeated_labels",
+          "scanned_document",
+          "uncorroborated_fields",
+          "fields_capped"
+        ],
+        "fields_analysed": 60,
+        "subset_only": true
+      }
+    ],
+    "security_reasons": [],
+    "verification": "not_claim_verified",
+    "claim_verification": null,
+    "verification_meta": null,
+    "unverified_items": [],
+    "source_conflicts": []
+  }
+}

@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
@@ -7,10 +8,14 @@ import { App } from "./App";
 import { DISCLAIMER } from "./components/Disclaimer";
 
 function renderAt(path: string) {
+  // The assistant (S4) reads server state, so the shell needs the React Query provider.
+  // No request is made: no screen fetches anything until the user acts.
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <App />
-    </MemoryRouter>,
+    <QueryClientProvider client={new QueryClient()}>
+      <MemoryRouter initialEntries={[path]}>
+        <App />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 

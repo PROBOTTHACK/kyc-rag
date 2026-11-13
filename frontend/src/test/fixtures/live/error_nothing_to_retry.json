@@ -1,0 +1,9 @@
+{
+  "status": 409,
+  "body": {
+    "error": {
+      "code": "NOTHING_TO_RETRY",
+      "message": "There is no interrupted workflow to retry."
+    }
+  }
+}

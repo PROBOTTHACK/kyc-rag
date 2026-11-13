@@ -1,0 +1,9 @@
+{
+  "status": 422,
+  "body": {
+    "error": {
+      "code": "INVALID_ANSWER",
+      "message": "Answer only the questions asked, with one of the listed options."
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "status": 409,
+  "body": {
+    "error": {
+      "code": "STALE_CHECKPOINT",
+      "message": "The question you answered is no longer the current one."
+    }
+  }
+}

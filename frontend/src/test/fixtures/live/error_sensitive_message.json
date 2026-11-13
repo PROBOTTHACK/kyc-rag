@@ -1,0 +1,12 @@
+{
+  "status": 422,
+  "body": {
+    "error": {
+      "code": "SENSITIVE_DATA_DETECTED",
+      "message": "The request contains sensitive personal data and was not processed. Use synthetic data only.",
+      "categories": [
+        "pan"
+      ]
+    }
+  }
+}

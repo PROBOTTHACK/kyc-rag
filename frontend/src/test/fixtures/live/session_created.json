@@ -1,0 +1,9 @@
+{
+  "status": 201,
+  "body": {
+    "session_id": "00000000-0000-4000-8000-000000000002",
+    "status": "active",
+    "data_class": "synthetic_demo",
+    "expires_at": "2026-11-14T18:21:31.387007+00:00"
+  }
+}

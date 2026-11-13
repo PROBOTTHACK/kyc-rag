@@ -1,0 +1,48 @@
+id: 00000000-0000-4000-8000-000000000001.1
+event: node
+data: {"kind":"node","run_id":"00000000-0000-4000-8000-000000000001","seq":1,"node":"input_security","status":"completed","at":"2026-11-13T18:21:31.584547+00:00"}
+
+id: 00000000-0000-4000-8000-000000000001.2
+event: node
+data: {"kind":"node","run_id":"00000000-0000-4000-8000-000000000001","seq":2,"node":"entity_intake","status":"completed","at":"2026-11-13T18:21:31.598914+00:00"}
+
+id: 00000000-0000-4000-8000-000000000001.3
+event: node
+data: {"kind":"node","run_id":"00000000-0000-4000-8000-000000000001","seq":3,"node":"clarify","status":"completed","at":"2026-11-13T18:21:32.537534+00:00"}
+
+id: 00000000-0000-4000-8000-000000000001.4
+event: node
+data: {"kind":"node","run_id":"00000000-0000-4000-8000-000000000001","seq":4,"node":"input_security","status":"completed","at":"2026-11-13T18:21:32.551024+00:00"}
+
+id: 00000000-0000-4000-8000-000000000001.5
+event: node
+data: {"kind":"node","run_id":"00000000-0000-4000-8000-000000000001","seq":5,"node":"entity_intake","status":"completed","at":"2026-11-13T18:21:32.562958+00:00"}
+
+id: 00000000-0000-4000-8000-000000000001.6
+event: node
+data: {"kind":"node","run_id":"00000000-0000-4000-8000-000000000001","seq":6,"node":"policy_retrieval","status":"completed","at":"2026-11-13T18:21:32.779945+00:00"}
+
+id: 00000000-0000-4000-8000-000000000001.7
+event: node
+data: {"kind":"node","run_id":"00000000-0000-4000-8000-000000000001","seq":7,"node":"form_analysis","status":"completed","at":"2026-11-13T18:21:32.87485+00:00"}
+
+id: 00000000-0000-4000-8000-000000000001.8
+event: node
+data: {"kind":"node","run_id":"00000000-0000-4000-8000-000000000001","seq":8,"node":"evidence_association","status":"completed","at":"2026-11-13T18:21:32.898886+00:00"}
+
+id: 00000000-0000-4000-8000-000000000001.9
+event: node
+data: {"kind":"node","run_id":"00000000-0000-4000-8000-000000000001","seq":9,"node":"compliance_synthesis","status":"completed","at":"2026-11-13T18:21:32.90979+00:00"}
+
+id: 00000000-0000-4000-8000-000000000001.10
+event: node
+data: {"kind":"node","run_id":"00000000-0000-4000-8000-000000000001","seq":10,"node":"output_validation","status":"completed","at":"2026-11-13T18:21:32.921856+00:00"}
+
+id: 00000000-0000-4000-8000-000000000001.11
+event: node
+data: {"kind":"node","run_id":"00000000-0000-4000-8000-000000000001","seq":11,"node":"finalize","status":"completed","at":"2026-11-13T18:21:33.456641+00:00"}
+
+id: 00000000-0000-4000-8000-000000000001.11.completed
+event: run
+data: {"kind":"run","run_id":"00000000-0000-4000-8000-000000000001","seq":null,"node":null,"status":"completed","at":"2026-11-13T18:21:33.489826+00:00"}
+
