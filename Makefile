@@ -30,7 +30,7 @@ DOCS = $(foreach d,$(DOC),--document $(d))
 .DEFAULT_GOAL := help
 .PHONY: help venv install install-locked lock up down migrate check-schema ingest ingest-dry
 .PHONY: persist index retry reconcile repair runs forms search check-corpus eval eval-compare eval-select eval-heldout check-dense-golden
-.PHONY: api test test-integration lint fmt web
+.PHONY: api test test-integration lint fmt web openapi
 .PHONY: purge purge-dry check-workflow demo demo-live
 .PHONY: nli-check eval-claims eval-claims-select test-nli
 
@@ -43,7 +43,7 @@ help:
 	$(info Ingestion: ingest ingest-dry persist index retry reconcile repair runs check-corpus)
 	$(info Forms:     forms [DOC="key ..."]  (then: cli forms list | show KEY))
 	$(info Retrieval: search Q="..."  eval  eval-compare  eval-select  check-dense-golden)
-	$(info Dev:       api test test-integration lint fmt)
+	$(info Dev:       api test test-integration lint fmt openapi)
 	$(info Workflow:  purge purge-dry check-workflow demo demo-live  (demo needs `make api`))
 	$(info Claims:    nli-check [N=N1]  eval-claims N=N2 TE=0.9 TC=0.9  eval-claims-select  test-nli  (dev set only))
 	$(info )
@@ -139,6 +139,10 @@ test:
 
 test-integration:
 	cd $(BACKEND) && $(PY) -m pytest -m integration
+
+# M5 S1: regenerate the published API contract (docs/api/openapi.json); a unit test checks it.
+openapi:
+	cd $(BACKEND) && $(PY) -m app.api.openapi
 
 lint:
 	cd $(BACKEND) && $(PY) -m ruff check . && $(PY) -m black --check . && $(PY) -m mypy app

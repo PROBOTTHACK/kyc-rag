@@ -1,0 +1,2731 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Agentic KYC Compliance Engine",
+    "version": "0.0.1"
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health",
+        "operationId": "health_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "At least one check failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sessions": {
+      "post": {
+        "tags": [
+          "workflow"
+        ],
+        "summary": "Create Session",
+        "operationId": "create_session_api_v1_sessions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data_class": {
+                    "type": "string",
+                    "enum": [
+                      "synthetic_demo",
+                      "unspecified"
+                    ],
+                    "title": "Data Class",
+                    "description": "Use synthetic_demo for demo data. The body may be omitted.",
+                    "default": "unspecified"
+                  }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "CreateSessionRequest"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "201": {
+            "description": "Created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sessions/{session_id}": {
+      "get": {
+        "tags": [
+          "workflow"
+        ],
+        "summary": "Get Session",
+        "operationId": "get_session_api_v1_sessions__session_id__get",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The session.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionView"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sessions/{session_id}/messages": {
+      "post": {
+        "tags": [
+          "workflow"
+        ],
+        "summary": "Post Message",
+        "operationId": "post_message_api_v1_sessions__session_id__messages_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Required. Reuse the same key to retry the same request safely (at most 200 chars).",
+              "title": "Idempotency-Key"
+            },
+            "description": "Required. Reuse the same key to retry the same request safely (at most 200 chars)."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "The run started (or was replayed).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "message": {
+                    "description": "The question. Synthetic data only.",
+                    "minLength": 1,
+                    "title": "Message",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "message"
+                ],
+                "title": "MessageRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sessions/{session_id}/resume": {
+      "post": {
+        "tags": [
+          "workflow"
+        ],
+        "summary": "Post Resume",
+        "operationId": "post_resume_api_v1_sessions__session_id__resume_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Required. Reuse the same key to retry the same request safely (at most 200 chars).",
+              "title": "Idempotency-Key"
+            },
+            "description": "Required. Reuse the same key to retry the same request safely (at most 200 chars)."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "The run started (or was replayed).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "checkpoint_id": {
+                    "description": "The current `workflow.clarification.checkpoint_id` (a lowercase UUID).",
+                    "title": "Checkpoint Id",
+                    "type": "string"
+                  },
+                  "answers": {
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "description": "One entry per asked question: `{field: one of its options}`.",
+                    "title": "Answers",
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "checkpoint_id",
+                  "answers"
+                ],
+                "title": "ResumeRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sessions/{session_id}/retry": {
+      "post": {
+        "tags": [
+          "workflow"
+        ],
+        "summary": "Post Retry",
+        "operationId": "post_retry_api_v1_sessions__session_id__retry_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Required. Reuse the same key to retry the same request safely (at most 200 chars).",
+              "title": "Idempotency-Key"
+            },
+            "description": "Required. Reuse the same key to retry the same request safely (at most 200 chars)."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "The run started (or was replayed).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunAccepted"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "description": "An empty object. The body may be omitted.",
+                "properties": {},
+                "title": "RetryRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{report_id}": {
+      "get": {
+        "tags": [
+          "workflow"
+        ],
+        "summary": "Get Report",
+        "operationId": "get_report_api_v1_reports__report_id__get",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The stored report (v1 or v2).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplianceReport"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/{report_id}/review-cases": {
+      "get": {
+        "tags": [
+          "workflow"
+        ],
+        "summary": "Get Review Cases",
+        "description": "M4 S7: open review cases (read-only; no decision or status route exists).",
+        "operationId": "get_review_cases_api_v1_reports__report_id__review_cases_get",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Open review cases (read-only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewCasesResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sessions/{session_id}/events": {
+      "get": {
+        "tags": [
+          "workflow"
+        ],
+        "summary": "Session Events",
+        "description": "Server-sent progress events (M3 S7): node events (durable, replayable) and run\ncurrent-status events, read from PostgreSQL; Redis only wakes the stream up.\nReconnect with `Last-Event-ID` to continue without gaps or duplicates.",
+        "operationId": "session_events_api_v1_sessions__session_id__events_get",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Last-Event-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`text/event-stream`. Each `data:` line is one ProgressEvent (event `node` or `run`); `id:` is the event id for Last-Event-ID.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgressEvent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Applicability": {
+        "type": "string",
+        "enum": [
+          "MANDATORY",
+          "CONDITIONAL",
+          "OPTIONAL",
+          "UNCLEAR"
+        ],
+        "title": "Applicability",
+        "description": "Status of a *requirement* (docs/03 `applicability`). Used from M3; never on chunks."
+      },
+      "AtomicClaim": {
+        "properties": {
+          "claim_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Claim Id"
+          },
+          "requirement_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Requirement Id"
+          },
+          "claim_type": {
+            "$ref": "#/components/schemas/ClaimType"
+          },
+          "asserted_strength": {
+            "type": "string",
+            "enum": [
+              "unconditional",
+              "conditional",
+              "none"
+            ],
+            "title": "Asserted Strength"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "template_version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template Version"
+          },
+          "source_sentence_index": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Sentence Index"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "claim_id",
+          "requirement_id",
+          "claim_type",
+          "asserted_strength",
+          "text"
+        ],
+        "title": "AtomicClaim",
+        "description": "One checkable proposition. Typed claims come from a versioned template; explanatory\nclaims are verbatim model sentences (never user words)."
+      },
+      "CheckResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "latency_ms": {
+            "type": "number",
+            "title": "Latency Ms"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "latency_ms"
+        ],
+        "title": "CheckResult"
+      },
+      "Citation": {
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "title": "Evidence Id"
+          },
+          "document_key": {
+            "type": "string",
+            "title": "Document Key"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Page"
+          },
+          "page_end": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page End"
+          },
+          "paragraph": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paragraph"
+          },
+          "match_scope": {
+            "type": "string",
+            "enum": [
+              "entity",
+              "entity_group"
+            ],
+            "title": "Match Scope"
+          },
+          "evidence_eligibility": {
+            "$ref": "#/components/schemas/EvidenceEligibility"
+          },
+          "text_reliability": {
+            "$ref": "#/components/schemas/TextReliability"
+          },
+          "source_status": {
+            "$ref": "#/components/schemas/SourceStatus"
+          },
+          "can_support_mandatory": {
+            "type": "boolean",
+            "title": "Can Support Mandatory"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "evidence_id",
+          "document_key",
+          "page",
+          "match_scope",
+          "evidence_eligibility",
+          "text_reliability",
+          "source_status",
+          "can_support_mandatory"
+        ],
+        "title": "Citation",
+        "description": "A cited stored chunk, copied from Postgres (never from model output)."
+      },
+      "ClaimType": {
+        "type": "string",
+        "enum": [
+          "policy_obligation",
+          "form_request",
+          "supporting_statement",
+          "explanatory_claim"
+        ],
+        "title": "ClaimType"
+      },
+      "ClaimVerdict": {
+        "properties": {
+          "claim_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Claim Id"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "supported",
+              "insufficient",
+              "contradicted",
+              "conflicting",
+              "not_verified"
+            ],
+            "title": "Verdict"
+          },
+          "best_evidence_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Evidence Id"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Reason Codes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "claim_id",
+          "verdict"
+        ],
+        "title": "ClaimVerdict"
+      },
+      "ComplianceReport": {
+        "properties": {
+          "report_version": {
+            "type": "integer",
+            "enum": [
+              1,
+              2
+            ],
+            "title": "Report Version",
+            "default": 1
+          },
+          "report_id": {
+            "type": "string",
+            "title": "Report Id"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/Outcome"
+          },
+          "human_review_required": {
+            "type": "boolean",
+            "const": true,
+            "title": "Human Review Required",
+            "default": true
+          },
+          "notice": {
+            "type": "string",
+            "enum": [
+              "Decision support only. Not a KYC decision. Not claim-verified (M4).",
+              "Decision support only. Not a KYC decision. Where shown, claims were checked against the cited text by an automated model; this is not a legal determination."
+            ],
+            "title": "Notice",
+            "default": "Decision support only. Not a KYC decision. Not claim-verified (M4)."
+          },
+          "disclaimer": {
+            "type": "string",
+            "title": "Disclaimer",
+            "default": "Independent educational prototype. Not affiliated with, endorsed by, or an official system of HDFC Bank."
+          },
+          "user_message": {
+            "type": "string",
+            "title": "User Message"
+          },
+          "profile": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ProfileSummary"
+            },
+            "type": "object",
+            "title": "Profile"
+          },
+          "missing_fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Fields"
+          },
+          "evidence_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "found",
+                  "partial",
+                  "none",
+                  "retrieval_failed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Status"
+          },
+          "gaps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Gaps"
+          },
+          "checklist": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ValidatedRequirement"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checklist"
+          },
+          "dropped_requirements": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Dropped Requirements",
+            "default": 0
+          },
+          "unresolved_items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unresolved Items"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationFinding"
+            },
+            "type": "array",
+            "title": "Findings"
+          },
+          "degradations": {
+            "items": {
+              "$ref": "#/components/schemas/Degradation"
+            },
+            "type": "array",
+            "title": "Degradations"
+          },
+          "forms": {
+            "items": {
+              "$ref": "#/components/schemas/FormSummary"
+            },
+            "type": "array",
+            "title": "Forms"
+          },
+          "security_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Security Reasons"
+          },
+          "verification": {
+            "type": "string",
+            "enum": [
+              "not_claim_verified",
+              "claim_check_ran",
+              "claim_check_partial",
+              "claim_check_failed"
+            ],
+            "title": "Verification",
+            "default": "not_claim_verified"
+          },
+          "claim_verification": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RequirementVerification"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claim Verification"
+          },
+          "verification_meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerificationMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "unverified_items": {
+            "items": {
+              "$ref": "#/components/schemas/UnverifiedItem"
+            },
+            "type": "array",
+            "title": "Unverified Items"
+          },
+          "source_conflicts": {
+            "items": {
+              "$ref": "#/components/schemas/SourceConflict"
+            },
+            "type": "array",
+            "title": "Source Conflicts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "report_id",
+          "outcome",
+          "user_message"
+        ],
+        "title": "ComplianceReport",
+        "description": "One report per run (M3_PLAN §5). Every report requires human review; no field can\nexpress an approval or rejection. Holds codes and stored-source citations only:\nnever the question text, quoted user words or matched sensitive text.\n\nVersions (M4_PLAN §I): `report_version` 1 is every M3 report (stored rows have no such\nkey, so it defaults to 1) and must keep validating unchanged; 2 is M4. A v1 report can\ncarry no M4 field; a v2 report's verification fields must agree with each other."
+      },
+      "ConflictSide": {
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Evidence Id"
+          },
+          "document_key": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Document Key"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Page"
+          },
+          "page_end": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page End"
+          },
+          "window_start": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Window Start"
+          },
+          "window_end": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Window End"
+          },
+          "source_status": {
+            "$ref": "#/components/schemas/SourceStatus"
+          },
+          "evidence_eligibility": {
+            "$ref": "#/components/schemas/EvidenceEligibility"
+          },
+          "cited": {
+            "type": "boolean",
+            "title": "Cited"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "evidence_id",
+          "document_key",
+          "page",
+          "window_start",
+          "window_end",
+          "source_status",
+          "evidence_eligibility",
+          "cited"
+        ],
+        "title": "ConflictSide",
+        "description": "One side of a source conflict: provenance and window offsets only (no text)."
+      },
+      "Degradation": {
+        "properties": {
+          "component": {
+            "type": "string",
+            "enum": [
+              "retrieval",
+              "rerank",
+              "forms",
+              "llm",
+              "rate_limiter",
+              "events",
+              "verification"
+            ],
+            "title": "Component"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "component",
+          "reason"
+        ],
+        "title": "Degradation"
+      },
+      "DocumentType": {
+        "type": "string",
+        "enum": [
+          "regulatory",
+          "policy",
+          "form",
+          "annexure",
+          "reference"
+        ],
+        "title": "DocumentType",
+        "description": "docs/04 Step 0 categories (docs/14 calls the field `category`)."
+      },
+      "ErrorDetail": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "A stable error code, e.g. SESSION_NOT_FOUND."
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "A fixed, safe message. Never contains request input."
+          },
+          "categories": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categories",
+            "description": "Screening category codes; only on SENSITIVE_DATA_DETECTED and INPUT_REJECTED."
+          },
+          "retry_after": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry After",
+            "description": "Seconds until a retry may succeed; only on some RUN_IN_PROGRESS errors (also sent as the Retry-After header)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorDetail"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse",
+        "description": "Every error: `{\"error\": {\"code\", \"message\", ...}}`."
+      },
+      "EvidenceEligibility": {
+        "type": "string",
+        "enum": [
+          "primary",
+          "supporting",
+          "context_only"
+        ],
+        "title": "EvidenceEligibility",
+        "description": "Whether retrieval may use a document's chunks as compliance evidence (filter, not rank)."
+      },
+      "EvidenceJudgement": {
+        "properties": {
+          "claim_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Claim Id"
+          },
+          "evidence_id": {
+            "type": "string",
+            "title": "Evidence Id"
+          },
+          "document_key": {
+            "type": "string",
+            "title": "Document Key"
+          },
+          "document_type": {
+            "$ref": "#/components/schemas/DocumentType"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Page"
+          },
+          "page_end": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page End"
+          },
+          "window_chunk_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Window Chunk Id"
+          },
+          "window_start": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Window Start"
+          },
+          "window_end": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Window End"
+          },
+          "evidence_role": {
+            "$ref": "#/components/schemas/EvidenceRole"
+          },
+          "evidence_eligibility": {
+            "$ref": "#/components/schemas/EvidenceEligibility"
+          },
+          "match_scope": {
+            "type": "string",
+            "enum": [
+              "entity",
+              "entity_group"
+            ],
+            "title": "Match Scope"
+          },
+          "text_reliability": {
+            "$ref": "#/components/schemas/TextReliability"
+          },
+          "source_status": {
+            "$ref": "#/components/schemas/SourceStatus"
+          },
+          "can_support_mandatory": {
+            "type": "boolean",
+            "title": "Can Support Mandatory"
+          },
+          "analysis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StatementAnalysis"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "logits": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logits"
+          },
+          "probs": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Probs"
+          },
+          "score_semantics": {
+            "type": "string",
+            "const": "softmax_of_logits_uncalibrated",
+            "title": "Score Semantics",
+            "default": "softmax_of_logits_uncalibrated"
+          },
+          "not_scored_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Scored Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "claim_id",
+          "evidence_id",
+          "document_key",
+          "document_type",
+          "page",
+          "window_start",
+          "window_end",
+          "evidence_role",
+          "evidence_eligibility",
+          "match_scope",
+          "text_reliability",
+          "source_status",
+          "can_support_mandatory"
+        ],
+        "title": "EvidenceJudgement",
+        "description": "One (claim, cited chunk) result. Provenance is copied from the stored chunk; scores\nare the best window's raw logits and their softmax, in `NLI_LABELS` order."
+      },
+      "EvidenceRole": {
+        "type": "string",
+        "enum": [
+          "primary_policy",
+          "form",
+          "supporting_reference"
+        ],
+        "title": "EvidenceRole",
+        "description": "What a cited chunk may support, derived from stored metadata (`evidence_role`)."
+      },
+      "FormSummary": {
+        "properties": {
+          "form_key": {
+            "type": "string",
+            "title": "Form Key"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "m1_chunks",
+              "gemini_multimodal"
+            ],
+            "title": "Method"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          },
+          "flags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Flags"
+          },
+          "fields_analysed": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Fields Analysed"
+          },
+          "subset_only": {
+            "type": "boolean",
+            "title": "Subset Only"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "form_key",
+          "method",
+          "version",
+          "fields_analysed",
+          "subset_only"
+        ],
+        "title": "FormSummary"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "title": "Status"
+          },
+          "checks": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CheckResult"
+            },
+            "type": "object",
+            "title": "Checks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "checks"
+        ],
+        "title": "HealthResponse"
+      },
+      "LinkKind": {
+        "type": "string",
+        "enum": [
+          "same_chunk",
+          "same_section",
+          "topic_match"
+        ],
+        "title": "LinkKind",
+        "description": "How a form field relates to a policy passage. A relationship, never an obligation\n(M3_PLAN §7): links are not citations and never establish MANDATORY."
+      },
+      "NodeEvent": {
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Seq",
+            "description": "Gap-free per run, starting at 1."
+          },
+          "node": {
+            "type": "string",
+            "title": "Node",
+            "description": "A graph node name, or `error:<ExceptionClass>`."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "failed",
+              "recovered"
+            ],
+            "title": "Status"
+          },
+          "at": {
+            "type": "string",
+            "title": "At",
+            "description": "ISO 8601 timestamp."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "seq",
+          "node",
+          "status",
+          "at"
+        ],
+        "title": "NodeEvent"
+      },
+      "Outcome": {
+        "type": "string",
+        "enum": [
+          "BLOCKED",
+          "INSUFFICIENT_INFORMATION",
+          "INSUFFICIENT_EVIDENCE",
+          "DEGRADED",
+          "CHECKLIST_REVIEW_REQUIRED"
+        ],
+        "title": "Outcome",
+        "description": "The single outcome of a report, in precedence order (highest first)."
+      },
+      "PendingClarification": {
+        "properties": {
+          "checkpoint_id": {
+            "type": "string",
+            "title": "Checkpoint Id",
+            "description": "Send back unchanged with POST /resume."
+          },
+          "round": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round"
+          },
+          "max_rounds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Rounds"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/Question"
+            },
+            "type": "array",
+            "title": "Questions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "checkpoint_id",
+          "round",
+          "max_rounds",
+          "questions"
+        ],
+        "title": "PendingClarification"
+      },
+      "ProfileSummary": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "user_stated",
+              "user_answered",
+              "unknown"
+            ],
+            "title": "Source"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value",
+          "source"
+        ],
+        "title": "ProfileSummary",
+        "description": "A profile value and its source for the report (never the user's own words)."
+      },
+      "Question": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "enum": [
+              "entity_type",
+              "residency",
+              "account_type"
+            ],
+            "title": "Field"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Options"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "missing",
+              "ambiguous",
+              "rejected"
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "field",
+          "text",
+          "options",
+          "reason"
+        ],
+        "title": "Question",
+        "description": "One targeted clarification question with its closed set of answers."
+      },
+      "RelatedField": {
+        "properties": {
+          "form_key": {
+            "type": "string",
+            "title": "Form Key"
+          },
+          "field_label": {
+            "type": "string",
+            "title": "Field Label"
+          },
+          "link_kind": {
+            "$ref": "#/components/schemas/LinkKind"
+          },
+          "note": {
+            "type": "string",
+            "const": "related form field (relationship only)",
+            "title": "Note",
+            "default": "related form field (relationship only)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "form_key",
+          "field_label",
+          "link_kind"
+        ],
+        "title": "RelatedField",
+        "description": "A form field linked (S4) to a cited passage: a relationship, never an obligation."
+      },
+      "RequirementVerification": {
+        "properties": {
+          "requirement_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Requirement Id"
+          },
+          "claims": {
+            "items": {
+              "$ref": "#/components/schemas/AtomicClaim"
+            },
+            "type": "array",
+            "maxItems": 12,
+            "title": "Claims"
+          },
+          "judgements": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceJudgement"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Judgements"
+          },
+          "verdicts": {
+            "items": {
+              "$ref": "#/components/schemas/ClaimVerdict"
+            },
+            "type": "array",
+            "maxItems": 12,
+            "title": "Verdicts"
+          },
+          "requirement_verdict": {
+            "type": "string",
+            "enum": [
+              "supported",
+              "supported_weaker_than_asserted",
+              "partially_supported",
+              "unsupported",
+              "contradicted",
+              "conflicting",
+              "not_verified"
+            ],
+            "title": "Requirement Verdict"
+          },
+          "applicability_before": {
+            "$ref": "#/components/schemas/Applicability"
+          },
+          "applicability_after": {
+            "$ref": "#/components/schemas/Applicability"
+          },
+          "review_flags": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "contradicted",
+                "conflicting_sources",
+                "unsupported",
+                "mandatory_not_established",
+                "explanation_overstates_source",
+                "not_verified"
+              ]
+            },
+            "type": "array",
+            "title": "Review Flags"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requirement_id",
+          "requirement_verdict",
+          "applicability_before",
+          "applicability_after"
+        ],
+        "title": "RequirementVerification",
+        "description": "All of M4's work on one validated requirement, and its downgrade-only effect."
+      },
+      "ReviewCase": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "requirement_id": {
+            "type": "string",
+            "title": "Requirement Id"
+          },
+          "claim_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claim Id",
+            "description": "Always null in M4."
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "contradicted",
+              "conflicting_sources",
+              "unsupported",
+              "mandatory_not_established",
+              "explanation_overstates_source",
+              "not_verified"
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "type": "string",
+            "const": "open",
+            "title": "Status",
+            "description": "Review cases are open-only (M4 D5)."
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At",
+            "description": "ISO 8601 timestamp."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "requirement_id",
+          "claim_id",
+          "reason",
+          "status",
+          "created_at"
+        ],
+        "title": "ReviewCase"
+      },
+      "ReviewCasesResponse": {
+        "properties": {
+          "report_id": {
+            "type": "string",
+            "title": "Report Id"
+          },
+          "review_cases": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewCase"
+            },
+            "type": "array",
+            "title": "Review Cases"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "report_id",
+          "review_cases"
+        ],
+        "title": "ReviewCasesResponse",
+        "description": "Read-only. No decision, approval, rejection or resolution route exists."
+      },
+      "RunAccepted": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "status": {
+            "type": "string",
+            "const": "running",
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "session_id",
+          "run_id",
+          "status"
+        ],
+        "title": "RunAccepted"
+      },
+      "RunStatus": {
+        "type": "string",
+        "enum": [
+          "running",
+          "awaiting_clarification",
+          "completed",
+          "failed",
+          "abandoned"
+        ],
+        "title": "RunStatus"
+      },
+      "SessionCreated": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "expired"
+            ],
+            "title": "Status"
+          },
+          "data_class": {
+            "type": "string",
+            "enum": [
+              "synthetic_demo",
+              "unspecified"
+            ],
+            "title": "Data Class"
+          },
+          "expires_at": {
+            "type": "string",
+            "title": "Expires At",
+            "description": "ISO 8601 timestamp."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "session_id",
+          "status",
+          "data_class",
+          "expires_at"
+        ],
+        "title": "SessionCreated"
+      },
+      "SessionView": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "expired"
+            ],
+            "title": "Status"
+          },
+          "data_class": {
+            "type": "string",
+            "enum": [
+              "synthetic_demo",
+              "unspecified"
+            ],
+            "title": "Data Class"
+          },
+          "expires_at": {
+            "type": "string",
+            "title": "Expires At",
+            "description": "ISO 8601 timestamp."
+          },
+          "workflow": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkflowView"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The latest run of the session, or null before the first message."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "session_id",
+          "status",
+          "data_class",
+          "expires_at",
+          "workflow"
+        ],
+        "title": "SessionView"
+      },
+      "SourceConflict": {
+        "properties": {
+          "requirement_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Requirement Id"
+          },
+          "side_a": {
+            "$ref": "#/components/schemas/ConflictSide"
+          },
+          "side_b": {
+            "$ref": "#/components/schemas/ConflictSide"
+          },
+          "detected_by": {
+            "type": "string",
+            "const": "nli_contradiction",
+            "title": "Detected By",
+            "default": "nli_contradiction"
+          },
+          "max_contradiction": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Max Contradiction"
+          },
+          "resolution": {
+            "type": "string",
+            "enum": [
+              "unresolved",
+              "superseded"
+            ],
+            "title": "Resolution"
+          },
+          "resolution_reason": {
+            "type": "string",
+            "enum": [
+              "no_supersession_relation",
+              "superseding_not_active",
+              "version_review_not_confirmed",
+              "relation_lookup_failed",
+              "relation_incomplete",
+              "supersession_confirmed"
+            ],
+            "title": "Resolution Reason"
+          },
+          "superseding_document_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseding Document Key"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requirement_id",
+          "side_a",
+          "side_b",
+          "max_contradiction",
+          "resolution",
+          "resolution_reason"
+        ],
+        "title": "SourceConflict",
+        "description": "Two passages from different documents, both naming a requirement's item, that the\nmodel reads as contradicting each other (M4_PLAN §H). Both sides stay visible. Resolved\nonly by a recorded, active, confirmed supersession (D10); never by date."
+      },
+      "SourceStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "dated",
+          "superseded",
+          "unknown"
+        ],
+        "title": "SourceStatus",
+        "description": "Status of a *source document* (docs/14 values plus `unknown`). Never a requirement status."
+      },
+      "StatementAnalysis": {
+        "properties": {
+          "modality": {
+            "type": "string",
+            "enum": [
+              "obligation",
+              "permission",
+              "conditional",
+              "none"
+            ],
+            "title": "Modality"
+          },
+          "polarity": {
+            "type": "string",
+            "enum": [
+              "affirmative",
+              "negated",
+              "ambiguous"
+            ],
+            "title": "Polarity"
+          },
+          "object_match": {
+            "type": "boolean",
+            "title": "Object Match"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "match",
+              "mismatch",
+              "unknown"
+            ],
+            "title": "Scope"
+          },
+          "cues": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Cues"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "modality",
+          "polarity",
+          "object_match",
+          "scope"
+        ],
+        "title": "StatementAnalysis",
+        "description": "Deterministic reading of one evidence window: a necessary condition, never sufficient."
+      },
+      "TextReliability": {
+        "type": "string",
+        "enum": [
+          "native",
+          "ocr_reliable",
+          "ocr_uncertain"
+        ],
+        "title": "TextReliability",
+        "description": "How far a chunk's text can be trusted as a reading of the source (Stage C policy).\n\nOCR text is `ocr_reliable` only if its page status is `ok` AND the chunk's mean line\nconfidence meets the document's threshold (settings `OCR_RELIABLE_MIN_CONFIDENCE`,\noverridable per manifest entry). Uncertain OCR text is preserved and retrievable but\ncan never support a MANDATORY requirement."
+      },
+      "UnverifiedItem": {
+        "properties": {
+          "requirement_id": {
+            "type": "string",
+            "title": "Requirement Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "applicability_before": {
+            "$ref": "#/components/schemas/Applicability"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/Citation"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Citations"
+          },
+          "reason_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Reason Codes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requirement_id",
+          "name",
+          "applicability_before",
+          "citations"
+        ],
+        "title": "UnverifiedItem",
+        "description": "A validated requirement whose claims the cited text did not support (decision D2):\nkept visible for review, out of the checklist. Never \"not required\"."
+      },
+      "ValidatedRequirement": {
+        "properties": {
+          "requirement_id": {
+            "type": "string",
+            "title": "Requirement Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "explanation": {
+            "type": "string",
+            "maxLength": 600,
+            "title": "Explanation"
+          },
+          "explanation_status": {
+            "type": "string",
+            "enum": [
+              "model_drafted_not_verified",
+              "verified_supported",
+              "partially_verified",
+              "unverified"
+            ],
+            "title": "Explanation Status",
+            "default": "model_drafted_not_verified"
+          },
+          "applicability": {
+            "$ref": "#/components/schemas/Applicability"
+          },
+          "proposed_applicability": {
+            "$ref": "#/components/schemas/Applicability"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/Citation"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Citations"
+          },
+          "related_form_fields": {
+            "items": {
+              "$ref": "#/components/schemas/RelatedField"
+            },
+            "type": "array",
+            "title": "Related Form Fields"
+          },
+          "uncertainty_label": {
+            "type": "string",
+            "title": "Uncertainty Label"
+          },
+          "verification_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "not_claim_verified"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "supported",
+                  "supported_weaker_than_asserted",
+                  "partially_supported",
+                  "unsupported",
+                  "contradicted",
+                  "conflicting",
+                  "not_verified"
+                ]
+              }
+            ],
+            "title": "Verification Status",
+            "default": "not_claim_verified"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "requirement_id",
+          "name",
+          "explanation",
+          "applicability",
+          "proposed_applicability",
+          "citations",
+          "uncertainty_label"
+        ],
+        "title": "ValidatedRequirement",
+        "description": "A requirement that survived `output_validation`. Its applicability is the\nvalidator's (never above the model's proposal); its explanation is model prose.\nM4 widens the two status fields; the M3 defaults are unchanged."
+      },
+      "ValidationFinding": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "requirement_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requirement Id"
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Detail"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "detail"
+        ],
+        "title": "ValidationFinding"
+      },
+      "VerificationMeta": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ran",
+              "partial",
+              "not_configured",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
+          },
+          "model_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Revision"
+          },
+          "label_map": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Map"
+          },
+          "templates_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Templates Version"
+          },
+          "thresholds_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thresholds Version"
+          },
+          "pairs_scored": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pairs Scored",
+            "default": 0
+          },
+          "pairs_capped": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Pairs Capped",
+            "default": 0
+          },
+          "contradiction_scan": {
+            "type": "string",
+            "enum": [
+              "not_run",
+              "bounded",
+              "failed"
+            ],
+            "title": "Contradiction Scan",
+            "default": "not_run"
+          },
+          "contradiction_scan_size": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Contradiction Scan Size",
+            "default": 0
+          },
+          "contradiction_pairs_not_scanned": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Contradiction Pairs Not Scanned",
+            "default": 0
+          },
+          "timings_ms": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Timings Ms"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "VerificationMeta",
+        "description": "How verification ran: provenance and counts only (no text)."
+      },
+      "WorkflowView": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "thread_id": {
+            "type": "string",
+            "title": "Thread Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "started_at": {
+            "type": "string",
+            "title": "Started At",
+            "description": "ISO 8601 timestamp."
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At",
+            "description": "ISO 8601 timestamp, or null while open."
+          },
+          "node_events": {
+            "items": {
+              "$ref": "#/components/schemas/NodeEvent"
+            },
+            "type": "array",
+            "title": "Node Events"
+          },
+          "clarification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PendingClarification"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present only while `status` is awaiting_clarification (null if the pending question cannot be read)."
+          },
+          "report_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Id",
+            "description": "Present only when `status` is completed (null if no report is stored)."
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Outcome"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present only when `status` is completed (null if no report is stored). No outcome approves or rejects anything."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run_id",
+          "thread_id",
+          "status",
+          "started_at",
+          "finished_at",
+          "node_events"
+        ],
+        "title": "WorkflowView"
+      },
+      "ProgressEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "node",
+              "run"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "seq": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Seq"
+          },
+          "node": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Node"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "at": {
+            "title": "At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "run_id",
+          "status",
+          "at"
+        ],
+        "title": "ProgressEvent",
+        "type": "object"
+      }
+    }
+  }
+}

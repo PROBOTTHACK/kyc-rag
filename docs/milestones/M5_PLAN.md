@@ -116,3 +116,31 @@ M5 shows these as they are and fixes none of them.
   - docs/12: the M5 section points to this plan.
 - **Environment:** Node v20.19.4 and npm 11.5.2 present.
 - **Open:** M5-D4, to decide before S6.
+
+## S1 outcome (2026-11-13): published, typed API contract (no behaviour change)
+- **`app/api/v1/schemas.py` (new):** documentation models for every workflow response and request:
+  - `SessionCreated`, `SessionView` / `WorkflowView` / `NodeEvent` / `PendingClarification` (reusing `intake.Question`), `RunAccepted`, `ReviewCasesResponse` / `ReviewCase`, and the `ErrorResponse` envelope;
+  - the request models `CreateSessionRequest`, `MessageRequest`, `ResumeRequest` and `RetryRequest`, whose fields match the service's own body models;
+  - `extra="forbid"` throughout.
+- **Routes (`sessions.py`):**
+  - `responses=` documents the success and error shapes; `openapi_extra` documents the raw request bodies (inline, flat schemas);
+  - `response_model=None` keeps FastAPI from re-serializing, and no body parameter is declared, so the screen-before-parse order is unchanged;
+  - every 422, including on GET routes, is documented as the envelope. FastAPI's default `HTTPValidationError` schema was wrong for this API and is gone.
+- **SSE:** `/events` is documented as `text/event-stream` with `ProgressEvent` (registered in components by `main._publish_extra_schemas`).
+- **Health:** the 503 response (`HealthResponse`) is now documented. The route itself is unchanged.
+- **Published document:** `docs/api/openapi.json`, written by `make openapi` (`python -m app.api.openapi`). The output is deterministic, and a unit test fails when the file is stale.
+- **Tests:**
+  - `tests/unit/test_m5_api_contract.py` (13):
+    - the snapshot;
+    - documented shapes per route; flat request bodies matching the service models; no body field and no response model on any workflow route;
+    - byte-identical pass-through for every session state, the 8 v1 fixtures, the v2 NLI-off and scripted reports and their review cases;
+    - error envelopes;
+    - undocumented keys are rejected; a review case cannot carry a decision.
+  - `tests/integration/test_m5_api_contract_db.py` (2): the real LLP flow (create → pause → resume → DEGRADED v2 report → `not_verified` review cases → SSE events) and the main error codes validate against the contract.
+- **Unchanged:** request handling, screening, idempotency, the graph, reports, migrations, dependencies, data.
+- **Checks:**
+  - **Unit (`make test`):** 1,505 passed, 1 failed (K7, the environment-dependent Groq test).
+  - **Integration (`make test-integration`):** 507 passed, 1 failed (K8: `test_dense_golden`). This run, the known tied pair flipped at query m1-03 ranks 5/6 (both 0.694, identical text in two HDFC forms) rather than at m1-14, and `test_hybrid_dev` passed. No retrieval code was touched. Recorded in the K8 register entry; the test was not modified.
+  - `make lint` (ruff, black, strict mypy on 126 files): clean.
+  - `make check-schema`: clean.
+  - `git diff --check`: clean.

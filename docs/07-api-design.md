@@ -20,6 +20,16 @@
 | GET | `/observability/runs/{id}` | Node-level execution details | not built (M6) |
 | GET | `/health` | Health (db, redis, qdrant). 200 when all ok, 503 `degraded` otherwise; per-check `ok`, `latency_ms`, `error` (exception class only, never URLs/credentials); each check times out after `HEALTH_CHECK_TIMEOUT_S` (default 2s) | built (M0) |
 
+## Published contract (M5 S1)
+- **The document:** `docs/api/openapi.json` (regenerate with `make openapi`). A unit test fails when it differs from the app. The frontend generates its types from it.
+- **The models:** request and response shapes come from `app/api/v1/schemas.py` plus `ComplianceReport` (`app/graph/state.py`) and `ProgressEvent` (`app/core/events.py`, the SSE `data:` payload).
+- **Documentation only:**
+  - Routes keep `response_model=None` and declare no body parameter. FastAPI therefore neither parses a body before the service screens it nor re-serializes the output.
+  - Responses are byte-identical to the service output, and contract tests check this.
+  - Every model uses `extra="forbid"`, so an undocumented key fails the tests.
+- **Optional keys:** keys documented with a default may be absent. `workflow.clarification` is present only while awaiting clarification; `workflow.report_id` and `workflow.outcome` only once completed.
+- **Errors:** every 4xx/5xx is the `ErrorResponse` envelope. `categories` appears only on screening errors, `retry_after` only on some `RUN_IN_PROGRESS` errors.
+
 ## Workflow API as implemented (M3 S6; `app/api/v1/sessions.py`, `app/workflow/service.py`)
 | Method | Endpoint | Body | Success |
 |---|---|---|---|

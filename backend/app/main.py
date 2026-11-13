@@ -9,6 +9,7 @@ runs become recoverable with POST /retry once their lease expires (decision S6-D
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.api import errors
 from app.api.v1.router import api_router
+from app.api.v1.schemas import add_extra_schemas
 from app.config import Settings, get_settings
 from app.core.health import postgres_check, qdrant_check, redis_check
 from app.core.logging import configure_logging
@@ -92,7 +94,21 @@ def create_app(
         allow_headers=["*"],
     )
     app.include_router(api_router, prefix="/api/v1")
+    _publish_extra_schemas(app)
     return app
+
+
+def _publish_extra_schemas(app: FastAPI) -> None:
+    """M5 S1: add the documentation-only schemas referenced by `$ref` (the SSE event) to
+    the generated OpenAPI. Schema generation only; no request handling changes."""
+    generate = app.openapi
+
+    def openapi() -> dict[str, Any]:
+        if app.openapi_schema is None:
+            app.openapi_schema = add_extra_schemas(generate())
+        return app.openapi_schema
+
+    app.openapi = openapi  # type: ignore[method-assign]
 
 
 app = create_app()

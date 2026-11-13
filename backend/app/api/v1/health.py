@@ -6,7 +6,11 @@ from app.schemas.health import HealthResponse
 router = APIRouter(tags=["health"])
 
 
-@router.get("/health", response_model=HealthResponse)
+@router.get(
+    "/health",
+    response_model=HealthResponse,
+    responses={503: {"model": HealthResponse, "description": "At least one check failed."}},
+)
 async def health(request: Request, response: Response) -> HealthResponse:
     result = await run_health_checks(
         request.app.state.health_checks, request.app.state.settings.HEALTH_CHECK_TIMEOUT_S
