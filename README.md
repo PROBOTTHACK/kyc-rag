@@ -95,7 +95,7 @@ NLI alone is not treated as truth, and its scores are uncalibrated signals, not 
 
 | Layer | Technology |
 |---|---|
-| Frontend | React, Vite, Tailwind CSS (planned, M5; not built) |
+| Frontend | React, Vite, Tailwind CSS, TypeScript, React Router, React Query (M5 in progress: app shell and generated API types; screens not built yet) |
 | Backend | Python, FastAPI, Pydantic v2, SQLAlchemy, Alembic |
 | Orchestration | LangGraph with Postgres checkpointing |
 | LLMs | Groq-hosted open models (reasoning), Gemini (multimodal forms), behind a provider-agnostic interface |
@@ -110,7 +110,7 @@ Everything runs locally through Docker and fits on free tiers for a public demo.
 
 ## Getting started
 
-**Prerequisites:** Docker, Python 3.11+, GNU Make, [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) 5.x (OCR fallback for scanned pages), and optionally free API keys for Groq and Google AI Studio (only for the opt-in live runs; **no API key is needed for ingestion, retrieval, the workflow without a live LLM, or any test**). Node is not needed: the frontend is not built. On Windows: `winget install ezwinports.make` and `winget install UB-Mannheim.TesseractOCR`. Tesseract is found via `TESSERACT_CMD`, then `PATH`, then the standard install folder (`C:\Program Files\Tesseract-OCR\`), so a default winget install needs no configuration. For a non-standard location, set `TESSERACT_CMD=D:/path/to/tesseract.exe` (and optionally `TESSDATA_DIR`) in a **repo-root `.env`**. `.env` is gitignored and machine-specific: never commit it, and never put machine paths in `infra/.env.example`.
+**Prerequisites:** Docker, Python 3.11+, GNU Make, [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) 5.x (OCR fallback for scanned pages), and optionally free API keys for Groq and Google AI Studio (only for the opt-in live runs; **no API key is needed for ingestion, retrieval, the workflow without a live LLM, or any test**). For the frontend (M5): Node.js **26.13.1 LTS** (exact major enforced by `frontend/package.json`; installed here with NVM for Windows). On Windows: `winget install ezwinports.make` and `winget install UB-Mannheim.TesseractOCR`. Tesseract is found via `TESSERACT_CMD`, then `PATH`, then the standard install folder (`C:\Program Files\Tesseract-OCR\`), so a default winget install needs no configuration. For a non-standard location, set `TESSERACT_CMD=D:/path/to/tesseract.exe` (and optionally `TESSDATA_DIR`) in a **repo-root `.env`**. `.env` is gitignored and machine-specific: never commit it, and never put machine paths in `infra/.env.example`.
 
 ```bash
 # 1. Clone and configure
@@ -152,6 +152,11 @@ make api                            # http://localhost:8000/docs, health at /api
 #    -> POST .../resume -> GET /api/v1/reports/{report_id}. See docs/07.
 #    GET /api/v1/sessions/{id}/events streams progress (SSE; open it before the message).
 #    Without Groq live calls enabled, intake asks every question and the report is DEGRADED.
+
+# 6b. Frontend (M5, Node 26.13.1): app shell only so far; the screens arrive in later M5 stages
+make web-install                    # npm ci from frontend/package-lock.json (no install scripts)
+make web                            # http://127.0.0.1:5173; /api is proxied to `make api`
+make web-test web-lint              # Vitest; type-check + ESLint + Prettier + API types up to date
 
 # 7. The M3 LLP demo through the running API (a second terminal; synthetic question only)
 make demo                           # whatever LLM the API runs with; prints events + report + verdict
@@ -220,7 +225,7 @@ backend/app/
   llm/             provider interface + Groq / Gemini adapters
   rules/           empty (a rules layer is not built)
 backend/alembic/   migrations 0001-0008
-frontend/          placeholder only (the dashboard is planned for M5)
+frontend/          React + Vite + TypeScript app (M5): shell, routing, disclaimer, generated API types; screens in progress
 data/eval/         evaluation datasets and committed evaluation records
 eval/              one M2 diagnostic script
 infra/             docker-compose and env template (no secrets)

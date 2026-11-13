@@ -1,0 +1,5 @@
+dist
+node_modules
+package-lock.json
+# Generated from docs/api/openapi.json (npm run gen:api)
+src/api/schema.d.ts

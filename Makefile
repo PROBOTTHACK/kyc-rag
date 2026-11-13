@@ -18,6 +18,7 @@ endif
 PY := "$(VENV_PY)"
 COMPOSE := docker compose -f infra/docker-compose.yml
 BACKEND := backend
+FRONTEND := frontend
 CLI = cd $(BACKEND) && $(PY) -m app.ingestion.cli
 WF = cd $(BACKEND) && $(PY) -m app.workflow.cli
 VCLI = cd $(BACKEND) && $(PY) -m app.verification.cli
@@ -30,7 +31,8 @@ DOCS = $(foreach d,$(DOC),--document $(d))
 .DEFAULT_GOAL := help
 .PHONY: help venv install install-locked lock up down migrate check-schema ingest ingest-dry
 .PHONY: persist index retry reconcile repair runs forms search check-corpus eval eval-compare eval-select eval-heldout check-dense-golden
-.PHONY: api test test-integration lint fmt web openapi
+.PHONY: api test test-integration lint fmt openapi
+.PHONY: web web-install web-test web-lint web-build web-types
 .PHONY: purge purge-dry check-workflow demo demo-live
 .PHONY: nli-check eval-claims eval-claims-select test-nli
 
@@ -44,6 +46,7 @@ help:
 	$(info Forms:     forms [DOC="key ..."]  (then: cli forms list | show KEY))
 	$(info Retrieval: search Q="..."  eval  eval-compare  eval-select  check-dense-golden)
 	$(info Dev:       api test test-integration lint fmt openapi)
+	$(info Frontend:  web-install web web-test web-lint web-build web-types  (Node 26.13.1))
 	$(info Workflow:  purge purge-dry check-workflow demo demo-live  (demo needs `make api`))
 	$(info Claims:    nli-check [N=N1]  eval-claims N=N2 TE=0.9 TC=0.9  eval-claims-select  test-nli  (dev set only))
 	$(info )
@@ -211,5 +214,25 @@ demo:
 demo-live:
 	cd $(BACKEND) && $(PY) -m app.workflow.demo --live
 
+# --- Frontend (M5; Node 26.13.1 LTS, see frontend/package.json "engines") ---------------------
+# Install exactly what frontend/package-lock.json records (no install scripts: frontend/.npmrc).
+web-install:
+	cd $(FRONTEND) && npm ci
+
+# Dev server on http://127.0.0.1:5173; /api is proxied to `make api` on 127.0.0.1:8000.
 web:
-	$(error make web: not implemented until Milestone 5 (docs/12))
+	cd $(FRONTEND) && npm run dev
+
+web-test:
+	cd $(FRONTEND) && npm test
+
+# Type-check, ESLint, Prettier check, and the generated API types are up to date.
+web-lint:
+	cd $(FRONTEND) && npm run typecheck && npm run lint && npm run check:api
+
+web-build:
+	cd $(FRONTEND) && npm run build
+
+# Regenerate frontend/src/api/schema.d.ts from docs/api/openapi.json (after `make openapi`).
+web-types:
+	cd $(FRONTEND) && npm run gen:api

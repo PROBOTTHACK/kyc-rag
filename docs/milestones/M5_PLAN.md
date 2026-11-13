@@ -86,11 +86,33 @@
 | S0 | Lock the plan and decisions; fix the docs discrepancies found in the readiness audit | this file, docs/00, 07, 09, 12, M4 closure report, handoff/01 | decisions recorded; docs state what is built | — |
 | S1 | Typed API contract: Pydantic response models on the existing routes, published in OpenAPI; a committed OpenAPI snapshot | `app/api/v1/schemas.py` (new), `sessions.py`, `health.py`, tests | every existing API test unchanged and green; each route's JSON is identical before and after (contract tests on real service output, including report v1 fixtures and v2); OpenAPI snapshot test; screening order unchanged; ruff, black, strict mypy clean | a response model that drops, renames or coerces a field; mitigated with `extra="forbid"` checks and byte-equality tests |
 | S2 | Frontend scaffold | `frontend/` (Vite + React + TS + Tailwind), Makefile `web`, `web-install`, `web-test`, `web-lint`, `web-types`, .gitignore, README prerequisites | pinned versions approved by the owner; `npm ci` reproducible from the lockfile; type check, lint and a smoke test pass; dev proxy `/api` → `:8000`; app shell with routing, error boundary and the persistent disclaimer | dependency footprint; Node version drift |
-| S3 | Typed client and SSE hook | `frontend/src/api/` | types generated from the S1 snapshot (not hand-written); one `Idempotency-Key` per user action, reused on a network retry of that action; error envelope → fixed messages per code; SSE hook follows the docs/07 semantics (current-status `run` events, durable `node` events, close on terminal status, browser reconnect with `Last-Event-ID`); React Query for reads; unit tests for each | SSE close and reconnect edge cases |
+| S3 | Typed client and SSE hook | `frontend/src/api/` | uses the types generated in S2 from the S1 snapshot (not hand-written); one `Idempotency-Key` per user action, reused on a network retry of that action; error envelope → fixed messages per code; SSE hook follows the docs/07 semantics (current-status `run` events, durable `node` events, close on terminal status, browser reconnect with `Last-Event-ID`); React Query for reads; unit tests for each | SSE close and reconnect edge cases |
 | S4 | KYC Assistant screen | `frontend/src/screens/assistant/` | create, submit, track, clarify and resume; Retry; every error code handled; the §E rules; loading, empty and error states; component tests with recorded fixtures | clarification UX; stale checkpoints |
 | S5 | Compliance Report and Review Cases screens | `frontend/src/screens/report/` | renders all 8 committed v1 fixtures (`backend/tests/fixtures/m3_reports_v1/`) and v2 fixtures (NLI off, and a scripted-enabled shape); §E rule tests (no "approved"/"rejected"/"no conflicts"; no "verified" with NLI off; applicability as stored); read-only review-cases list with no action controls | wording that overstates certainty |
 | S6 | Minimal Dashboard | `frontend/src/screens/dashboard/` | health panel (an outage shows as an error state); session list per M5-D4; demo-data labels; empty, loading and error states | M5-D4 risk |
 | S7 | Browser demo, accessibility pass, docs and closure | README, docs/09, docs/handoff/*, `M5_CLOSURE_REPORT.md` | manual demo recorded: `make up && make api && make web`, an LLP question, clarification, a DEGRADED report and its review cases; keyboard navigation and labels checked; backend suites at the M4 baseline (known K7/K8 only); all lint clean | — |
+
+## F.1 Frontend toolchain (owner-approved 2026-11-13, S2)
+- **Runtime:** Node.js **26.13.1 LTS** via NVM for Windows (npm 11.20.0). `package.json` sets `"engines": {"node": "^26.13.1"}` and `.npmrc` sets `engine-strict`.
+- **Pins:** exact (`save-exact`). Every pin was released at least 14 days before 2026-11-13.
+  - Production: `react` 19.3.1, `react-dom` 19.3.1, `react-router` 7.18.5, `@tanstack/react-query` 5.105.0.
+  - Dev: `vite` 8.3.5, `@vitejs/plugin-react` 6.1.2, `typescript` 5.9.3, `tailwindcss` 4.3.3, `@tailwindcss/vite` 4.3.3, `vitest` 5.0.5, `jsdom` 30.1.3, `@testing-library/react` 16.3.3, `@testing-library/dom` 10.4.2, `@testing-library/user-event` 14.6.8, `eslint` 10.13.0, `@eslint/js` 10.0.1, `typescript-eslint` 8.72.1, `eslint-plugin-react-hooks` 7.1.1, `globals` 17.13.0, `prettier` 3.9.10, `openapi-typescript` 7.13.0, `@types/react` 19.3.0, `@types/react-dom` 19.3.0, `@types/node` 26.6.6.
+- **Version decisions:**
+  - TypeScript stays on 5.9.3: openapi-typescript requires `^5.x` and typescript-eslint requires `<6.1.0`.
+  - React Router stays on 7.18.5, the maintained 7.18 line with a known API.
+  - jest-dom is not used.
+- **Transitive dependencies:** resolved with `npm install --before=2026-10-30`, so every package in the tree meets the two-week rule. The newest is 2026-10-29. `package-lock.json` (v3) freezes the tree, and installs use `npm ci`.
+- **Install scripts:** disabled (`ignore-scripts`). The only package that has one is `fsevents`, which is optional and macOS-only.
+
+### Known dependency advisory (accepted temporarily; recheck at S7)
+| Item | Detail |
+|---|---|
+| Advisory | **GHSA-g3hv-75wg-m249**, `minimatch` "potential denial of service via globparts amplification", moderate, published 2026-10-30 |
+| Where | `minimatch@10.2.6`, pulled in by `eslint` 10 and every `typescript-eslint` up to 8.72.2 (the latest). `npm audit` counts it 10 times along that chain. **Dev tooling only.** |
+| Production | `npm audit --omit=dev`: **0 vulnerabilities** |
+| Fix available | Only minimatch 11.0.1+, a new major outside ESLint's declared range. `npm audit fix --force` would downgrade ESLint to 9.39.5 (breaking) and would still leave typescript-eslint flagged. |
+| Exposure | minimatch evaluates glob patterns from our own ESLint configuration against repository paths, only when the linter runs. Exploiting it needs attacker-controlled patterns. Nothing reaches the browser bundle. |
+| Decision (owner, 2026-11-13) | Accepted temporarily. No forced upgrade, no `overrides`. **Recheck at S7:** if ESLint or typescript-eslint have released versions that depend on a patched minimatch (and meet the two-week rule), propose upgrading them; otherwise record the status again. |
 
 ## G. Testing policy
 - **Backend:** `make test`, `make test-integration`, `make lint` and `make check-schema` after every stage that touches `backend/`. Results are compared with the M4 baseline: unit 1 known failure (K7), integration 2 known failures (K8). No existing test is weakened or edited to pass.
@@ -144,3 +166,25 @@ M5 shows these as they are and fixes none of them.
   - `make lint` (ruff, black, strict mypy on 126 files): clean.
   - `make check-schema`: clean.
   - `git diff --check`: clean.
+
+## S2 outcome (2026-11-13): frontend scaffold, app shell, generated API types
+- **Toolchain:** installed exactly as approved (§F.1). `npm ls --depth=0` matches every pin. The lockfile has 313 entries (10 production, 303 dev, 50 platform binaries for other operating systems).
+- **Generated API types:** `src/api/schema.d.ts` is generated from the committed `docs/api/openapi.json` (`npm run gen:api` / `make web-types`). `npm run check:api` (part of `make web-lint`) fails when it is stale; this was checked both ways.
+  - Generated with `--default-non-nullable false`. With the tool's default, keys that may be absent from a response (`workflow.clarification`, `report_id`, `outcome`) would have been typed as always present. Report fields with defaults therefore appear optional in TypeScript, which is the safe direction.
+  - `src/api/types.ts` gives named aliases.
+- **Shell:**
+  - `Layout`: the sticky disclaimer "Independent prototype. Not an official bank system. Not a compliance approval." plus "Synthetic data only. Every result requires human review.", and navigation (Dashboard, KYC Assistant).
+  - A page-level `ErrorBoundary` that resets on navigation. A top-level boundary renders the disclaimer itself.
+  - Error details are never rendered, logged or reported.
+- **Routes:** `/`, `/assistant`, `/reports/:reportId`, `*`. The pages are placeholders that say "Not built yet" and show no data. There is no upload route and no Document Intelligence or Observability route (M5-D1).
+- **Dev server:** `127.0.0.1:5173` (strict port, matching `FRONTEND_ORIGIN`), with `/api` proxied to `127.0.0.1:8000`. There is no runtime CDN, external font or analytics, and the referrer policy is `no-referrer`.
+- **Makefile:** `web-install` (`npm ci`), `web` (replaces the M0 refusal), `web-test`, `web-lint` (tsc + ESLint + Prettier + `check:api`), `web-build`, `web-types`.
+- **Tests (Vitest, 15):**
+  - the disclaimer and the correct page on every route, including not-found;
+  - navigation keeps the disclaimer;
+  - the navigation offers only the M5 screens;
+  - no "approved/rejected/compliant" text appears;
+  - a failing page keeps the shell and disclaimer and hides the error text; navigating away clears the error; the top-level fallback shows the disclaimer; "Try again" recovers;
+  - type-level checks (enforced by `tsc`): optional keys stay optional, review cases are `"open"` only, outcomes contain no approval or rejection, and the error envelope types hold.
+- **Smoke test:** `make api` + `make web`. The page is served; `/assistant` is served by the SPA fallback; `/api/v1/health` returns 200 through the proxy; `POST /api/v1/sessions` (`synthetic_demo`) returns 201 through the proxy. That left one synthetic session in the dev database, which `make purge` removes after it expires.
+- **Backend:** unchanged in S2.

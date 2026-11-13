@@ -54,7 +54,10 @@ make demo                       # second terminal: the synthetic LLP demo throug
 - **Without a live LLM**, intake asks every clarification question and the report is honestly **DEGRADED**.
 - **With NLI disabled** (the M4 default), every report that has a checklist is DEGRADED, every claim is `not_verified`, and every item has an open `not_verified` review case: `GET /api/v1/reports/{id}/review-cases`.
 - **`make demo-live`** requires the owner's live Groq gate and the terms date in `.env`. Set the gate back to `false` afterwards.
-- **`make web`** refuses: the frontend is not built (M5).
+- **Frontend (M5 S2):**
+  - Needs Node.js **26.13.1 LTS** (`engines` plus `engine-strict` refuse any other major; installed here with NVM for Windows).
+  - `make web-install` runs `npm ci` with no install scripts. `make web` starts the dev server on `http://127.0.0.1:5173` and proxies `/api` to `make api`.
+  - Only the app shell exists so far (disclaimer, navigation, error boundary, placeholder pages).
 
 ## 5. Tests and checks
 | Command | What it runs | Expected at M4 close |
@@ -67,6 +70,9 @@ make demo                       # second terminal: the synthetic LLP demo throug
 | `make check-workflow` | read-only retention and review-case integrity report | `"ok": true` |
 | `make check-dense-golden` | M1 dense regression against the golden snapshot | see the Qdrant note in §6 |
 | `make reconcile` | Postgres ↔ Qdrant | CONSISTENT |
+| `make web-test` (M5) | Vitest + Testing Library (jsdom) | all pass |
+| `make web-lint` (M5) | `tsc` (strict) + ESLint + Prettier check + `openapi-typescript --check` against `docs/api/openapi.json` | clean |
+| `make web-build` (M5) | production build (`vite build`) | succeeds |
 
 Exact counts from the final M4 run are in `docs/handoff/03-evaluation-report.md` §7.
 
