@@ -2,6 +2,8 @@
 
 > Independent prototype. Not affiliated with or endorsed by HDFC Bank or the RBI. Synthetic data only. The source documents are dated, and their current validity has not been independently verified.
 
+> **Historical document.** This audit is preserved as approved. Two of its readings were corrected at the A2 review (owner, 2026-11-14): there is **no** citable photograph requirement for organisations' authorised signatories, and the supported PAN item is **PAN No. of signatories/partners** (with the Form 60/61 field), never an entity PAN card copy. The current interpretation is `A1_PRODUCT_SPEC.md` §5.4.
+
 **Status:** Stage 0 audit, approved by the owner on 2026-11-14 **with four amendments (§0)**. Baseline: `main` @ `3afac0d` (M5 merged). Branch: `feat/account-opening-assistant`.
 
 **Method:** read-only inspection of `data/raw_pdfs/manifest.yaml`, `data/processed/corpus_report.md`, the stored `chunks` and `form_schemas` rows (`SELECT` only), and the backend code. No code, dependency, database row or Git history was changed by the audit.

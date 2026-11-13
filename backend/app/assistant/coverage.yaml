@@ -11,8 +11,8 @@
 #   only the `conversion_form`. Re-KYC (`context`) and the legacy FAQ never create coverage.
 # - Changing a cell needs corpus evidence and owner review (CLAUDE.md).
 
-version: a2-1
-basis: docs/assistant/A0_AUDIT.md section 2
+version: a2-2
+basis: docs/assistant/A0_AUDIT.md section 2, as corrected by A1 section 5.4 (A2 review)
 
 documents:
   hdfc_nri_account_opening:
@@ -208,3 +208,54 @@ not_established_reasons:
   - {category: null, account_type: SALARY, reason: "No HDFC document in the corpus covers opening a salary account (the only mention is an NRI-form rule about converting an inactive salary account)."}
   - {category: null, account_type: SAVINGS, reason: "For organisations, the corpus does not establish a savings account: the NRI form states 'Savings account can be opened only by individuals for non-business purposes', and the scanned non-individual form only shows a tick box."}
   - {category: null, account_type: FCNR_RFC, reason: "FCNR / RFC deposits appear only on the NRI individual form."}
+
+# --- item rulings (owner-approved interpretations; A1 §5.4) --------------------------------------
+# Decided at the A2 review (owner, 2026-11-14). They state what the stored corpus does and does NOT
+# establish for specific items, so later stages cannot re-introduce an item from a visual reading
+# or by inference. `not_established` rulings carry no evidence and are never checklist items; an
+# `evidenced` ruling records the evidence, never a classification (classes are assigned in A4).
+item_rulings:
+  - id: org_signatory_photograph
+    subject: Photographs of authorised signatories
+    kind: document
+    status: not_established
+    categories: [SOLE_PROPRIETORSHIP, PARTNERSHIP_FIRM, LLP, COMPANY, TRUST, HUF, OTHER_ORGANISATION]
+    sources: [hdfc_non_individual_account_opening]
+    reason: "No stored text or form-schema field of the non-individual opening form mentions a photograph. The A0 reading of photograph boxes came from the page image and cannot be cited."
+  - id: org_entity_pan_card_copy
+    subject: A copy of the entity's PAN card
+    kind: document
+    status: not_established
+    categories: [SOLE_PROPRIETORSHIP, PARTNERSHIP_FIRM, LLP, COMPANY, TRUST, HUF, OTHER_ORGANISATION]
+    sources: [hdfc_non_individual_account_opening]
+    reason: "No applicable HDFC document asks for a PAN card copy. The entity-level PAN field exists only in the multimodal schema and is not corroborated by stored text; a PAN number field never establishes a card copy (A1 §4 rule 1)."
+  - id: org_signatory_pan_number
+    subject: PAN No. of authorised signatories / partners
+    kind: information
+    status: evidenced
+    categories: [SOLE_PROPRIETORSHIP, PARTNERSHIP_FIRM, LLP, COMPANY, TRUST, HUF, OTHER_ORGANISATION]
+    sources: [hdfc_non_individual_account_opening]
+    evidence:
+      - chunk_id: f51508ae-d9ec-5594-bd70-c0cada97e60a
+        document_key: hdfc_non_individual_account_opening
+        page: 2
+        basis: stored_text
+        shows: "'PAN No.' within the Authorized Signatory Details blocks (OCR-uncertain)"
+      - chunk_id: 600f4dd7-c142-5dc8-9b38-fd2d6fb00f61
+        document_key: hdfc_non_individual_account_opening
+        page: 2
+        basis: stored_text
+        shows: "'PAN No' within the Authorized Signatory Details blocks, including the partnership block (OCR-uncertain)"
+  - id: org_form_60_61
+    subject: Form 60/61 (as worded on the form)
+    kind: document
+    status: evidenced
+    categories: [SOLE_PROPRIETORSHIP, PARTNERSHIP_FIRM, LLP, COMPANY, TRUST, HUF, OTHER_ORGANISATION]
+    sources: [hdfc_non_individual_account_opening]
+    condition: "for existing customers"
+    evidence:
+      - chunk_id: 1c8150b4-c49f-5b26-9c14-a1a2c5535102
+        document_key: hdfc_non_individual_account_opening
+        page: 1
+        basis: stored_text
+        shows: "'Form 60/61 attached for existing customers' next to the customer ID field (OCR-uncertain)"

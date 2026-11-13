@@ -165,7 +165,9 @@ Hybrid is recorded as **the candidate for a later measured re-evaluation**, for 
    - What stored text does support: "PAN No." for signatories/partners (chunks f51508ae, 600f4dd7), and a corroborated "Form 60/61 attached" (chunk 1c8150b4).
    - Under A1 rule 3a, uncorroborated labels are shown as uncertain. The A0 conclusion is unchanged: PAN number is information to provide (OCR-uncertain), and a PAN card copy can't be confirmed.
 
-A0 itself is left as approved. These corrections are recorded here for the owner's review.
+**Both corrections were accepted by the owner at the A2 review (2026-11-14).** They are now part of the current specification (`A1_PRODUCT_SPEC.md` §5.4) and of the coverage map (`item_rulings`, version `a2-2`). A0 is kept unchanged as the historical audit, with a pointer to §5.4.
+
+**Reading these results:** the 26 covered combinations are corpus evidence coverage, not confirmed HDFC policy coverage, and the corpus has no HDFC policy-supported requirement. The Recall@5 figures above hold only for this 25-case, single-annotator, development-only set with no held-out split. Semantic (dense) retrieval stays the default; hybrid is an experimental candidate.
 
 ## 7. Checks run for this stage
 | Check | Result |

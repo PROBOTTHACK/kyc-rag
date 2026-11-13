@@ -8,7 +8,7 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from app.assistant.coverage import COVERAGE_FILE, Coverage, coverage, load_coverage
+from app.assistant.coverage import COVERAGE_FILE, Coverage, ItemRuling, coverage, load_coverage
 from app.assistant.taxonomy import (
     AccountType,
     CoverageState,
@@ -200,3 +200,83 @@ def test_a_map_that_would_create_unsupported_coverage_fails_to_load(name: str, m
 
 def test_the_shipped_file_loads_through_the_public_loader() -> None:
     assert load_coverage().version == coverage().version
+
+
+# --- item rulings (A1 §5.4; owner decisions at the A2 review) ------------------------------------
+
+
+def test_signatory_photographs_are_not_established_for_any_organisation() -> None:
+    r = coverage().ruling("org_signatory_photograph")
+    assert r is not None and r.status == "not_established" and r.kind == "document"
+    assert set(r.categories) == set(ORGS) and r.evidence == () and r.reason
+    for cat in ORGS:
+        assert r in coverage().rulings_for(cat)
+    # and nothing anywhere in the map cites a photograph for organisations
+    for cell in coverage().cells:
+        if cell.category in ORGS:
+            assert not any("photo" in ev.shows.lower() for ev in cell.evidence)
+
+
+def test_signatory_pan_number_is_evidenced_information_and_no_entity_pan_card_copy() -> None:
+    cov = coverage()
+    pan = cov.ruling("org_signatory_pan_number")
+    assert pan is not None and pan.status == "evidenced" and pan.kind == "information"
+    assert {e.chunk_id[:8] for e in pan.evidence} == {"f51508ae", "600f4dd7"}
+    form60 = cov.ruling("org_form_60_61")
+    assert form60 is not None and form60.kind == "document" and form60.status == "evidenced"
+    assert [e.chunk_id[:8] for e in form60.evidence] == ["1c8150b4"]
+    assert form60.condition == "for existing customers"
+    card = cov.ruling("org_entity_pan_card_copy")
+    assert card is not None and card.status == "not_established" and card.evidence == ()
+    # no ruling establishes a PAN card copy for anyone
+    assert not any(
+        r.status == "evidenced" and "card" in r.subject.lower() for r in cov.item_rulings
+    )
+
+
+def test_rulings_carry_no_classification() -> None:
+    fields = set(ItemRuling.model_fields)
+    assert not fields & {"classification", "evidence_class", "mandatory", "policy_supported"}
+
+
+def rulings_mutations() -> list[tuple[str, Any]]:
+    def evidence_on_not_established(d: dict[str, Any]) -> None:
+        ruling(d, "org_signatory_photograph")["evidence"] = ruling(d, "org_signatory_pan_number")[
+            "evidence"
+        ]
+
+    def evidenced_without_evidence(d: dict[str, Any]) -> None:
+        ruling(d, "org_signatory_pan_number")["evidence"] = []
+
+    def rekyc_source(d: dict[str, Any]) -> None:
+        r = ruling(d, "org_signatory_pan_number")
+        r["sources"] = ["hdfc_nri_rekyc"]
+
+    def foreign_category(d: dict[str, Any]) -> None:
+        ruling(d, "org_form_60_61")["categories"].append("RESIDENT_INDIVIDUAL")
+
+    def classification_field(d: dict[str, Any]) -> None:
+        ruling(d, "org_form_60_61")["classification"] = "policy_supported"
+
+    def evidence_from_other_document(d: dict[str, Any]) -> None:
+        ruling(d, "org_form_60_61")["evidence"][0]["document_key"] = "hdfc_nri_account_opening"
+
+    def duplicate(d: dict[str, Any]) -> None:
+        d["item_rulings"].append(copy.deepcopy(ruling(d, "org_form_60_61")))
+
+    return [(f.__name__, f) for f in (
+        evidence_on_not_established, evidenced_without_evidence, rekyc_source, foreign_category,
+        classification_field, evidence_from_other_document, duplicate,
+    )]  # fmt: skip
+
+
+def ruling(d: dict[str, Any], rid: str) -> dict[str, Any]:
+    return next(r for r in d["item_rulings"] if r["id"] == rid)
+
+
+@pytest.mark.parametrize(("name", "mutate"), rulings_mutations())
+def test_an_invalid_item_ruling_fails_to_load(name: str, mutate: Any) -> None:
+    data = raw()
+    mutate(data)
+    with pytest.raises(ValidationError):
+        Coverage.model_validate(data)

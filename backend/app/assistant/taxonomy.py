@@ -38,6 +38,21 @@ class Facet(StrEnum):
     MINOR = "minor"  # YES | NO
 
 
+class NriScheme(StrEnum):
+    NRE = "NRE"
+    NRO = "NRO"
+
+
+class Holding(StrEnum):
+    SINGLE = "SINGLE"
+    JOINT = "JOINT"
+
+
+class Minor(StrEnum):
+    YES = "YES"
+    NO = "NO"
+
+
 class CoverageState(StrEnum):
     COVERED = "COVERED"
     COVERED_OCR = "COVERED_OCR"

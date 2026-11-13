@@ -104,6 +104,32 @@ class NotEstablishedReason(_Model):
     reason: str = Field(min_length=1)
 
 
+class ItemRuling(_Model):
+    """An owner-approved statement of what the corpus does or does not establish for one
+    item (A1 §5.4). It records evidence only, never an evidence classification."""
+
+    id: str = Field(pattern=r"^[a-z0-9_]+$")
+    subject: str = Field(min_length=1)
+    kind: Literal["document", "information"]
+    status: Literal["evidenced", "not_established"]
+    categories: tuple[CustomerCategory, ...] = Field(min_length=1)
+    sources: tuple[str, ...] = Field(min_length=1)
+    evidence: tuple[Evidence, ...] = ()
+    condition: str | None = None  # the source's own wording, verbatim
+    reason: str | None = None
+
+    @model_validator(mode="after")
+    def _consistent(self) -> ItemRuling:
+        if self.status == "not_established":
+            if self.evidence or self.condition is not None:
+                raise ValueError(f"{self.id}: a not-established item has no evidence or condition")
+            if not self.reason:
+                raise ValueError(f"{self.id}: a not-established item states why")
+        elif not self.evidence:
+            raise ValueError(f"{self.id}: an evidenced item cites stored evidence")
+        return self
+
+
 class Coverage(_Model):
     version: str
     basis: str
@@ -111,6 +137,7 @@ class Coverage(_Model):
     cells: tuple[Cell, ...]
     conversion: Conversion
     not_established_reasons: tuple[NotEstablishedReason, ...] = ()
+    item_rulings: tuple[ItemRuling, ...] = ()
 
     @model_validator(mode="after")
     def _validate(self) -> Coverage:
@@ -130,6 +157,17 @@ class Coverage(_Model):
             if self._doc(doc_key).role is not SourceRole.CONVERSION_FORM:
                 raise ValueError(f"conversion source {doc_key} is not a conversion form")
         self._check_evidence(conv.evidence, conv.sources, "conversion")
+        ids = [r.id for r in self.item_rulings]
+        if len(set(ids)) != len(ids):
+            raise ValueError("duplicate item ruling")
+        for r in self.item_rulings:
+            for doc_key in r.sources:
+                doc = self._doc(doc_key)
+                if doc.role not in SCOPE_ROLES[EvidenceScope.OPENING]:
+                    raise ValueError(f"{r.id}: {doc_key} ({doc.role}) is not opening material")
+                if not set(r.categories) <= set(doc.categories):
+                    raise ValueError(f"{r.id}: {doc_key} does not cover every listed category")
+            self._check_evidence(r.evidence, r.sources, r.id)
         return self
 
     def _doc(self, key: str) -> SourceDocument:
@@ -229,7 +267,15 @@ class Coverage(_Model):
             for f in c.facets:
                 out += f.evidence
         out += self.conversion.evidence
+        for r in self.item_rulings:
+            out += r.evidence
         return tuple(out)
+
+    def ruling(self, ruling_id: str) -> ItemRuling | None:
+        return next((r for r in self.item_rulings if r.id == ruling_id), None)
+
+    def rulings_for(self, category: CustomerCategory) -> tuple[ItemRuling, ...]:
+        return tuple(r for r in self.item_rulings if category in r.categories)
 
 
 def load_coverage(path: Path = COVERAGE_FILE) -> Coverage:

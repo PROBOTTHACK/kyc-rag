@@ -121,6 +121,27 @@ Further facets are asked **only when material** (§6):
 
 The coverage map (A2) is the machine-readable form of this table. Every cell cites stored chunk ids, and changing a cell requires corpus evidence and owner review.
 
+### 5.4 Current interpretation (owner decisions at the A2 review, 2026-11-14)
+This section is the **current** interpretation. It supersedes `A0_AUDIT.md` where they differ; A0 is kept unchanged as the historical audit. The coverage map records these rulings as `item_rulings` (`backend/app/assistant/coverage.yaml`, version `a2-2`), validated on load and tested.
+
+**Item rulings (non-individual opening form):**
+
+| Item | Ruling | Basis |
+|---|---|---|
+| Photographs of authorised signatories | **Not established.** No photograph requirement exists for organisations; it must not appear as a checklist item. If a customer asks, the answer is "could not be confirmed". | No stored text or form-schema field of the form mentions a photograph. A0's "authorised-signatory photograph boxes" came from looking at the page image and cannot be cited. |
+| PAN No. of authorised signatories / partners | **Evidenced information** (something the customer writes on the form; OCR-uncertain). | Stored text "PAN No." in the Authorized Signatory Details blocks (p2; chunks `f51508ae…`, `600f4dd7…`). |
+| Form 60/61 | **Evidenced**, with the form's own condition "for existing customers" (OCR-uncertain). | Stored text "Form 60/61 attached for existing customers" (p1; chunk `1c8150b4…`). |
+| A copy of the entity's PAN card | **Not established.** It is never inferred, and the PAN No. field does not create it (§4 rule 1). | No applicable HDFC document asks for it. The entity-level PAN field exists only in the uncorroborated multimodal schema. |
+
+Rulings record evidence, never an evidence classification. Classes are assigned deterministically in A4 (§3).
+
+**Standing rules (restated by the owner at the A2 review):**
+1. **The 26 covered combinations are corpus evidence coverage, not confirmed HDFC policy coverage.** They mean that an applicable HDFC opening form exists in the corpus, not that HDFC Bank's current requirements are known.
+2. **No HDFC policy-supported requirement exists in the present corpus.** `policy_supported` is never emitted (§3, §9 item 6).
+3. **Semantic (dense) retrieval remains the default.**
+4. **Hybrid retrieval is an experimental candidate**, not the production default, until a measured re-evaluation justifies a change (`A2_RETRIEVAL_EVAL.md` §5).
+5. **The A2 Recall@5 figures keep their limitations** wherever they are quoted: a 25-case, single-annotator, development-only set with no held-out split.
+
 ---
 
 ## 6. Conversation rules
