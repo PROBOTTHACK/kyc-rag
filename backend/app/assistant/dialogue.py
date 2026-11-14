@@ -824,7 +824,13 @@ def _apply_understanding(
     # 4. Hints and LLM proposals become confirmation questions, never values (R7).
     # Except one: when the customer has said the account is for a person (e.g. their child)
     # and was asked whether that person lives in India, "we are in India" is the answer.
-    asked_who = w.person is not None
+    # Only as the answer to that question (R7: "I live in Dubai" on its own is confirmed).
+    asked_who = (
+        w.person is not None
+        and previous is not None
+        and previous.kind is PendingKind.QUESTION
+        and previous.slot is Slot.CUSTOMER_CATEGORY
+    )
     hints = list(u.hints)
     for h in u.hints:
         if asked_who and h.basis in RESIDENCY_BASES and not w.entry(h.slot).known:

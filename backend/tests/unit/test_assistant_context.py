@@ -335,3 +335,11 @@ def test_an_offer_reply_asks_once() -> None:
     state, r = run(*LLP_CURRENT, say("What about my child?"))
     reply = build_answer(state, r, wording()).reply or ""
     assert reply.count(r.scenario_offer.text) == 1
+
+
+def test_residency_outside_the_which_person_question_is_still_confirmed() -> None:
+    # R7: "we live in Dubai" on its own never becomes a category; it is a hint to confirm.
+    state, r = run(say("an account for my child, we live in Dubai"))
+    assert r.step is StepKind.CONFIRM
+    assert (r.confirmation.slot, r.confirmation.value) == (Slot.CUSTOMER_CATEGORY, "NRI_INDIVIDUAL")
+    assert state.value(Slot.CUSTOMER_CATEGORY) is None
