@@ -67,6 +67,16 @@ class Control(StrEnum):
     NO = "no"
 
 
+class Social(StrEnum):
+    """Greetings and small talk: answered naturally, never a profile value or a question."""
+
+    GREETING = "greeting"
+    THANKS = "thanks"
+    GOODBYE = "goodbye"
+    ACKNOWLEDGEMENT = "acknowledgement"
+    SMALL_TALK = "small_talk"
+
+
 class Person(StrEnum):
     """Who a message is about when it names no customer category. Context only: it never
     becomes a profile value by itself (the dialogue asks or confirms first)."""
@@ -105,15 +115,21 @@ class Understanding:
     person: Person | None = None  # who the message is about (context, never a value)
     follow_up: bool = False  # refers back to the conversation ("that", "what about ...")
     separate_request: bool = False  # another / a second / also ... an account
+    social: Social | None = None  # a greeting, thanks, goodbye, acknowledgement, small talk
 
     @property
-    def substantive(self) -> bool:
-        """Anything beyond a control reply was understood."""
+    def content(self) -> bool:
+        """Anything about the account was understood (not just social words)."""
         return bool(
             self.values or self.ambiguous or self.hints or self.residency or self.unsupported
             or self.organisation_unspecified or self.intent or self.topics or self.out_of_scope
             or self.person or self.follow_up or self.separate_request
         )  # fmt: skip
+
+    @property
+    def substantive(self) -> bool:
+        """Anything beyond a control reply was understood."""
+        return self.content or self.social is not None
 
 
 # --- vocabulary ----------------------------------------------------------------------------------
@@ -229,7 +245,11 @@ RESIDENCY_PATTERNS = {
         r"|uk|united kingdom|england|london|canada|australia|singapore|saudi(?: arabia)?"
         r"|qatar|kuwait|oman|bahrain|germany|new zealand|hong kong|malaysia)\b",
     ),
-    Residency.IN_INDIA: (rf"\b{_LIVE} in india\b",),
+    Residency.IN_INDIA: (
+        rf"\b{_LIVE} in india\b",
+        r"\b(?:we|i|she|he|they)(?: are|'re| re| am|'m| m| is|'s| s)?(?: all)? (?:in|based in|from)"
+        r" india\b",
+    ),
 }  # fmt: skip
 
 CONVERSION_PATTERNS = (
@@ -284,6 +304,28 @@ OUT_OF_SCOPE_PATTERNS: dict[str, tuple[str, ...]] = {
         r"\beligib\w*\b", r"\bapprov\w*\b", r"\breject\w*\b", r"\bcredit score\b", r"\bcibil\b",
     ),
     "other_products": (r"\binsurance\b", r"\bmutual funds?\b", r"\blockers?\b"),
+}  # fmt: skip
+
+# Greetings and small talk (checked on the whole, normalised message).
+SOCIAL_PATTERNS: dict[Social, tuple[str, ...]] = {
+    Social.GREETING: (
+        r"^(?:hi+|hii+|hello+|hey+|hiya|heya|yo+|howdy|greetings|namaste|hola)\b",
+        r"^good (?:morning|afternoon|evening|day)\b",
+    ),
+    Social.THANKS: (
+        r"\b(?:thanks?|thank you|thankyou|thx|ty|cheers|appreciate(?: it| that)?)\b",
+    ),
+    Social.GOODBYE: (
+        r"\b(?:bye|goodbye|good bye|see (?:you|ya)|that'?s all|that is all|have a (?:nice|good) day)\b",
+    ),
+    Social.SMALL_TALK: (
+        r"\bhow are you\b", r"\bhow'?s it going\b", r"\bwhat'?s up\b", r"\bwhats up\b",
+        r"\bwho are you\b", r"\bare you (?:a )?(?:bot|human|robot)\b",
+    ),
+    Social.ACKNOWLEDGEMENT: (
+        r"^(?:cool|great|nice|got it|alright|all right|perfect|understood|noted|fine|awesome"
+        r"|makes sense|good)\b",
+    ),
 }  # fmt: skip
 
 # Conversational context (owner request: context-aware follow-ups). These never set a
@@ -443,6 +485,7 @@ def understand(message: str) -> Understanding:
         person = next((p for p, pats in PERSON_PATTERNS.items() if _found(pats, text)), None)
     follow_up = _found(REFERENCE_PATTERNS, text)
     separate = _found(SEPARATE_WORDS, text) and _found(ACCOUNT_OR_OPEN, text)
+    social = next((s for s, pats in SOCIAL_PATTERNS.items() if _found(pats, text)), None)
     return Understanding(
         values=values,
         ambiguous=ambiguous,
@@ -459,4 +502,5 @@ def understand(message: str) -> Understanding:
         person=person,
         follow_up=follow_up,
         separate_request=separate,
+        social=social,
     )
