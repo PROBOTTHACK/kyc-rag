@@ -1,5 +1,7 @@
 # Product redesign: the Account Opening Assistant as the application
 
+> **Historical stage record.** The authoritative product specification is now [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) (2026-11-14). This document records what was decided and verified at its stage; where it differs from `PRODUCT_SPEC.md`, the specification applies.
+
 Stage: the product redesign and consolidation before A7 (owner request, 2026-11-14), on `feat/account-opening-assistant`. The Account Opening Assistant is now the main application, with a dark design system and a rebuilt journey. Its working behaviour is unchanged: the same A5 API, dialogue, checklist, idempotency, session recovery, corrections and PII safeguards.
 
 ## 1. Application structure
@@ -153,7 +155,7 @@ The checklist evidence features are unchanged: groups A/B/C, conditions, sources
 | `components/ErrorBoundary`, `components/useFocusWhenLost`, `api/hooks` (`ApiContext`) | **Keep** | Shared infrastructure used by the assistant. |
 | `screens/dashboard`, `screens/assistant` (v1), `screens/report`, `screens/NotFoundPage`, `components/Layout`, `components/Disclaimer` | **Modify (moved to `/legacy`)** | The preserved M5 compliance engine. It still works and its tests pass, but it is no longer in the assistant's path. |
 | `api/events.ts`, `api/sse.ts`, `storage/sessions.ts`, `test/fixtures/live`, `test/fixtures/reports` | **Keep** | Used only by the legacy screens. |
-| `screens/Placeholder.tsx` | **Proposed removal, needs approval** | It has no importers anywhere. |
+| `screens/Placeholder.tsx` | **Removed** in the master-upgrade cleanup (Stage 5, 2026-11-14; recoverable from git history) | It has no importers anywhere. |
 | The legacy screens themselves | **Proposed removal, needs approval** | Possible later. CLAUDE.md says legacy removal happens only in a reviewed, owner-approved stage, so they are kept for now. |
 
 ## 5. Verification (2026-11-14)

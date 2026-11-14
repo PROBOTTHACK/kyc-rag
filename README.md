@@ -1,25 +1,70 @@
 <div align="center">
 
-# Agentic KYC Compliance Engine
+# HDFC Bank Account Opening Assistant
 
-**An evidence-grounded, multimodal RAG system that turns KYC policies and account-opening forms into verified, citation-backed compliance checklists.**
+**A conversational assistant that tells a customer which documents and information the HDFC Bank account opening forms ask for, with a citation for every item.**
 
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
-![LangGraph](https://img.shields.io/badge/LangGraph-orchestration-1C3C3C)
 ![React](https://img.shields.io/badge/React-Vite-61DAFB?logo=react&logoColor=black)
 ![Qdrant](https://img.shields.io/badge/Qdrant-vector%20search-DC244C)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
-![Redis](https://img.shields.io/badge/Redis-DC382D?logo=redis&logoColor=white)
-![Status](https://img.shields.io/badge/status-M5%20complete%20(prototype)-blue)
+![Status](https://img.shields.io/badge/status-prototype-blue)
 
 </div>
 
-> **Product direction change (2026-11-14).** New work builds the **HDFC Bank Account Opening Assistant**: a customer-facing conversational assistant that uses only HDFC material from the corpus. See [`docs/assistant/A1_PRODUCT_SPEC.md`](docs/assistant/A1_PRODUCT_SPEC.md) and [`docs/assistant/A0_AUDIT.md`](docs/assistant/A0_AUDIT.md). The rest of this README describes the preserved compliance-engine implementation (M0–M5), which remains in the repository.
->
-> **Try the assistant:** `make up && make migrate && make api`, then `make web` and open <http://127.0.0.1:5173/> (synthetic data only). The Account Opening Assistant is the application at `/`; the preserved M5 screens are under `/legacy`. API: [`docs/assistant/A5_API.md`](docs/assistant/A5_API.md); interface: [`docs/assistant/A6_UI.md`](docs/assistant/A6_UI.md); design system and structure: [`docs/assistant/REDESIGN.md`](docs/assistant/REDESIGN.md).
+> **Disclaimer:** an independent portfolio prototype. It is **not** an HDFC Bank or RBI product and is not affiliated with or endorsed by either. It uses public HDFC documents and **synthetic data only**, does not approve, reject or assess applications, and is not production-ready. The source documents are dated; every answer advises confirming with HDFC Bank.
 
-> **Disclaimer:** This is an independent portfolio prototype built on authorized or illustrative documents. It is **not** an official HDFC Bank product, does not approve or reject real applications, and does not replace a bank's compliance team.
+## What it does
+- **Asks only what matters:** which account, who it is for, and only the follow-ups the applicable form needs (NRE / NRO, joint holding, minor). Chips or free text.
+- **Builds a checklist from the forms:** documents to bring, details to fill in, and what could not be confirmed. Every item cites the HDFC form, page and passage it comes from; scanned text is shown as an approximate reading.
+- **Says when it doesn't know:** for a combination the documents don't cover (for example a resident savings account), it gives the prescribed fallback, explains why and suggests what is covered. It never guesses.
+- **Talks naturally:** answers greetings and follow-up questions, reads each message against the conversation, keeps separate accounts apart (an LLP's current account and a daughter's account are never merged) and lets the customer go back to an earlier one.
+- **Remembers the conversation** across a reload or a server restart, with a rolling summary of older turns.
+- **Protects data:** identifiers such as PAN or Aadhaar numbers are refused before anything is stored or sent to an LLM, and never echoed back.
+
+## How it works
+1. **Corpus:** HDFC account-opening forms ingested with PyMuPDF and Tesseract OCR, chunked into PostgreSQL and indexed in Qdrant (BGE-small). RBI documents stay stored but are excluded from the assistant.
+2. **Coverage map** (`backend/app/assistant/coverage.yaml`): which category and account combinations an applicable form covers, each cell citing stored chunks.
+3. **Dialogue** (`backend/app/assistant/dialogue.py`): a deterministic per-turn policy over the profile slots, with account scenarios, greetings and context handling.
+4. **Checklist** (`backend/app/assistant/checklist.py`): items from the evidence catalogue, classified deterministically by source tier, citations re-resolved in PostgreSQL.
+5. **Optional LLM** (Groq, behind `GROQ_LIVE_ENABLED`): extracts slot values (enum-validated) and acts as the **voice**, rewording replies from the answer's own facts. Every reply passes a deterministic check; on any failure the deterministic reply is used. The assistant works fully without an LLM.
+6. **API** `/api/v2/assistant` (FastAPI) and a React frontend at `/`.
+
+## Getting started
+Requirements: Python 3.11+, Node 26, Docker.
+
+```bash
+make up          # PostgreSQL, Redis and Qdrant (infra/docker-compose.yml)
+make migrate     # Alembic
+make api         # FastAPI on :8000
+make web         # the frontend on :5173 (open http://127.0.0.1:5173/)
+```
+
+Prerequisites (Tesseract OCR, GNU Make on Windows) and `.env` setup (`cp infra/.env.example .env`) are in the legacy *Getting started* below. The corpus is ingested with `make ingest` (see [`docs/04-ingestion-pipelines.md`](docs/04-ingestion-pipelines.md)). The live LLM is off unless `GROQ_LIVE_ENABLED=true` and a key and data-terms date are set; tests never call it.
+
+**Checks:** `make test`, `make lint`, `make check-schema`, `make web-test`, `make web-lint`, `make web-build`, `make assistant-eval`.
+
+## Documentation
+- **[`docs/assistant/PRODUCT_SPEC.md`](docs/assistant/PRODUCT_SPEC.md): the authoritative product specification.**
+- [`docs/assistant/A5_API.md`](docs/assistant/A5_API.md): the API contract, persistence and demo.
+- [`docs/assistant/A0_AUDIT.md`](docs/assistant/A0_AUDIT.md): the corpus audit and coverage matrix.
+- Historical stage records: A1–A4, A6 and [`REDESIGN.md`](docs/assistant/REDESIGN.md) in `docs/assistant/`.
+- [`CLAUDE.md`](CLAUDE.md): the project rules.
+
+## Project structure
+```text
+backend/app/assistant/   the assistant: understanding, dialogue, checklist, reply, voice, memory, API service
+backend/app/api/v2/      the assistant API
+frontend/src/assistant/  the assistant UI (served at /)
+docs/assistant/          product specification, API reference and stage records
+backend/app/graph, verification, api/v1; frontend/src/screens   the preserved legacy engine (below)
+```
+
+---
+
+## Legacy: Agentic KYC Compliance Engine (M0–M5)
+The previous product, preserved in the repository with its tests (its screens are at `/legacy`). New work does not use it; see [`CLAUDE.md`](CLAUDE.md).
 
 > **Status at the close of M5.** The prototype ingests public RBI/HDFC KYC documents, retrieves cited evidence, runs a checkpointed LangGraph workflow and produces an insert-only report. A local web frontend (M5) drives it: Dashboard, KYC Assistant, and the Compliance Report with read-only review cases.
 > - A deterministic validator checks every citation and every MANDATORY.
@@ -28,9 +73,7 @@
 >
 > **Handoff:** [architecture](docs/handoff/01-architecture-handoff.md) · [setup](docs/handoff/02-setup-and-reproducibility.md) · [evaluation](docs/handoff/03-evaluation-report.md) · [limitations and known issues](docs/handoff/04-limitations-and-known-issues.md) · [M5 closure report](docs/milestones/M5_CLOSURE_REPORT.md) · [M4 closure report](docs/milestones/M4_CLOSURE_REPORT.md)
 
----
-
-## Why this exists
+### Why this exists
 
 KYC requirements change with the customer category. An individual, an LLP and a private limited company each need different documents, declarations and authorizations. A typical document chatbot retrieves a paragraph about KYC and gives a generic answer, with no way to tell which parts are supported, conditional or simply invented.
 
@@ -44,7 +87,7 @@ This project connects five things that a chatbot treats separately:
 
 Its guiding rule: **a polished but wrong checklist is worse than an incomplete one that is honest about its uncertainty.** The system knows when it cannot answer.
 
-## Key features (status at M5 close)
+### Key features (status at M5 close)
 
 | | Capability | Status | What it does |
 |---|---|---|---|
@@ -60,7 +103,7 @@ Its guiding rule: **a polished but wrong checklist is worse than an incomplete o
 | 📈 | **Observability** | partial | Node events over SSE, verification timings in reports. LangSmith tracing is not implemented. |
 | 🖥️ | **Web frontend** | operational (local dev server) | Dashboard (API health, this tab's demo sessions), KYC Assistant (live progress, clarification, retry), Compliance Report (v1/v2) with read-only review cases. Typed from the published OpenAPI contract. No upload, no review decisions, no login. |
 
-## How it works (as built)
+### How it works (as built)
 
 ```mermaid
 flowchart TD
@@ -84,7 +127,7 @@ flowchart TD
 
 The workflow is a single **LangGraph state machine**, not a swarm of free-running agents. Execution is predictable, checkpointed in Postgres, debuggable and testable. Every loop has a hard limit, and there is no regeneration loop. Outcomes are `BLOCKED`, `INSUFFICIENT_INFORMATION`, `INSUFFICIENT_EVIDENCE`, `DEGRADED` and `CHECKLIST_REVIEW_REQUIRED`. None of them approves or rejects anything.
 
-### Verification: what makes it different
+#### Verification: what makes it different
 
 ```
 Evidence : "Designated partners must be verified."
@@ -96,7 +139,7 @@ NLI alone is not treated as truth, and its scores are uncalibrated signals, not 
 
 **Current state:** this design is implemented and tested with a scripted scorer, but **disabled in production**. Four pinned DeBERTa-v3 checkpoints were evaluated once on the development set under a rule registered in advance, and none passed its safety gates (0 of 140 configurations). So every claim is reported *not verified* rather than trusting an unqualified model. See the [evaluation report](docs/handoff/03-evaluation-report.md).
 
-## Tech stack
+### Tech stack
 
 | Layer | Technology |
 |---|---|
@@ -113,7 +156,7 @@ NLI alone is not treated as truth, and its scores are uncalibrated signals, not 
 
 Everything runs locally through Docker and fits on free tiers for a public demo. Details in [`docs/02-tech-stack-free-tier.md`](docs/02-tech-stack-free-tier.md).
 
-## Getting started
+### Getting started
 
 **Prerequisites:** Docker, Python 3.11+, GNU Make, [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) 5.x (OCR fallback for scanned pages), and optionally free API keys for Groq and Google AI Studio (only for the opt-in live runs; **no API key is needed for ingestion, retrieval, the workflow without a live LLM, or any test**). For the frontend (M5): Node.js **26.13.1 LTS** (exact major enforced by `frontend/package.json`; installed here with NVM for Windows). On Windows: `winget install ezwinports.make` and `winget install UB-Mannheim.TesseractOCR`. Tesseract is found via `TESSERACT_CMD`, then `PATH`, then the standard install folder (`C:\Program Files\Tesseract-OCR\`), so a default winget install needs no configuration. For a non-standard location, set `TESSERACT_CMD=D:/path/to/tesseract.exe` (and optionally `TESSDATA_DIR`) in a **repo-root `.env`**. `.env` is gitignored and machine-specific: never commit it, and never put machine paths in `infra/.env.example`.
 
@@ -178,7 +221,7 @@ make check-workflow                 # read-only: orphan checkpoint data, residue
 
 Ingestion is idempotent: running `make ingest` again writes nothing and embeds nothing unless a source changed. If a document fails, it is reported with the failing stage and is never marked `completed`. Fix the cause, then `make retry`. See [Ingestion operations](#ingestion-operations-m1) below.
 
-### Form schemas (M2)
+#### Form schemas (M2)
 
 | Command (`cd backend && python -m app.ingestion.cli …`) | What it does |
 |---|---|
@@ -195,7 +238,7 @@ Other targets: `make test` (unit), `make test-integration` (needs `make up`), `m
 
 > Use only public, authorized or synthetic documents. Check each external API's data-use terms before uploading anything confidential.
 
-### Ingestion operations (M1)
+#### Ingestion operations (M1)
 
 | Make target | CLI (`cd backend && python -m app.ingestion.cli …`) | What it does |
 |---|---|---|
@@ -215,7 +258,7 @@ Other targets: `make test` (unit), `make test-integration` (needs `make up`), `m
 
 `index` without `--from-db` is the Stage D in-memory indexer (Stages A–C → Qdrant, no Postgres), kept for experiments. Exit codes: `0` ok, `1` a document failed or the stores are inconsistent, `2` invalid input or a service not ready (nothing written). Full reference: [`docs/04-ingestion-pipelines.md`](docs/04-ingestion-pipelines.md); M1 handoff: [`docs/milestones/M1_HANDOFF.md`](docs/milestones/M1_HANDOFF.md).
 
-## Project structure
+### Project structure
 
 ```
 backend/app/
@@ -240,7 +283,7 @@ infra/             docker-compose and env template (no secrets)
 docs/              specification, milestone records and the handoff (docs/handoff/)
 ```
 
-## Evaluation
+### Evaluation
 
 Quality is measured, not assumed; full results are in [`docs/handoff/03-evaluation-report.md`](docs/handoff/03-evaluation-report.md).
 - **Retrieval (M1/M2):** dense Recall@5 0.825 on the 20-query development set and 0.900 on the frozen 20-query held-out set; hybrid did not beat dense, so dense stays the default.
@@ -252,7 +295,7 @@ Quality is measured, not assumed; full results are in [`docs/handoff/03-evaluati
 
 **M1 retrieval baseline (measured 2026-11-08):** dense BGE-small search with the default eligibility filters, on 20 hand-labelled queries (28 target passages, `data/eval/m1_retrieval.jsonl`): mean **Recall@5 0.825**, **Hit@5 0.90**, **MRR@5 0.775**. It is a small, single-annotator set. **M2:** BM25 and hybrid (RRF) retrieval were implemented and evaluated against this baseline (development and frozen held-out sets). Hybrid did not beat dense by the pre-registered margin, so **dense stays the default** and hybrid is selectable (`--mode hybrid`); see [`docs/10`](docs/10-evaluation-plan.md). Full results from the 50-case benchmark will be published when available.
 
-## Security and privacy
+### Security and privacy
 
 - Retrieved document text is **untrusted evidence**, delimited in prompts and never followed as instructions
 - The workflow makes no tool calls: no code execution, file access or arbitrary network calls from the LLM
@@ -261,7 +304,7 @@ Quality is measured, not assumed; full results are in [`docs/handoff/03-evaluati
 - A shared rate limiter bounds LLM calls; there is no document-upload endpoint and no user authentication (session id possession)
 - Synthetic customer data only; no secrets or PII in logs, state or reports
 
-## Limitations
+### Limitations
 
 This system does **not** approve or reject applications, verify identity against government databases, validate real PAN/Aadhaar records, make legal or regulatory decisions, guarantee compliance, or access any bank's internal systems. Output is decision support that requires human review.
 
@@ -294,7 +337,7 @@ M3 limits:
 - Every result requires human review.
 - Details: [`docs/milestones/M3_HANDOFF.md`](docs/milestones/M3_HANDOFF.md).
 
-## Roadmap
+### Roadmap
 
 - [x] Document ingestion and retrieval foundation (M1: see [`docs/milestones/M1_HANDOFF.md`](docs/milestones/M1_HANDOFF.md))
 - [x] Hybrid retrieval and multimodal form extraction (M2: see [`docs/milestones/M2_HANDOFF.md`](docs/milestones/M2_HANDOFF.md))
@@ -305,7 +348,7 @@ M3 limits:
 - [ ] Evaluation benchmark and observability (M6; also Document Intelligence and Observability screens, moved from M5)
 - [ ] Deployment and demo
 
-## Documentation
+### Documentation
 
 | Topic | File |
 |---|---|
@@ -332,7 +375,7 @@ M3 limits:
 | Published API contract | [`docs/api/openapi.json`](docs/api/openapi.json) |
 | **Account Opening Assistant** (spec, API, interface, design system) | [`docs/assistant/A1_PRODUCT_SPEC.md`](docs/assistant/A1_PRODUCT_SPEC.md), [`docs/assistant/A5_API.md`](docs/assistant/A5_API.md), [`docs/assistant/A6_UI.md`](docs/assistant/A6_UI.md), [`docs/assistant/REDESIGN.md`](docs/assistant/REDESIGN.md) |
 
-## License
+### License
 
 No license has been chosen for this repository yet.
 

@@ -1,5 +1,7 @@
 # A0: Corpus Audit and Coverage Matrix (HDFC Bank Account Opening Assistant)
 
+> **Historical stage record.** The authoritative product specification is now [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) (2026-11-14). This document records what was decided and verified at its stage; where it differs from `PRODUCT_SPEC.md`, the specification applies.
+
 > Independent prototype. Not affiliated with or endorsed by HDFC Bank or the RBI. Synthetic data only. The source documents are dated, and their current validity has not been independently verified.
 
 > **Historical document.** This audit is preserved as approved. Two of its readings were corrected at the A2 review (owner, 2026-11-14): there is **no** citable photograph requirement for organisations' authorised signatories, and the supported PAN item is **PAN No. of signatories/partners** (with the Form 60/61 field), never an entity PAN card copy. The current interpretation is `A1_PRODUCT_SPEC.md` §5.4.

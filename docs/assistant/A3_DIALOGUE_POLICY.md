@@ -1,5 +1,7 @@
 # A3: Understanding and Dialogue Policy
 
+> **Historical stage record.** The authoritative product specification is now [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) (2026-11-14). This document records what was decided and verified at its stage; where it differs from `PRODUCT_SPEC.md`, the specification applies.
+
 Stage A3 of the HDFC Bank Account Opening Assistant (independent portfolio prototype; not an HDFC Bank or RBI product). Spec: `A1_PRODUCT_SPEC.md` §6 (conversation rules R1–R10) and §8.3 (role of the LLM).
 
 **Scope of this stage:**

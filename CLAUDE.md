@@ -5,9 +5,11 @@ Project: **HDFC Bank Account Opening Assistant** (independent portfolio prototyp
 **Product direction (owner decision, 2026-11-14):** a customer-facing conversational assistant. It tells a customer which documents and information they need to open an HDFC Bank account, using **only HDFC material in the project corpus**. This **supersedes** the previous "Agentic KYC Compliance Engine" direction for all new work.
 
 Read first, in this order:
-1. `docs/assistant/A1_PRODUCT_SPEC.md`: the product spec, evidence classes, taxonomy, conversation rules, output and citations, fallback and notice, and what the MVP must not do.
+1. `docs/assistant/PRODUCT_SPEC.md`: the **authoritative** product spec: evidence classes, taxonomy, conversation rules (including greetings, follow-ups and separate accounts), output and citations, fallback and notice, the LLM's role, memory and privacy, and what the MVP must not do. Its section numbers match A1, so "spec §N" below refers to it.
 2. `docs/assistant/A0_AUDIT.md`: the corpus audit and the evidence-based coverage matrix.
-3. `README.md` and `docs/handoff/` describe the preserved previous implementation (M0–M5).
+3. `README.md`; `docs/handoff/` describes the preserved previous implementation (M0–M5).
+
+`A1_PRODUCT_SPEC.md`, the other A-stage reports and `REDESIGN.md` are historical stage records; `A5_API.md` is the current API reference.
 
 The spec is binding: don't add technologies, features or sources without asking.
 
@@ -54,7 +56,7 @@ Python 3.11+, FastAPI, Pydantic v2, SQLAlchemy 2 + Alembic, PostgreSQL, Redis (w
   - new tables only through Alembic (existing tables untouched).
 - **Code quality:** typed everywhere (strict mypy where practical), `ruff` + `black`, `pytest`, async FastAPI; frontend `tsc` strict + ESLint + Prettier + Vitest.
 - **LLM output:** Pydantic models for every structured LLM output; validate before use; on invalid output retry once, then use the deterministic path.
-- **Stages:** work in stages (A1–A7, `docs/assistant/A1_PRODUCT_SPEC.md` §11), one stage at a time, one review and one commit each. After each stage: run the tests, update the docs if behaviour changed, and summarise what is done and what is not. Do not start the next stage without approval.
+- **Stages:** work in stages (A1–A7, `docs/assistant/PRODUCT_SPEC.md` §11), one stage at a time, one review and one commit each. After each stage: run the tests, update the docs if behaviour changed, and summarise what is done and what is not. Do not start the next stage without approval.
 - **Tests:** write them alongside code. Retrieval and checklist correctness need measurable metrics (HDFC-only evaluation set, A2).
 - **Ask before:** adding dependencies, changing the DB schema outside Alembic, changing coverage, or deviating from the spec.
 - **Git:** never push, merge, tag, reset, rebase or delete branches without explicit approval.

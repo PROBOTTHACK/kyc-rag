@@ -8,7 +8,7 @@ child's account are never combined into one checklist.
 
 from __future__ import annotations
 
-from app.assistant.profile import DialogueState, Scenario, Slot, SlotEntry
+from app.assistant.profile import DialogueState, Slot, SlotEntry
 from app.assistant.wording import Wording
 
 
@@ -37,15 +37,6 @@ def scenario_label(slots: dict[Slot, SlotEntry], words: Wording) -> str:
     if account:
         return words.scenarios.account_only.format(account=account)
     return words.scenarios.unnamed
-
-
-def snapshot(state: DialogueState) -> Scenario:
-    return Scenario(
-        slots=dict(state.slots),
-        intent=state.intent,
-        open_topics=state.open_topics,
-        history=state.history,
-    )
 
 
 def has_answers(state: DialogueState) -> bool:

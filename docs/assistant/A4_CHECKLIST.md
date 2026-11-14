@@ -1,5 +1,7 @@
 # A4: Evidence-Backed Checklist Generation
 
+> **Historical stage record.** The authoritative product specification is now [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) (2026-11-14). This document records what was decided and verified at its stage; where it differs from `PRODUCT_SPEC.md`, the specification applies.
+
 Stage A4 of the HDFC Bank Account Opening Assistant (independent portfolio prototype; not an HDFC Bank or RBI product). Spec: `A1_PRODUCT_SPEC.md` §3 (classes), §4 (documents vs information), §7 (fallback and notice) and §8 (output and citations), with the A2 rulings of §5.4.
 
 **Scope of this stage:**

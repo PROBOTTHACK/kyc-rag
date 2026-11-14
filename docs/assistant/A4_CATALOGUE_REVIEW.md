@@ -1,5 +1,7 @@
 # A4 Catalogue Review: Checklist Items
 
+> **Historical stage record.** The authoritative product specification is now [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) (2026-11-14). This document records what was decided and verified at its stage; where it differs from `PRODUCT_SPEC.md`, the specification applies.
+
 Generated from `backend/app/assistant/checklist.yaml` (catalogue `a4-1`) and `coverage.yaml` (`a2-2`) by `python -m app.assistant.catalogue_report`. Do not edit by hand: a unit test checks that this file matches the data.
 
 **47 items** (Groups A and B) and **4 could-not-be-confirmed entries** (Group C).

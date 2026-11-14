@@ -1,5 +1,7 @@
 # A1: Product Specification and Taxonomy (HDFC Bank Account Opening Assistant)
 
+> **Superseded as the reference specification** by [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) (2026-11-14), which carries this document's evidence rules (§2–§5, §7, §8.2, §9) over verbatim, keeps its section numbers, and updates the conversation, answer object, LLM role, interface and memory. Kept as the A1 record.
+
 > Independent prototype. Not affiliated with or endorsed by HDFC Bank or the RBI. Synthetic data only. The source documents are dated, and their current validity has not been independently verified.
 
 **Status:** A1. Documentation only, on branch `feat/account-opening-assistant`.

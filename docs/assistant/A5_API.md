@@ -1,5 +1,7 @@
 # A5: Assistant API v2 and persistence
 
+> **Current API reference.** The product rules are in [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md); this document details the API contract, persistence and demo, and is kept up to date.
+
 Stage A5 of the HDFC Bank Account Opening Assistant (independent portfolio prototype; synthetic data only). It puts the A3 dialogue and the A4 checklist behind a small HTTP API and stores each conversation in Postgres. It adds no new requirements, sources, coverage or profile questions.
 
 ## 1. Endpoints (`/api/v2/assistant`)

@@ -1,5 +1,7 @@
 # A2: Coverage Map and HDFC-only Retrieval Evaluation
 
+> **Historical stage record.** The authoritative product specification is now [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) (2026-11-14). This document records what was decided and verified at its stage; where it differs from `PRODUCT_SPEC.md`, the specification applies.
+
 Stage A2 of the HDFC Bank Account Opening Assistant (independent portfolio prototype; not an HDFC Bank or RBI product). Spec: `A1_PRODUCT_SPEC.md`. Corpus audit: `A0_AUDIT.md`.
 
 **Scope of this stage:**
