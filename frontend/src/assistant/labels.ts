@@ -7,7 +7,7 @@
  */
 import type { ApiError } from "../api/errors";
 
-export const PRODUCT_NAME = "KYC Rag";
+export const PRODUCT_NAME = "Account Opening Assistant";
 
 /** The persistent disclaimer (A1 §7), reworded for customers without dropping any claim. */
 export const DISCLAIMER_LINES = {

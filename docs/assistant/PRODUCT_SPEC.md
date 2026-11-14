@@ -1,10 +1,12 @@
-# HDFC Bank Account Opening Assistant: Product Specification
+# Account Opening Assistant: Product Specification
 
 > Independent prototype. Not affiliated with or endorsed by HDFC Bank or the RBI. Synthetic data only. The source documents are dated, and their current validity has not been independently verified.
 
 **Status:** **authoritative** product specification, 2026-11-14, branch `feat/account-opening-assistant`. It replaces [`A1_PRODUCT_SPEC.md`](A1_PRODUCT_SPEC.md) as the document to read first.
 **What changed from A1:** nothing in the evidence rules. §2–§5, §7, §8.2 and §9 items 1–13 are carried over **verbatim** from A1. The conversation (§6), the answer object (§8.1), the LLM's role (§8.3), the interface (§12) and memory and privacy (§13) describe the product as built through A6 and the conversational upgrade (owner requests of 2026-11-14).
 **Section numbers** follow A1, so references such as "spec §7" in `CLAUDE.md` and the code still point to the same rules. The A0–A6 stage reports and `REDESIGN.md` are kept as **historical records** (§14).
+
+**Name** (owner decision, 2026-11-15): the customer-facing product name is **Account Opening Assistant**, used consistently in the interface, the README, the API title and the current documentation. "KYC RAG" may describe the technical approach internally, never as the product name. Neither the name nor any wording may imply HDFC Bank endorsement or affiliation. Older stage records keep their original wording.
 
 Normative words: **must / must not** are requirements, **should** is the default unless the owner decides otherwise, and **may** is optional.
 

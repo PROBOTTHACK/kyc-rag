@@ -99,7 +99,16 @@ def create_app(
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.APP_ENV)
-    app = FastAPI(title="Agentic KYC Compliance Engine", version="0.0.1", lifespan=lifespan)
+    app = FastAPI(
+        title="Account Opening Assistant API",
+        description=(
+            "Independent portfolio prototype; not affiliated with or endorsed by HDFC Bank or "
+            "the RBI. Synthetic data only. `/api/v2/assistant` is the product API; `/api/v1` is "
+            "the preserved legacy compliance-engine API."
+        ),
+        version="0.0.1",
+        lifespan=lifespan,
+    )
     app.state.settings = settings
     if runtime_factory is not None:
         app.state.runtime_factory = runtime_factory

@@ -1,8 +1,10 @@
 <div align="center">
 
-# HDFC Bank Account Opening Assistant
+# Account Opening Assistant
 
 **A conversational assistant that tells a customer which documents and information the HDFC Bank account opening forms ask for, with a citation for every item.**
+
+Technically, it is a KYC RAG system: retrieval-augmented answers grounded in stored, public HDFC Bank forms.
 
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
@@ -373,7 +375,7 @@ M3 limits:
 | **M4 closure report** | [`docs/milestones/M4_CLOSURE_REPORT.md`](docs/milestones/M4_CLOSURE_REPORT.md) |
 | **M5 plan and closure (frontend)** | [`docs/milestones/M5_PLAN.md`](docs/milestones/M5_PLAN.md), [`docs/milestones/M5_CLOSURE_REPORT.md`](docs/milestones/M5_CLOSURE_REPORT.md) |
 | Published API contract | [`docs/api/openapi.json`](docs/api/openapi.json) |
-| **Account Opening Assistant** (spec, API, interface, design system) | [`docs/assistant/A1_PRODUCT_SPEC.md`](docs/assistant/A1_PRODUCT_SPEC.md), [`docs/assistant/A5_API.md`](docs/assistant/A5_API.md), [`docs/assistant/A6_UI.md`](docs/assistant/A6_UI.md), [`docs/assistant/REDESIGN.md`](docs/assistant/REDESIGN.md) |
+| **Account Opening Assistant** (spec, API, interface, design system) | [`docs/assistant/PRODUCT_SPEC.md`](docs/assistant/PRODUCT_SPEC.md), [`docs/assistant/A5_API.md`](docs/assistant/A5_API.md), [`docs/assistant/A6_UI.md`](docs/assistant/A6_UI.md), [`docs/assistant/REDESIGN.md`](docs/assistant/REDESIGN.md) |
 
 ### License
 

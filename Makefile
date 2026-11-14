@@ -1,4 +1,4 @@
-# Agentic KYC Compliance Engine — dev commands.
+# Account Opening Assistant — dev commands.
 # Uses the repo-local virtualenv (.venv); create it with `make venv install`.
 #
 # Portability: GNU Make runs recipes with sh on Linux/macOS (and on Windows when sh.exe is

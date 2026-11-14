@@ -1,4 +1,4 @@
-# Coverage map of the HDFC Bank Account Opening Assistant (A2).
+# Coverage map of the Account Opening Assistant (A2).
 #
 # Source of truth: docs/assistant/A0_AUDIT.md §2 (owner-approved 2026-11-14) and A1 §2, §5.
 # Rules (enforced by app/assistant/coverage.py and its tests):

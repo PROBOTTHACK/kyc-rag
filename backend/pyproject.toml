@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "kyc-engine"
 version = "0.0.1"
-description = "Agentic KYC Compliance Engine (portfolio prototype)"
+description = "Account Opening Assistant: a KYC RAG portfolio prototype (with the preserved legacy compliance engine)"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",

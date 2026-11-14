@@ -1,7 +1,8 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Agentic KYC Compliance Engine",
+    "title": "Account Opening Assistant API",
+    "description": "Independent portfolio prototype; not affiliated with or endorsed by HDFC Bank or the RBI. Synthetic data only. `/api/v2/assistant` is the product API; `/api/v1` is the preserved legacy compliance-engine API.",
     "version": "0.0.1"
   },
   "paths": {

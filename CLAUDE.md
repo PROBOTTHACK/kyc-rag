@@ -1,6 +1,6 @@
 # CLAUDE.md — Project rules for Claude Code
 
-Project: **HDFC Bank Account Opening Assistant** (independent portfolio prototype, not an official product of HDFC Bank or the RBI, and not endorsed by either).
+Project: **Account Opening Assistant** (the customer-facing name; "KYC RAG" only as an internal technical description). An independent portfolio prototype built on public HDFC Bank forms, not an official product of HDFC Bank or the RBI, and not endorsed by either.
 
 **Product direction (owner decision, 2026-11-14):** a customer-facing conversational assistant. It tells a customer which documents and information they need to open an HDFC Bank account, using **only HDFC material in the project corpus**. This **supersedes** the previous "Agentic KYC Compliance Engine" direction for all new work.
 
