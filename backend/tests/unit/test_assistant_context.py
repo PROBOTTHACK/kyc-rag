@@ -257,3 +257,12 @@ async def test_identifiers_in_a_follow_up_are_still_refused_and_never_stored() -
     view = await svc.get_session(sid)
     assert PAN not in json.dumps(view)
     assert view["profile"]["customer_category"]["value"] == "LLP"
+
+
+def test_a_clarification_reply_asks_once() -> None:
+    from app.assistant.answer import build_answer
+
+    state, r = run(*LLP_CURRENT, say("What about my child?"))
+    reply = build_answer(state, r, wording()).reply or ""
+    assert "don't want to mix" in reply
+    assert r.question.text not in reply  # the note itself asks; no second question

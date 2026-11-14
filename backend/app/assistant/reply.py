@@ -124,7 +124,8 @@ def compose_reply(answer: AssistantAnswer, unchanged: bool, words: Wording) -> s
     elif answer.confirmation is not None:
         lines.append(answer.confirmation.text)
     elif answer.question is not None:
-        lines.append(answer.question.text)
+        if not codes & {"context_conflict", "context_change"}:
+            lines.append(answer.question.text)  # a context note already asks the question
     elif answer.suggestions:
         lines.append(r.suggestions_lead)
     return NEWLINE.join(lines) or None

@@ -241,3 +241,16 @@ async def test_a_reply_reusing_an_earlier_profiles_item_is_rejected() -> None:
     bad = "As before, bring a board resolution."
     out = await voice_reply(scripted_llm(say(bad)), a, "and for me?", recent=recent)
     assert out == a.reply
+
+
+def test_the_voice_is_told_the_situation_of_the_turn() -> None:
+    follow = answer_after(*NRI_SAVINGS, {"message": "Does that apply to me?"})
+    assert facts(follow)["situation"] == "follow_up"
+    clarify = answer_after(
+        {"action": "choose", "slot": "account_type", "value": "CURRENT"},
+        {"action": "choose", "slot": "customer_category", "value": "LLP"},
+        {"message": "What about my child?"},
+    )
+    assert facts(clarify)["situation"] == "clarify"
+    separate = answer_after(*NRI_SAVINGS, {"message": "I also want to open an account for my wife"})
+    assert facts(separate)["situation"] == "separate_request"
