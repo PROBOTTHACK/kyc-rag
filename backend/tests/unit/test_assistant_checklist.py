@@ -965,6 +965,10 @@ def test_conditions_without_a_note_keep_the_verbatim_caveat() -> None:
         lambda d: next(i for i in d["items"] if i["id"] == "org_type_of_entity").update(
             condition_note="A condition without a verbatim condition"
         ),
+        lambda d: d["wording"].update(
+            unconfirmed_explanation="No HDFC Bank document in the corpus establishes this."
+        ),
+        lambda d: d["wording"]["unknown_topics"].update(photograph="Not in the corpus."),
     ],
 )
 def test_internal_language_in_customer_text_fails_to_load(mutate: Any) -> None:
@@ -972,3 +976,14 @@ def test_internal_language_in_customer_text_fails_to_load(mutate: Any) -> None:
     mutate(data)
     with pytest.raises(ValidationError):
         Catalogue.model_validate(data)
+
+
+def test_unknown_items_use_plain_wording() -> None:
+    a = build(profile(C.LLP, A.CURRENT, topics=("passport",)))
+    unknown = [i for i in a.groups.not_confirmed if i.classification is Classification.UNKNOWN]  # type: ignore[union-attr]
+    assert unknown
+    for item in unknown:
+        assert item.does_not_establish == (
+            "The HDFC Bank documents available to this assistant do not confirm this. "
+            "Please check with HDFC Bank."
+        )

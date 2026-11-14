@@ -149,7 +149,17 @@ class ChecklistWording(_Model):
         expected = {f"{s.value}.{v}" for s in FACET_SLOTS for v in _values(s)}
         if set(self.applies_if) != expected:
             raise ValueError("an applies-if note for every facet value")
+        _customer_text("wording", *_strings(self.model_dump()))
         return self
+
+
+def _strings(value: object) -> list[str]:
+    """Every string value in nested wording (dicts are walked by value, not by key)."""
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        return [s for v in value.values() for s in _strings(v)]
+    return []
 
 
 def _values(slot: Slot) -> list[str]:

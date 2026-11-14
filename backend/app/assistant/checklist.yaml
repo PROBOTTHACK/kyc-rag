@@ -465,7 +465,8 @@ wording:
     This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements,
     and it does not mean the item is mandatory.
   unconfirmed_explanation: >-
-    No applicable HDFC Bank document in the corpus establishes this.
+    The HDFC Bank documents available to this assistant do not confirm this. Please check with
+    HDFC Bank.
   ocr_warning: Text read automatically from a scanned page; it may contain errors
   caveats:
     dated_source: "Source: {date_basis}. The current version has not been verified."
