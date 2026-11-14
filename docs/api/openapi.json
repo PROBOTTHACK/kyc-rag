@@ -2790,6 +2790,14 @@
                 "type": "null"
               }
             ]
+          },
+          "choices": {
+            "items": {
+              "$ref": "#/components/schemas/Chip"
+            },
+            "type": "array",
+            "title": "Choices",
+            "default": []
           }
         },
         "additionalProperties": false,

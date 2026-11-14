@@ -832,6 +832,11 @@ export interface components {
             /** Label */
             label?: string | null;
             origin?: components["schemas"]["Origin"] | null;
+            /**
+             * Choices
+             * @default []
+             */
+            choices?: components["schemas"]["Chip"][];
         };
         /**
          * ProfileSummary

@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router";
 
+import { AssistantApp } from "./assistant/AssistantApp";
 import { Layout } from "./components/Layout";
 import { AssistantPage } from "./screens/assistant/AssistantPage";
 import { AssistantSessionProvider } from "./screens/assistant/session";
@@ -13,6 +14,8 @@ export function App() {
   return (
     <AssistantSessionProvider>
       <Routes>
+        {/* A6: the customer-facing account opening assistant, in its own shell. */}
+        <Route path="open-account" element={<AssistantApp />} />
         <Route element={<Layout />}>
           <Route index element={<DashboardPage />} />
           <Route path="assistant" element={<AssistantPage />} />

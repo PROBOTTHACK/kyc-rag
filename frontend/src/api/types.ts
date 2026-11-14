@@ -33,3 +33,23 @@ export type MessageRequest = JsonBody<paths["/api/v1/sessions/{session_id}/messa
 export type ResumeRequest = JsonBody<paths["/api/v1/sessions/{session_id}/resume"]["post"]>;
 export type RetryRequest = JsonBody<paths["/api/v1/sessions/{session_id}/retry"]["post"]>;
 export type DataClass = NonNullable<CreateSessionRequest["data_class"]>;
+
+// A6: the account opening assistant (`/api/v2/assistant`, A5).
+export type AssistantAnswer = Schemas["AssistantAnswer"];
+export type AssistantAnswerKind = Schemas["AssistantAnswerKind"];
+export type AssistantQuestion = Schemas["AssistantQuestion"];
+export type AssistantConfirmation = Schemas["AssistantConfirmation"];
+export type AssistantMessage = Schemas["AssistantMessage"];
+export type AssistantChecklist = Schemas["AssistantChecklist"];
+export type AssistantItem = Schemas["AssistantItem"];
+export type AssistantSource = Schemas["AssistantSource"];
+export type SourceCitation = Schemas["SourceCitation"];
+export type ProfileSlot = Schemas["ProfileSlot"];
+export type Chip = Schemas["Chip"];
+export type AssistantSessionStarted = Schemas["AssistantSessionStarted"];
+export type AssistantTurnResult = Schemas["AssistantTurnResult"];
+export type AssistantSessionView = Schemas["AssistantSessionView"];
+export type AssistantTurnView = Schemas["AssistantTurnView"];
+export type AssistantTurnRequest = JsonBody<
+  paths["/api/v2/assistant/sessions/{session_id}/turns"]["post"]
+>;

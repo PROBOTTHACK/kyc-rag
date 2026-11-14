@@ -433,9 +433,9 @@ async def test_the_session_view_reloads_the_conversation(env: Env) -> None:
         "action": "choose", "slot": "customer_category", "value": "TRUST"
     }  # fmt: skip
     assert view["answer"] == last
-    assert view["profile"]["customer_category"] == {
-        "status": "known", "value": "TRUST", "label": "A trust", "origin": "chosen"
-    }  # fmt: skip
+    entry = dict(view["profile"]["customer_category"])
+    entry.pop("choices")
+    assert entry == {"status": "known", "value": "TRUST", "label": "A trust", "origin": "chosen"}
 
 
 async def test_turn_responses_match_the_documented_model(env: Env) -> None:
@@ -547,3 +547,30 @@ def test_no_assistant_module_logs_messages_or_session_ids() -> None:
             ):
                 names = {n.id for a in node.args for n in ast.walk(a) if isinstance(n, ast.Name)}
                 assert not names & {"message", "turn", "body", "sid", "raw_sid", "key"}, path
+
+
+# --- A6 option A: valid choices on every profile slot ---------------------------------------------
+
+
+async def test_every_profile_slot_offers_exactly_its_valid_choices(env: Env) -> None:
+    from app.assistant.profile import SLOT_VALUES, Slot
+
+    a = (await env.client.post(BASE)).json()["answer"]
+    for slot in Slot:
+        choices = a["profile"][slot.value]["choices"]
+        values = [c["value"] for c in choices]
+        assert len(values) == len(set(values))
+        assert set(values) == {v.value for v in SLOT_VALUES[slot]}
+        assert {c["value"]: c["label"] for c in choices} == wording().slots[slot].chips
+
+
+async def test_a_change_uses_a_listed_choice_and_the_server_still_validates(env: Env) -> None:
+    sid = await start(env)
+    a = await answer(env, sid, message="NRI savings account")
+    choices = [c["value"] for c in a["profile"]["account_type"]["choices"]]
+    assert "CURRENT" in choices
+    a = await answer(env, sid, action="correct", slot="account_type", value="CURRENT")
+    assert a["profile"]["account_type"]["value"] == "CURRENT"
+    assert any(m["code"] == "corrected" for m in a["messages"])
+    r = await turn(env, sid, action="correct", slot="account_type", value="GOLD_ACCOUNT")
+    assert (r.status_code, r.json()["error"]["code"]) == (422, "VALIDATION_ERROR")

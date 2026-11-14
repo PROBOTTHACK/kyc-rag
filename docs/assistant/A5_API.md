@@ -34,7 +34,7 @@ Stage A5 of the HDFC Bank Account Opening Assistant (independent portfolio proto
   - `blocked` (screening refused the message);
   - `technical_error` (with `technical_message`, the A1 §7 text verbatim).
 - **Every answer** also carries:
-  - `profile`: each slot's status, value, chip label and origin;
+  - `profile`: each slot's status, value, chip label and origin, plus `choices`: the slot's valid values with their labels, for a "Change" control (added at A6, option A; additive; the server still validates every correction);
   - `messages`: dialogue notes, the blocked text, or why a checklist can't be built yet;
   - `coverage_state` when it is known;
   - **`notice`**: the dated-document notice, verbatim, on every answer.

@@ -1,5 +1,6 @@
 /**
- * Typed client for the existing `/api/v1` endpoints only (docs/07). Types come from the
+ * Typed client for the `/api/v1` endpoints (docs/07) and, from A6, the account opening
+ * assistant's `/api/v2/assistant` endpoints (A5). Types come from the
  * generated contract (`types.ts`); nothing here redeclares a request or response shape.
  *
  * - Every call has a timeout (CLAUDE.md rule 8).
@@ -21,9 +22,14 @@ import type {
   RunAccepted,
   SessionCreated,
   SessionView,
+  AssistantSessionStarted,
+  AssistantSessionView,
+  AssistantTurnRequest,
+  AssistantTurnResult,
 } from "./types";
 
 export const API_PREFIX = "/api/v1";
+export const ASSISTANT_PREFIX = "/api/v2/assistant/sessions";
 export const DEFAULT_TIMEOUT_MS = 15_000;
 export const MAX_ATTEMPTS = 3; // one try plus at most two retries
 export const BACKOFF_MS = [500, 1_000] as const;
@@ -47,6 +53,10 @@ const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(r
 
 export function sessionPath(sessionId: string, suffix = ""): string {
   return `${API_PREFIX}/sessions/${encodeURIComponent(sessionId)}${suffix}`;
+}
+
+export function assistantPath(sessionId: string, suffix = ""): string {
+  return `${ASSISTANT_PREFIX}/${encodeURIComponent(sessionId)}${suffix}`;
 }
 
 export function createApiClient(options: ClientOptions = {}) {
@@ -138,6 +148,23 @@ export function createApiClient(options: ClientOptions = {}) {
         `${API_PREFIX}/reports/${encodeURIComponent(reportId)}/review-cases`,
         signal ? { signal } : {},
       ),
+
+    // --- A6: the account opening assistant (A5 contract) ---------------------------------
+
+    /** Start a conversation: the opening answer (privacy message + first question). Never
+     * retried automatically (no key), like v1 session creation. */
+    assistantStart: () => request<AssistantSessionStarted>("POST", ASSISTANT_PREFIX),
+
+    /** Reload a conversation (transcript, profile, latest answer). */
+    assistantGet: (sessionId: string, signal?: AbortSignal) =>
+      request<AssistantSessionView>("GET", assistantPath(sessionId), signal ? { signal } : {}),
+
+    /** One turn. The key makes it safe to resend: the server replays a stored answer. */
+    assistantTurn: (sessionId: string, body: AssistantTurnRequest, idempotencyKey: string) =>
+      request<AssistantTurnResult>("POST", assistantPath(sessionId, "/turns"), {
+        body,
+        idempotencyKey,
+      }),
 
     /** The raw fetch used by the event stream (same base URL and fetch implementation). */
     fetchEvents: (sessionId: string, lastEventId: string | null, signal: AbortSignal) =>

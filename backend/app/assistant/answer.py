@@ -75,6 +75,10 @@ class ProfileSlot(_Frozen):
     value: str | None = None
     label: str | None = None  # the chip label for the value, as the customer saw it
     origin: Origin | None = None
+    # Every valid value for this slot, with the same labels as the slot's question (A6 option
+    # A: what a "Change" control offers). From the wording file, which is checked against the
+    # allowed values; the server still validates every correction.
+    choices: tuple[Chip, ...] = ()
 
 
 class SourceCitation(_Frozen):
@@ -158,7 +162,10 @@ def profile_view(state: DialogueState, words: Wording) -> dict[Slot, ProfileSlot
     for slot in Slot:
         e = state.entry(slot)
         label = words.label(slot, e.value) if e.value is not None else None
-        out[slot] = ProfileSlot(status=e.status, value=e.value, label=label, origin=e.origin)
+        choices = tuple(Chip(value=v, label=t) for v, t in words.slots[slot].chips.items())
+        out[slot] = ProfileSlot(
+            status=e.status, value=e.value, label=label, origin=e.origin, choices=choices
+        )
     return out
 
 

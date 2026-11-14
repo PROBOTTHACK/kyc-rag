@@ -16,6 +16,8 @@
 </div>
 
 > **Product direction change (2026-11-14).** New work builds the **HDFC Bank Account Opening Assistant**: a customer-facing conversational assistant that uses only HDFC material from the corpus. See [`docs/assistant/A1_PRODUCT_SPEC.md`](docs/assistant/A1_PRODUCT_SPEC.md) and [`docs/assistant/A0_AUDIT.md`](docs/assistant/A0_AUDIT.md). The rest of this README describes the preserved compliance-engine implementation (M0–M5), which remains in the repository.
+>
+> **Try the assistant:** `make up && make migrate && make api`, then `make web` and open <http://127.0.0.1:5173/open-account> (synthetic data only). API: [`docs/assistant/A5_API.md`](docs/assistant/A5_API.md); interface and browser demo: [`docs/assistant/A6_UI.md`](docs/assistant/A6_UI.md).
 
 > **Disclaimer:** This is an independent portfolio prototype built on authorized or illustrative documents. It is **not** an official HDFC Bank product, does not approve or reject real applications, and does not replace a bank's compliance team.
 
@@ -124,7 +126,7 @@ make venv install                   # .venv + backend with dev tools
 
 # 2. Start Postgres (host port 5433), Redis and Qdrant, then create the schema
 make up
-make migrate                        # Alembic 0001-0008 (M1 corpus, M2 form schemas, M3 workflow + checkpointer, M4 review cases)
+make migrate                        # Alembic 0001-0009 (M1 corpus, M2 form schemas, M3 workflow + checkpointer, M4 review cases, A5 assistant)
 make check-schema                   # ORM models == migrations (no drift)
 
 # 3. Add the source PDFs (not in Git; see docs/14-source-corpus.md) and check them
@@ -328,6 +330,7 @@ M3 limits:
 | **M4 closure report** | [`docs/milestones/M4_CLOSURE_REPORT.md`](docs/milestones/M4_CLOSURE_REPORT.md) |
 | **M5 plan and closure (frontend)** | [`docs/milestones/M5_PLAN.md`](docs/milestones/M5_PLAN.md), [`docs/milestones/M5_CLOSURE_REPORT.md`](docs/milestones/M5_CLOSURE_REPORT.md) |
 | Published API contract | [`docs/api/openapi.json`](docs/api/openapi.json) |
+| **Account Opening Assistant** (spec, API, interface) | [`docs/assistant/A1_PRODUCT_SPEC.md`](docs/assistant/A1_PRODUCT_SPEC.md), [`docs/assistant/A5_API.md`](docs/assistant/A5_API.md), [`docs/assistant/A6_UI.md`](docs/assistant/A6_UI.md) |
 
 ## License
 

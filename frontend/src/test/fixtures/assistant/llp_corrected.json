@@ -1,0 +1,466 @@
+{
+  "status": 200,
+  "body": {
+    "session_id": "0a5e5510-0000-4000-8000-000000000001",
+    "turn": 4,
+    "answer": {
+      "kind": "checklist",
+      "question": null,
+      "confirmation": null,
+      "messages": [
+        {
+          "code": "corrected",
+          "text": "I've updated your answer to: A company (private or public limited).",
+          "slot": "customer_category"
+        }
+      ],
+      "profile": {
+        "account_type": {
+          "status": "known",
+          "value": "CURRENT",
+          "label": "Current account",
+          "origin": "chosen",
+          "choices": [
+            {
+              "value": "SAVINGS",
+              "label": "Savings account"
+            },
+            {
+              "value": "CURRENT",
+              "label": "Current account"
+            },
+            {
+              "value": "SALARY",
+              "label": "Salary account"
+            },
+            {
+              "value": "FIXED_DEPOSIT",
+              "label": "Fixed / term deposit"
+            },
+            {
+              "value": "RECURRING_DEPOSIT",
+              "label": "Recurring deposit"
+            },
+            {
+              "value": "FCNR_RFC",
+              "label": "FCNR / RFC deposit"
+            }
+          ]
+        },
+        "customer_category": {
+          "status": "known",
+          "value": "COMPANY",
+          "label": "A company (private or public limited)",
+          "origin": "corrected",
+          "choices": [
+            {
+              "value": "RESIDENT_INDIVIDUAL",
+              "label": "An individual living in India"
+            },
+            {
+              "value": "NRI_INDIVIDUAL",
+              "label": "An individual living outside India (NRI / PIO / OCI)"
+            },
+            {
+              "value": "SOLE_PROPRIETORSHIP",
+              "label": "A sole proprietorship"
+            },
+            {
+              "value": "PARTNERSHIP_FIRM",
+              "label": "A partnership firm"
+            },
+            {
+              "value": "LLP",
+              "label": "A limited liability partnership (LLP)"
+            },
+            {
+              "value": "COMPANY",
+              "label": "A company (private or public limited)"
+            },
+            {
+              "value": "TRUST",
+              "label": "A trust"
+            },
+            {
+              "value": "HUF",
+              "label": "A Hindu Undivided Family (HUF)"
+            },
+            {
+              "value": "OTHER_ORGANISATION",
+              "label": "A society, association, club or other organisation"
+            }
+          ]
+        },
+        "nri_scheme": {
+          "status": "unknown",
+          "value": null,
+          "label": null,
+          "origin": null,
+          "choices": [
+            {
+              "value": "NRE",
+              "label": "NRE account"
+            },
+            {
+              "value": "NRO",
+              "label": "NRO account"
+            }
+          ]
+        },
+        "holding": {
+          "status": "unknown",
+          "value": null,
+          "label": null,
+          "origin": null,
+          "choices": [
+            {
+              "value": "SINGLE",
+              "label": "Just one holder"
+            },
+            {
+              "value": "JOINT",
+              "label": "Jointly with others"
+            }
+          ]
+        },
+        "minor": {
+          "status": "unknown",
+          "value": null,
+          "label": null,
+          "origin": null,
+          "choices": [
+            {
+              "value": "YES",
+              "label": "Yes, for a minor"
+            },
+            {
+              "value": "NO",
+              "label": "No"
+            }
+          ]
+        }
+      },
+      "coverage_state": "COVERED_OCR",
+      "checklist": {
+        "groups": {
+          "documents": [
+            {
+              "id": "org_form_60_61",
+              "title": "Form 60/61, for existing customers",
+              "kind": "document",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": "for existing customers",
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": null,
+              "approximate_reading": "Form 60/61 attached for existing customers",
+              "uncertainty_warning": "Text read automatically from a scanned page; it may contain errors",
+              "establishes": "The HDFC Bank form asks you to provide this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": null,
+              "citations": [
+                {
+                  "document_key": "hdfc_non_individual_account_opening",
+                  "document_title": "Account Opening Form for Sole Proprietor/HUF/Trust/Firm/Corporate",
+                  "page": 1,
+                  "page_end": null,
+                  "section": "BANK ACCOUNT OPENING FORM",
+                  "text_reliability": "ocr_uncertain",
+                  "extraction_method": "ocr",
+                  "date_basis": "form copy; print code 92713/07.01.2015",
+                  "quotable": false,
+                  "basis": true,
+                  "passage": "| Perforation Nari |\nBANK ACCOUNT OPENING FORM °\nAOF Barcode Number a\nFOS SOLE PROPRIETORIHL ; it :\nyour warid NUMBERING a\nA LETTERS ONLY. All fledde marked “\" are MANDATORY. Please ensure that all mandatory flelds have been filled correctly else the form le Gable to be rejected. a =\nTatkal Non Tatkal (For bank use) 090 m\nSavings ‘Current Aeoount Branch Code Branch Name\nFined Deposit Recurring Deposit z2\nTITLE a %\nFIRMS CUST ID (Mandatory =\nsem VET) Form 60/61 attached for existing customers} :\n“Please meniian.a =\nfared: bo. z\nenaure thet the =\ndalverabies neat =\n“PIN Code =\nCountry =\n7E5S Phpace thoe incase registered address is the same ae mading address\n“Please mention a\npraminant\nfaredimaarh bo\nSngure thet the\n“PIN Code\neoratian Mark\nOwned RertediLeased im cageot change of address dua to relocation or any offer reason, Wie would Intimate the.new address to the bara\nwithin bvo week of such a:chenge with 2 valid address proof\nNUMBERING\nMobile No.\n- Country Code\nail Statement Frequency Daily Weakly Fortnightly Monthy Tick hare if Email 1D is Not Availabe re 9 i o"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; print code 92713/07.01.2015. The current version has not been verified."
+                },
+                {
+                  "code": "scanned_text",
+                  "text": "From a scanned form; the text may be inaccurate."
+                },
+                {
+                  "code": "conditional",
+                  "text": "The form states a condition: for existing customers"
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            }
+          ],
+          "information": [
+            {
+              "id": "org_type_of_entity",
+              "title": "Type of entity",
+              "kind": "information",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": null,
+              "approximate_reading": "Type of Entity",
+              "uncertainty_warning": "Text read automatically from a scanned page; it may contain errors",
+              "establishes": "The HDFC Bank form has a field for this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": null,
+              "citations": [
+                {
+                  "document_key": "hdfc_non_individual_account_opening",
+                  "document_title": "Account Opening Form for Sole Proprietor/HUF/Trust/Firm/Corporate",
+                  "page": 1,
+                  "page_end": null,
+                  "section": "AUTHORISED SIGNATORIES SIGNATURE",
+                  "text_reliability": "ocr_uncertain",
+                  "extraction_method": "ocr",
+                  "date_basis": "form copy; print code 92713/07.01.2015",
+                  "quotable": false,
+                  "basis": true,
+                  "passage": "AUTHORISED SIGNATORIES SIGNATURE\n: : : Tick here to register for Em\na Authorized Signatory 4 Authorized Signatory 2 Authorized Signatory 3 BB (i acconnts tinted to the Cust it ot\nregatration. We are confirming an:\nDe not eign this form if * BUSINESS DETAILS\nibis BLANK, Prease\nGrins Type of Entity:-\nall relevant sections rietarshi Partnar\nend columns are ee\ncomplesely Sef Help Group HUF\nfillad to your satisfaction\nand then.onky sign the “Please tick the appropriate s\nform\nPublic | Private Limited Com,\nFinance! Services Companies\nPSU\n‘Others\nFor Bank Use Only Non Gredé Co-Operative\nProduct Gate Account Number Promo Gotte\nCASAAIC: te Self Employed Professional\nFDIRD: Nature of Business = Merufe\nUBS-CBR 1: CBR 2 CBR: CBR 4: LG Coda: CO Code: BANE: ne ee aly,\nUBS-CBR 5: CBR &: MIS Cada: CB a: LC Code: No-chg bk to Date of incorporation\nissued:\n(Group ID; Portfolio Coda: Program to be: raised to\nSourcing Br Coda: Nature of Industry Auton\nValue Date: Funds Parked AIC No. UN: Petrol\nContac\nCUSTOMER SIGNED IN MY PRESENCE: Emp Name: Emp Code: Signature: “a oil\nAOF aparowed by = ei\n5 NEFC\ni | Page 4 at || B"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; print code 92713/07.01.2015. The current version has not been verified."
+                },
+                {
+                  "code": "scanned_text",
+                  "text": "From a scanned form; the text may be inaccurate."
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            },
+            {
+              "id": "org_signatory_details",
+              "title": "Details of each authorised signatory",
+              "kind": "information",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": null,
+              "approximate_reading": "Authorized Signatory Details",
+              "uncertainty_warning": "Text read automatically from a scanned page; it may contain errors",
+              "establishes": "The HDFC Bank form has a field for this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": null,
+              "citations": [
+                {
+                  "document_key": "hdfc_non_individual_account_opening",
+                  "document_title": "Account Opening Form for Sole Proprietor/HUF/Trust/Firm/Corporate",
+                  "page": 2,
+                  "page_end": null,
+                  "section": "PREFIX",
+                  "text_reliability": "ocr_uncertain",
+                  "extraction_method": "ocr",
+                  "date_basis": "form copy; print code 92713/07.01.2015",
+                  "quotable": false,
+                  "basis": true,
+                  "passage": "ies Signature\n| PREFIX\nNo & Bldg Name\n“Landmark! Area\n“City! Town\n\"State\nDate of Birt\nEmail (D\n{Customer Name)\"\nPAN No.\nAuthorized Signatory Details\nAuthorized Signatory Details\nCatagory Male Female Customer ID\n“PIN Code\nCountry\nMobile No, Nationality\nPlaase tick if mailing address is same as of the Entity\nDebi Card (Attach relevant deem\nFinancial\n. Please the card tyoe Il others\naguiar Business ‘Others ieard Gode in be Tile by Gane Stat\nDonat, Faolty\nRenew\nalin the same account.\nWaiver marked of cust ID\ntty, TOS is Geducted whan interest\n5G | io tha effect Ihall the tan on\nje mew financial year:\nMine PAN number ta the person\nshall be daducted ef the mate of"
+                },
+                {
+                  "document_key": "hdfc_non_individual_account_opening",
+                  "document_title": "Account Opening Form for Sole Proprietor/HUF/Trust/Firm/Corporate",
+                  "page": 2,
+                  "page_end": null,
+                  "section": "2 PREFIX",
+                  "text_reliability": "ocr_uncertain",
+                  "extraction_method": "ocr",
+                  "date_basis": "form copy; print code 92713/07.01.2015",
+                  "quotable": false,
+                  "basis": false,
+                  "passage": "2 PREFIX\nNo. & Bldg Name\n\"Road NoName\n“Landmark ! Area\n“City! Tawn\n\"Slate\nData of Birth\nEmail ID\nPAN No;\nAuthorized Signatory Details\nFema Customer ID\nCatagory Male\n*PIN-Code\n‘Country\nMobile No, Nationality\nPlease tick if mailing address is same as of the Entity\nCebit Card (Altach relevant orm\nFinancial\nPease tha card tyoe Il others\nFegular Busingss Olhers (card node io be filed by Band Stat\na PREFIX\nNo. & Bldg Name\n“Road NowNama\n“Landmark | Area\n“City! Tawn\nOata of Birth\nEmail (D\nWe refer to the captioned account\nge that tee place in the parinexship\nPAN No:\nAuthorized Signatory Details\nCatagory Mate Female ‘Customer ID\n\"PIN Code\n‘Couniry\nMobile No, Nationality\nPlease tick if malling address is same 25 of the Entity\nWel Banking [A@ach relevant oer]\nCebit Card (Altach relevant dorm\nFinanc\nPease the card type il others\nFiequiar Business Olhers (gard. ja be filed by Bari: Sta?"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; print code 92713/07.01.2015. The current version has not been verified."
+                },
+                {
+                  "code": "scanned_text",
+                  "text": "From a scanned form; the text may be inaccurate."
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            },
+            {
+              "id": "org_signatory_pan_number",
+              "title": "PAN number of each authorised signatory or partner",
+              "kind": "information",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": null,
+              "approximate_reading": "PAN No.",
+              "uncertainty_warning": "Text read automatically from a scanned page; it may contain errors",
+              "establishes": "The HDFC Bank form has a field for this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": "The form has PAN number fields for signatories and partners.",
+              "citations": [
+                {
+                  "document_key": "hdfc_non_individual_account_opening",
+                  "document_title": "Account Opening Form for Sole Proprietor/HUF/Trust/Firm/Corporate",
+                  "page": 2,
+                  "page_end": null,
+                  "section": "PREFIX",
+                  "text_reliability": "ocr_uncertain",
+                  "extraction_method": "ocr",
+                  "date_basis": "form copy; print code 92713/07.01.2015",
+                  "quotable": false,
+                  "basis": true,
+                  "passage": "ies Signature\n| PREFIX\nNo & Bldg Name\n“Landmark! Area\n“City! Town\n\"State\nDate of Birt\nEmail (D\n{Customer Name)\"\nPAN No.\nAuthorized Signatory Details\nAuthorized Signatory Details\nCatagory Male Female Customer ID\n“PIN Code\nCountry\nMobile No, Nationality\nPlaase tick if mailing address is same as of the Entity\nDebi Card (Attach relevant deem\nFinancial\n. Please the card tyoe Il others\naguiar Business ‘Others ieard Gode in be Tile by Gane Stat\nDonat, Faolty\nRenew\nalin the same account.\nWaiver marked of cust ID\ntty, TOS is Geducted whan interest\n5G | io tha effect Ihall the tan on\nje mew financial year:\nMine PAN number ta the person\nshall be daducted ef the mate of"
+                },
+                {
+                  "document_key": "hdfc_non_individual_account_opening",
+                  "document_title": "Account Opening Form for Sole Proprietor/HUF/Trust/Firm/Corporate",
+                  "page": 2,
+                  "page_end": null,
+                  "section": "2 PREFIX",
+                  "text_reliability": "ocr_uncertain",
+                  "extraction_method": "ocr",
+                  "date_basis": "form copy; print code 92713/07.01.2015",
+                  "quotable": false,
+                  "basis": true,
+                  "passage": "2 PREFIX\nNo. & Bldg Name\n\"Road NoName\n“Landmark ! Area\n“City! Tawn\n\"Slate\nData of Birth\nEmail ID\nPAN No;\nAuthorized Signatory Details\nFema Customer ID\nCatagory Male\n*PIN-Code\n‘Country\nMobile No, Nationality\nPlease tick if mailing address is same as of the Entity\nCebit Card (Altach relevant orm\nFinancial\nPease tha card tyoe Il others\nFegular Busingss Olhers (card node io be filed by Band Stat\na PREFIX\nNo. & Bldg Name\n“Road NowNama\n“Landmark | Area\n“City! Tawn\nOata of Birth\nEmail (D\nWe refer to the captioned account\nge that tee place in the parinexship\nPAN No:\nAuthorized Signatory Details\nCatagory Mate Female ‘Customer ID\n\"PIN Code\n‘Couniry\nMobile No, Nationality\nPlease tick if malling address is same 25 of the Entity\nWel Banking [A@ach relevant oer]\nCebit Card (Altach relevant dorm\nFinanc\nPease the card type il others\nFiequiar Business Olhers (gard. ja be filed by Bari: Sta?"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; print code 92713/07.01.2015. The current version has not been verified."
+                },
+                {
+                  "code": "scanned_text",
+                  "text": "From a scanned form; the text may be inaccurate."
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            },
+            {
+              "id": "org_mobile",
+              "title": "Mobile number",
+              "kind": "information",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": null,
+              "approximate_reading": "Mobile No.",
+              "uncertainty_warning": "Text read automatically from a scanned page; it may contain errors",
+              "establishes": "The HDFC Bank form has a field for this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": null,
+              "citations": [
+                {
+                  "document_key": "hdfc_non_individual_account_opening",
+                  "document_title": "Account Opening Form for Sole Proprietor/HUF/Trust/Firm/Corporate",
+                  "page": 1,
+                  "page_end": null,
+                  "section": "BANK ACCOUNT OPENING FORM",
+                  "text_reliability": "ocr_uncertain",
+                  "extraction_method": "ocr",
+                  "date_basis": "form copy; print code 92713/07.01.2015",
+                  "quotable": false,
+                  "basis": true,
+                  "passage": "| Perforation Nari |\nBANK ACCOUNT OPENING FORM °\nAOF Barcode Number a\nFOS SOLE PROPRIETORIHL ; it :\nyour warid NUMBERING a\nA LETTERS ONLY. All fledde marked “\" are MANDATORY. Please ensure that all mandatory flelds have been filled correctly else the form le Gable to be rejected. a =\nTatkal Non Tatkal (For bank use) 090 m\nSavings ‘Current Aeoount Branch Code Branch Name\nFined Deposit Recurring Deposit z2\nTITLE a %\nFIRMS CUST ID (Mandatory =\nsem VET) Form 60/61 attached for existing customers} :\n“Please meniian.a =\nfared: bo. z\nenaure thet the =\ndalverabies neat =\n“PIN Code =\nCountry =\n7E5S Phpace thoe incase registered address is the same ae mading address\n“Please mention a\npraminant\nfaredimaarh bo\nSngure thet the\n“PIN Code\neoratian Mark\nOwned RertediLeased im cageot change of address dua to relocation or any offer reason, Wie would Intimate the.new address to the bara\nwithin bvo week of such a:chenge with 2 valid address proof\nNUMBERING\nMobile No.\n- Country Code\nail Statement Frequency Daily Weakly Fortnightly Monthy Tick hare if Email 1D is Not Availabe re 9 i o"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; print code 92713/07.01.2015. The current version has not been verified."
+                },
+                {
+                  "code": "scanned_text",
+                  "text": "From a scanned form; the text may be inaccurate."
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            }
+          ],
+          "not_confirmed": [
+            {
+              "id": "org_entity_pan_card_copy",
+              "title": "A copy of the organisation's PAN card",
+              "kind": "document",
+              "classification": "unconfirmed",
+              "classification_label": "Could not be confirmed",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": null,
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": null,
+              "does_not_establish": "The form asks for the PAN numbers of authorised signatories and partners. The HDFC Bank documents available to this assistant do not confirm whether a copy of the organisation's PAN card is needed. Please check with HDFC Bank.",
+              "note": null,
+              "citations": [],
+              "related_citations": [
+                {
+                  "document_key": "hdfc_non_individual_account_opening",
+                  "document_title": "Account Opening Form for Sole Proprietor/HUF/Trust/Firm/Corporate",
+                  "page": 2,
+                  "page_end": null,
+                  "section": "PREFIX",
+                  "text_reliability": "ocr_uncertain",
+                  "extraction_method": "ocr",
+                  "date_basis": "form copy; print code 92713/07.01.2015",
+                  "quotable": false,
+                  "basis": true,
+                  "passage": "ies Signature\n| PREFIX\nNo & Bldg Name\n“Landmark! Area\n“City! Town\n\"State\nDate of Birt\nEmail (D\n{Customer Name)\"\nPAN No.\nAuthorized Signatory Details\nAuthorized Signatory Details\nCatagory Male Female Customer ID\n“PIN Code\nCountry\nMobile No, Nationality\nPlaase tick if mailing address is same as of the Entity\nDebi Card (Attach relevant deem\nFinancial\n. Please the card tyoe Il others\naguiar Business ‘Others ieard Gode in be Tile by Gane Stat\nDonat, Faolty\nRenew\nalin the same account.\nWaiver marked of cust ID\ntty, TOS is Geducted whan interest\n5G | io tha effect Ihall the tan on\nje mew financial year:\nMine PAN number ta the person\nshall be daducted ef the mate of"
+                },
+                {
+                  "document_key": "hdfc_non_individual_account_opening",
+                  "document_title": "Account Opening Form for Sole Proprietor/HUF/Trust/Firm/Corporate",
+                  "page": 2,
+                  "page_end": null,
+                  "section": "2 PREFIX",
+                  "text_reliability": "ocr_uncertain",
+                  "extraction_method": "ocr",
+                  "date_basis": "form copy; print code 92713/07.01.2015",
+                  "quotable": false,
+                  "basis": true,
+                  "passage": "2 PREFIX\nNo. & Bldg Name\n\"Road NoName\n“Landmark ! Area\n“City! Tawn\n\"Slate\nData of Birth\nEmail ID\nPAN No;\nAuthorized Signatory Details\nFema Customer ID\nCatagory Male\n*PIN-Code\n‘Country\nMobile No, Nationality\nPlease tick if mailing address is same as of the Entity\nCebit Card (Altach relevant orm\nFinancial\nPease tha card tyoe Il others\nFegular Busingss Olhers (card node io be filed by Band Stat\na PREFIX\nNo. & Bldg Name\n“Road NowNama\n“Landmark | Area\n“City! Tawn\nOata of Birth\nEmail (D\nWe refer to the captioned account\nge that tee place in the parinexship\nPAN No:\nAuthorized Signatory Details\nCatagory Mate Female ‘Customer ID\n\"PIN Code\n‘Couniry\nMobile No, Nationality\nPlease tick if malling address is same 25 of the Entity\nWel Banking [A@ach relevant oer]\nCebit Card (Altach relevant dorm\nFinanc\nPease the card type il others\nFiequiar Business Olhers (gard. ja be filed by Bari: Sta?"
+                }
+              ],
+              "caveats": [],
+              "asked": true,
+              "fallback": null
+            }
+          ]
+        },
+        "sources": [
+          {
+            "document_key": "hdfc_non_individual_account_opening",
+            "title": "Account Opening Form for Sole Proprietor/HUF/Trust/Firm/Corporate",
+            "date_basis": "form copy; print code 92713/07.01.2015",
+            "scanned": true
+          }
+        ],
+        "coverage_note": "This checklist is built only from the HDFC Bank form copies held in this prototype. It shows what those forms ask for; it is not a confirmed statement of HDFC Bank's current requirements, not an official HDFC Bank document and not a KYC approval."
+      },
+      "fallback": null,
+      "technical_message": null,
+      "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
+    }
+  }
+}
