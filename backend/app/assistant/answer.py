@@ -4,7 +4,8 @@ One `AssistantAnswer` per turn, assembled from the dialogue step (A3) and, when 
 is ready, the checklist (A4). Nothing here decides anything: it only selects and renames what the
 customer may see. Left out on purpose:
 - the not-established `reason` and the checklist `reason` (internal wording: coverage-map
-  notes, stage names);
+  notes, stage names). The customer gets `explanation` instead, from the coverage map's own
+  customer wording, plus `suggestions` (covered combinations) for a one-tap change;
 - citation chunk ids, diagnostics, retrieval scores, why a value is being confirmed, and
   whether an LLM was consulted (A1 §8.2.6, §9.10).
 
@@ -59,6 +60,15 @@ class AssistantConfirmation(_Frozen):
     slot: Slot
     value: str
     text: str
+
+
+class AssistantSuggestion(_Frozen):
+    """A combination the documents cover, offered after a not-established answer. The UI
+    sends it back as a `correct` turn for `slot` with `value`."""
+
+    slot: Slot
+    value: str
+    label: str
 
 
 class AssistantMessage(_Frozen):
@@ -150,6 +160,8 @@ class AssistantAnswer(_Frozen):
     coverage_state: CoverageState | None = None
     checklist: AssistantChecklist | None = None
     fallback: str | None = None  # A1 §7, verbatim
+    explanation: str | None = None  # why the documents don't cover it, in plain language
+    suggestions: tuple[AssistantSuggestion, ...] = ()  # combinations they do cover
     technical_message: str | None = None  # A1 §7, verbatim
     notice: str  # A1 §7 dated-document notice, verbatim, on every answer
 
@@ -239,6 +251,11 @@ def build_answer(
         coverage_state=coverage_state,
         checklist=view,
         fallback=fallback,
+        explanation=response.explanation,
+        suggestions=tuple(
+            AssistantSuggestion(slot=x.slot, value=x.value, label=x.label)
+            for x in response.suggestions
+        ),
         technical_message=technical,
         notice=notice,
     )

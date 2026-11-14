@@ -37,6 +37,9 @@ Stage A5 of the HDFC Bank Account Opening Assistant (independent portfolio proto
   - `profile`: each slot's status, value, chip label and origin, plus `choices`: the slot's valid values with their labels, for a "Change" control (added at A6, option A; additive; the server still validates every correction);
   - `messages`: dialogue notes, the blocked text, or why a checklist can't be built yet;
   - `coverage_state` when it is known;
+  - on a `fallback` for a combination the documents don't cover:
+    - **`explanation`:** why, in plain language. It comes from the coverage map's customer wording (`coverage.yaml`'s `explanation` / `default_explanation`, checked on load for internal wording). The internal `reason` is still never sent.
+    - **`suggestions`:** the combinations the coverage map does cover, each as `{slot, value, label}`. The UI sends a chosen one back as a `correct` turn, which the server validates. Added after the A6 browser test; additive.
   - **`notice`**: the dated-document notice, verbatim, on every answer.
 - **Seven kinds (accepted at the A5 close-out):** A1 §8.1 originally listed four. A5 adds `confirm`, `cannot_build` and `blocked`, which are dialogue outcomes A3 already had. A1 §8.1 now lists all seven with when each is used.
 - **The opening answer** (turn 0) starts with a `privacy` message: "This is an independent prototype, not an HDFC Bank service. Please don't enter real personal or banking information, …" (wording in `dialogue.yaml`).

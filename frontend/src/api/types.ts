@@ -40,6 +40,7 @@ export type AssistantAnswerKind = Schemas["AssistantAnswerKind"];
 export type AssistantQuestion = Schemas["AssistantQuestion"];
 export type AssistantConfirmation = Schemas["AssistantConfirmation"];
 export type AssistantMessage = Schemas["AssistantMessage"];
+export type AssistantSuggestion = Schemas["AssistantSuggestion"];
 export type AssistantChecklist = Schemas["AssistantChecklist"];
 export type AssistantItem = Schemas["AssistantItem"];
 export type AssistantSource = Schemas["AssistantSource"];

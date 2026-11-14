@@ -1,6 +1,11 @@
 import { useRef } from "react";
 
-import type { AssistantConfirmation, AssistantQuestion, AssistantTurnRequest } from "../api/types";
+import type {
+  AssistantConfirmation,
+  AssistantQuestion,
+  AssistantSuggestion,
+  AssistantTurnRequest,
+} from "../api/types";
 import { useFocusWhenLost } from "../components/useFocusWhenLost";
 import { ACTION_LABELS, TEXT } from "./labels";
 import { Icon, valueIcon } from "./ui";
@@ -157,6 +162,55 @@ export function ConfirmCard({
           </span>
           {ACTION_LABELS.confirm_no}
         </button>
+      </div>
+    </section>
+  );
+}
+
+/** After a not-established answer: the combinations the documents DO cover (from the API's
+ * coverage map). Choosing one sends an ordinary `correct` turn, which the server validates. */
+export function SuggestionCard({
+  suggestions,
+  disabled,
+  onSend,
+}: {
+  suggestions: readonly AssistantSuggestion[];
+  disabled: boolean;
+  onSend: Send;
+}) {
+  return (
+    <section aria-labelledby="suggestions-heading" className="oa-rise">
+      <Eyebrow
+        id="suggestions-heading"
+        sr={`${TEXT.coveredHeading}.`}
+        label={TEXT.coveredHeading}
+        hint={TEXT.coveredHint}
+      />
+      <div
+        role="group"
+        aria-labelledby="suggestions-heading"
+        className="mt-3 grid gap-2 sm:grid-cols-2"
+      >
+        {suggestions.map((s) => (
+          <button
+            key={`${s.slot}:${s.value}`}
+            type="button"
+            disabled={disabled}
+            className={cardClass}
+            onClick={() =>
+              onSend({ action: "correct", slot: s.slot, value: s.value } as AssistantTurnRequest)
+            }
+          >
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-ok/10 text-ok ring-1 ring-ok/30">
+              <Icon name={valueIcon(s.value)} className="h-4 w-4" />
+            </span>
+            <span className="flex-1">{s.label}</span>
+            <Icon
+              name="arrow"
+              className="h-4 w-4 text-subtle transition-colors group-hover:text-cyan"
+            />
+          </button>
+        ))}
       </div>
     </section>
   );

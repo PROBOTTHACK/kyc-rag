@@ -56,6 +56,22 @@ The phase (welcome, then the workspace) is state, not part of the URL, so the se
 
    There is no PDF infrastructure; the browser prints.
 
+## 2a. A fallback that explains and suggests (owner decision after the browser test)
+**The problem:** a combination the documents don't cover (resident savings, LLP savings, salary) used to end in the bare fallback. The answer now has three parts.
+- **The prescribed fallback text**, verbatim, as before.
+- **A plain explanation** from the coverage map's customer wording, for example: "The HDFC Bank form available to this assistant says savings accounts are for individuals, so it doesn't cover a savings account for an organisation."
+- **"Covered by the documents" cards**, read from the coverage map:
+
+  | When | The cards offer |
+  |---|---|
+  | The customer category is known | the account types covered for that category (LLP → Current, Fixed / term deposit, Recurring deposit) |
+  | Nothing is covered for that category | the categories covered for the chosen account (resident savings → an individual living outside India) |
+  | Only the account type is known (salary) | every account type the documents cover |
+
+  A card sends an ordinary `correct` turn, which the server validates.
+
+Coverage decisions are unchanged, and the internal reason is still never shown. Verified in the browser by replaying the reported conversation: LLP + Savings shows the explanation and three cards, and choosing "Current account" builds the LLP checklist (screenshot `17_fallback_explain_suggest.png`).
+
 ## 3. Design system (`frontend/src/index.css`, Tailwind 4 `@theme`)
 - **Colours:**
 

@@ -9,7 +9,6 @@ classes are assigned by `checklist.classify` from the source role.
 
 from __future__ import annotations
 
-import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -18,6 +17,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.assistant.coverage import Coverage, coverage
+from app.assistant.customer_text import INTERNAL, check_customer_text
 from app.assistant.profile import FACET_SLOTS, Slot, valid_value
 from app.assistant.taxonomy import AccountType, CustomerCategory, EvidenceScope, SourceRole
 from app.assistant.understand import Topic
@@ -26,15 +26,8 @@ CATALOGUE_FILE = Path(__file__).with_name("checklist.yaml")
 _UUID = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
 # Customer-facing catalogue text never mentions internal stages, rules or implementation
 # (owner, A4 language pass). Checked on load for titles, notes, condition notes, explanations.
-_INTERNAL = re.compile(
-    r"\bA[0-9]\b|§|schema|catalogue|chunk|corpus|ruling|stored text|\brule \d", re.IGNORECASE
-)
-
-
-def _customer_text(owner: str, *texts: str | None) -> None:
-    for text in texts:
-        if text and _INTERNAL.search(text):
-            raise ValueError(f"{owner}: customer-facing text names internal details: {text!r}")
+_INTERNAL = INTERNAL
+_customer_text = check_customer_text
 
 
 ItemKind = Literal["document", "information", "declaration"]

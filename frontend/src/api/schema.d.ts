@@ -244,6 +244,13 @@ export interface components {
             checklist?: components["schemas"]["AssistantChecklist"] | null;
             /** Fallback */
             fallback?: string | null;
+            /** Explanation */
+            explanation?: string | null;
+            /**
+             * Suggestions
+             * @default []
+             */
+            suggestions?: components["schemas"]["AssistantSuggestion"][];
             /** Technical Message */
             technical_message?: string | null;
             /** Notice */
@@ -408,6 +415,18 @@ export interface components {
             date_basis: string;
             /** Scanned */
             scanned: boolean;
+        };
+        /**
+         * AssistantSuggestion
+         * @description A combination the documents cover, offered after a not-established answer. The UI
+         *     sends it back as a `correct` turn for `slot` with `value`.
+         */
+        AssistantSuggestion: {
+            slot: components["schemas"]["Slot"];
+            /** Value */
+            value: string;
+            /** Label */
+            label: string;
         };
         /** AssistantTurnResult */
         AssistantTurnResult: {

@@ -147,6 +147,8 @@
       "coverage_state": null,
       "checklist": null,
       "fallback": null,
+      "explanation": null,
+      "suggestions": [],
       "technical_message": null,
       "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
     }

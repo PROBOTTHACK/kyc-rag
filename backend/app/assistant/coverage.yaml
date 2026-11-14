@@ -203,11 +203,27 @@ conversion:
       shows: "Operating instruction for the NRO account: Single, Either or Survivor, Minor under Guardian, Jointly"
 
 # --- why prominent combinations are NOT_ESTABLISHED (explanations only; never coverage) ---------
+# `reason` is the internal basis (review only); `explanation` is what the customer reads.
 not_established_reasons:
-  - {category: RESIDENT_INDIVIDUAL, account_type: null, reason: "The corpus has no HDFC account opening form or document list for resident individuals; re-KYC material is not account-opening evidence (A0 amendment 2)."}
-  - {category: null, account_type: SALARY, reason: "No HDFC document in the corpus covers opening a salary account (the only mention is an NRI-form rule about converting an inactive salary account)."}
-  - {category: null, account_type: SAVINGS, reason: "For organisations, the corpus does not establish a savings account: the NRI form states 'Savings account can be opened only by individuals for non-business purposes', and the scanned non-individual form only shows a tick box."}
-  - {category: null, account_type: FCNR_RFC, reason: "FCNR / RFC deposits appear only on the NRI individual form."}
+  - category: RESIDENT_INDIVIDUAL
+    account_type: null
+    reason: "The corpus has no HDFC account opening form or document list for resident individuals; re-KYC material is not account-opening evidence (A0 amendment 2)."
+    explanation: "The HDFC Bank documents available to this assistant don't include an account opening form for individuals living in India. They do include a form for converting a resident account to an NRO account when you move abroad."
+  - category: null
+    account_type: SALARY
+    reason: "No HDFC document in the corpus covers opening a salary account (the only mention is an NRI-form rule about converting an inactive salary account)."
+    explanation: "The HDFC Bank documents available to this assistant don't cover opening a salary account."
+  - category: null
+    account_type: SAVINGS
+    reason: "For organisations, the corpus does not establish a savings account: the NRI form states 'Savings account can be opened only by individuals for non-business purposes', and the scanned non-individual form only shows a tick box."
+    explanation: "The HDFC Bank form available to this assistant says savings accounts are for individuals, so it doesn't cover a savings account for an organisation."
+  - category: null
+    account_type: FCNR_RFC
+    reason: "FCNR / RFC deposits appear only on the NRI individual form."
+    explanation: "The HDFC Bank documents available to this assistant show FCNR / RFC deposits only for individuals living outside India."
+
+# What the customer reads for any other combination the documents don't cover.
+default_explanation: "The HDFC Bank documents available to this assistant don't cover this combination."
 
 # --- item rulings (owner-approved interpretations; A1 §5.4) --------------------------------------
 # Decided at the A2 review (owner, 2026-11-14). They state what the stored corpus does and does NOT

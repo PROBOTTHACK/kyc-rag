@@ -1,0 +1,162 @@
+{
+  "status": 200,
+  "body": {
+    "session_id": "0a5e5510-0000-4000-8000-000000000001",
+    "turn": 2,
+    "answer": {
+      "kind": "fallback",
+      "question": null,
+      "confirmation": null,
+      "messages": [],
+      "profile": {
+        "account_type": {
+          "status": "known",
+          "value": "SAVINGS",
+          "label": "Savings account",
+          "origin": "chosen",
+          "choices": [
+            {
+              "value": "SAVINGS",
+              "label": "Savings account"
+            },
+            {
+              "value": "CURRENT",
+              "label": "Current account"
+            },
+            {
+              "value": "SALARY",
+              "label": "Salary account"
+            },
+            {
+              "value": "FIXED_DEPOSIT",
+              "label": "Fixed / term deposit"
+            },
+            {
+              "value": "RECURRING_DEPOSIT",
+              "label": "Recurring deposit"
+            },
+            {
+              "value": "FCNR_RFC",
+              "label": "FCNR / RFC deposit"
+            }
+          ]
+        },
+        "customer_category": {
+          "status": "known",
+          "value": "LLP",
+          "label": "A limited liability partnership (LLP)",
+          "origin": "chosen",
+          "choices": [
+            {
+              "value": "RESIDENT_INDIVIDUAL",
+              "label": "An individual living in India"
+            },
+            {
+              "value": "NRI_INDIVIDUAL",
+              "label": "An individual living outside India (NRI / PIO / OCI)"
+            },
+            {
+              "value": "SOLE_PROPRIETORSHIP",
+              "label": "A sole proprietorship"
+            },
+            {
+              "value": "PARTNERSHIP_FIRM",
+              "label": "A partnership firm"
+            },
+            {
+              "value": "LLP",
+              "label": "A limited liability partnership (LLP)"
+            },
+            {
+              "value": "COMPANY",
+              "label": "A company (private or public limited)"
+            },
+            {
+              "value": "TRUST",
+              "label": "A trust"
+            },
+            {
+              "value": "HUF",
+              "label": "A Hindu Undivided Family (HUF)"
+            },
+            {
+              "value": "OTHER_ORGANISATION",
+              "label": "A society, association, club or other organisation"
+            }
+          ]
+        },
+        "nri_scheme": {
+          "status": "unknown",
+          "value": null,
+          "label": null,
+          "origin": null,
+          "choices": [
+            {
+              "value": "NRE",
+              "label": "NRE account"
+            },
+            {
+              "value": "NRO",
+              "label": "NRO account"
+            }
+          ]
+        },
+        "holding": {
+          "status": "unknown",
+          "value": null,
+          "label": null,
+          "origin": null,
+          "choices": [
+            {
+              "value": "SINGLE",
+              "label": "Just one holder"
+            },
+            {
+              "value": "JOINT",
+              "label": "Jointly with others"
+            }
+          ]
+        },
+        "minor": {
+          "status": "unknown",
+          "value": null,
+          "label": null,
+          "origin": null,
+          "choices": [
+            {
+              "value": "YES",
+              "label": "Yes, for a minor"
+            },
+            {
+              "value": "NO",
+              "label": "No"
+            }
+          ]
+        }
+      },
+      "coverage_state": "NOT_ESTABLISHED",
+      "checklist": null,
+      "fallback": "I couldn't find this information in the available HDFC Bank documents. I don't want to give you an incorrect answer.",
+      "explanation": "The HDFC Bank form available to this assistant says savings accounts are for individuals, so it doesn't cover a savings account for an organisation.",
+      "suggestions": [
+        {
+          "slot": "account_type",
+          "value": "CURRENT",
+          "label": "Current account"
+        },
+        {
+          "slot": "account_type",
+          "value": "FIXED_DEPOSIT",
+          "label": "Fixed / term deposit"
+        },
+        {
+          "slot": "account_type",
+          "value": "RECURRING_DEPOSIT",
+          "label": "Recurring deposit"
+        }
+      ],
+      "technical_message": null,
+      "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
+    }
+  }
+}

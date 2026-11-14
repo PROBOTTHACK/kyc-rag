@@ -306,6 +306,8 @@
           "coverage_state": null,
           "checklist": null,
           "fallback": null,
+          "explanation": null,
+          "suggestions": [],
           "technical_message": null,
           "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
         }
@@ -452,6 +454,8 @@
           "coverage_state": null,
           "checklist": null,
           "fallback": null,
+          "explanation": null,
+          "suggestions": [],
           "technical_message": null,
           "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
         }
@@ -614,6 +618,8 @@
           "coverage_state": null,
           "checklist": null,
           "fallback": null,
+          "explanation": null,
+          "suggestions": [],
           "technical_message": null,
           "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
         }
@@ -776,6 +782,8 @@
           "coverage_state": null,
           "checklist": null,
           "fallback": null,
+          "explanation": null,
+          "suggestions": [],
           "technical_message": null,
           "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
         }
@@ -944,6 +952,8 @@
           "coverage_state": null,
           "checklist": null,
           "fallback": null,
+          "explanation": null,
+          "suggestions": [],
           "technical_message": null,
           "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
         }
@@ -1949,6 +1959,8 @@
             "coverage_note": "This checklist is built only from the HDFC Bank form copies held in this prototype. It shows what those forms ask for; it is not a confirmed statement of HDFC Bank's current requirements, not an official HDFC Bank document and not a KYC approval."
           },
           "fallback": null,
+          "explanation": null,
+          "suggestions": [],
           "technical_message": null,
           "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
         }
@@ -2950,6 +2962,8 @@
             "coverage_note": "This checklist is built only from the HDFC Bank form copies held in this prototype. It shows what those forms ask for; it is not a confirmed statement of HDFC Bank's current requirements, not an official HDFC Bank document and not a KYC approval."
           },
           "fallback": null,
+          "explanation": null,
+          "suggestions": [],
           "technical_message": null,
           "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
         }
@@ -3948,6 +3962,8 @@
         "coverage_note": "This checklist is built only from the HDFC Bank form copies held in this prototype. It shows what those forms ask for; it is not a confirmed statement of HDFC Bank's current requirements, not an official HDFC Bank document and not a KYC approval."
       },
       "fallback": null,
+      "explanation": null,
+      "suggestions": [],
       "technical_message": null,
       "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
     }

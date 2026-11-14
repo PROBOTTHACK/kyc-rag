@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { AssistantAnswer, AssistantTurnRequest } from "../api/types";
-import { ConfirmCard, QuestionCard } from "./AnswerPanel";
+import { ConfirmCard, QuestionCard, SuggestionCard } from "./AnswerPanel";
 import { ChecklistView } from "./ChecklistView";
 import { Composer } from "./Composer";
 import { TEXT } from "./labels";
@@ -191,6 +191,13 @@ export function Workspace({ conversation }: { conversation: Conversation }) {
               <QuestionCard
                 key={`q${state.entries.length}`}
                 question={current.question}
+                disabled={busy}
+                onSend={sendBody}
+              />
+            ) : (current?.suggestions ?? []).length > 0 ? (
+              <SuggestionCard
+                key={`s${state.entries.length}`}
+                suggestions={current!.suggestions!}
                 disabled={busy}
                 onSend={sendBody}
               />

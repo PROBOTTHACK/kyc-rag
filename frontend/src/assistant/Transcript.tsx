@@ -142,6 +142,11 @@ function AssistantBubble({
               <span>{answer.fallback}</span>
             </p>
           )}
+          {answer.explanation && (
+            <p className="mb-2 pl-6 text-sm leading-relaxed text-muted last:mb-0">
+              {answer.explanation}
+            </p>
+          )}
           {answer.confirmation && <p className="font-medium">{answer.confirmation.text}</p>}
           {answer.question && <p className="font-medium">{answer.question.text}</p>}
           {answer.kind === "checklist" && (

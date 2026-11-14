@@ -147,6 +147,8 @@ export const TEXT = {
     end && end !== page ? `pages ${page}–${end}` : `page ${page}`,
   chooseOne: "Choose one",
   orType: "Or type your answer below.",
+  coveredHeading: "Covered by the documents",
+  coveredHint: "Choose one to change your answer.",
   conversationTab: "Conversation",
   checklistTab: "Checklist",
   expandAll: "Expand all",

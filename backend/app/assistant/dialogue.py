@@ -19,6 +19,7 @@ customer before it is used. Nothing here decides items, evidence classes or cita
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from enum import StrEnum
 
@@ -183,13 +184,25 @@ class ReadyProfile(_Frozen):
     topics: tuple[str, ...]
 
 
+class Suggestion(_Frozen):
+    """A combination the documents DO cover, offered after a not-established answer. Taken
+    from the coverage map only; the customer's choice is sent back as an ordinary `correct`
+    turn, which the server validates like any other."""
+
+    slot: Slot
+    value: str
+    label: str
+
+
 class DialogueResponse(_Frozen):
     step: StepKind
     question: Question | None = None
     confirmation: Confirmation | None = None
     notes: tuple[Note, ...] = ()
     ready: ReadyProfile | None = None
-    reason: str | None = None  # not-established reason or cannot-build explanation
+    reason: str | None = None  # not-established reason (internal) or cannot-build explanation
+    explanation: str | None = None  # not-established: why, in the customer's words
+    suggestions: tuple[Suggestion, ...] = ()  # not-established: covered alternatives
     fallback: str | None = None  # A1 §7, verbatim
     notice: str | None = None  # A1 §7 dated-document notice, verbatim
     blocked: str | None = None  # fixed screening message
@@ -513,7 +526,15 @@ def _decide(w: _Work) -> DialogueResponse:
     if cat is not None and acct is not None:
         cell = w.cov.cell(cat, acct)
         if not cell.covered:
-            return _not_established(w, cell.reason or DEFAULT_NOT_ESTABLISHED)
+            alternatives: tuple[Suggestion, ...] = _suggest(
+                w, Slot.ACCOUNT_TYPE, w.cov.covered_accounts(cat)
+            ) or _suggest(w, Slot.CUSTOMER_CATEGORY, w.cov.covered_categories(acct))
+            return _not_established(
+                w,
+                cell.reason or DEFAULT_NOT_ESTABLISHED,
+                w.cov.not_established_explanation(cat, acct),
+                alternatives,
+            )
         material = tuple(slot_for_facet(f) for f in cell.material_facets)
         for slot in FACET_SLOTS:  # fixed asking order
             if slot in material and w.entry(slot).open:
@@ -521,11 +542,21 @@ def _decide(w: _Work) -> DialogueResponse:
         return _ready(w, cell.state, material)
     if acct is not None:
         if not any(w.cov.cell(c, acct).covered for c in CustomerCategory):
-            return _not_established(w, _account_reason(w.cov, acct))  # category is immaterial
+            covered = [a for a in AccountType if w.cov.covered_categories(a)]
+            return _not_established(  # the category is immaterial
+                w,
+                _account_reason(w.cov, acct),
+                w.cov.not_established_explanation(None, acct),
+                _suggest(w, Slot.ACCOUNT_TYPE, covered),
+            )
         return _ask(w, Slot.CUSTOMER_CATEGORY) if cat_e.open else _cannot_build(w)
     if cat is not None:
         if not any(w.cov.cell(cat, a).covered for a in AccountType):
-            return _not_established(w, w.cov.not_established_reason(cat, AccountType.SAVINGS))
+            return _not_established(
+                w,
+                w.cov.not_established_reason(cat, AccountType.SAVINGS),
+                w.cov.not_established_explanation(cat, None),
+            )
         return _ask(w, Slot.ACCOUNT_TYPE) if acct_e.open else _cannot_build(w)
     if acct_e.open:
         return _ask(w, Slot.ACCOUNT_TYPE)  # R2: account type first
@@ -591,11 +622,21 @@ def _ready(w: _Work, state: CoverageState, material: tuple[Slot, ...]) -> Dialog
     )
 
 
-def _not_established(w: _Work, reason: str) -> DialogueResponse:
+def _suggest(w: _Work, slot: Slot, values: Iterable[StrEnum]) -> tuple[Suggestion, ...]:
+    return tuple(
+        Suggestion(slot=slot, value=v.value, label=w.words.label(slot, v.value)) for v in values
+    )
+
+
+def _not_established(
+    w: _Work, reason: str, explanation: str, suggestions: tuple[Suggestion, ...] = ()
+) -> DialogueResponse:
     w.pending = None
     return DialogueResponse(
         step=StepKind.NOT_ESTABLISHED,
         reason=reason,
+        explanation=explanation,
+        suggestions=suggestions,
         fallback=w.words.fallback,
         notice=w.words.notice,
     )

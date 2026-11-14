@@ -1155,6 +1155,25 @@
             ],
             "title": "Fallback"
           },
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation"
+          },
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/AssistantSuggestion"
+            },
+            "type": "array",
+            "title": "Suggestions",
+            "default": []
+          },
           "technical_message": {
             "anyOf": [
               {
@@ -1662,6 +1681,30 @@
           "scanned"
         ],
         "title": "AssistantSource"
+      },
+      "AssistantSuggestion": {
+        "properties": {
+          "slot": {
+            "$ref": "#/components/schemas/Slot"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "slot",
+          "value",
+          "label"
+        ],
+        "title": "AssistantSuggestion",
+        "description": "A combination the documents cover, offered after a not-established answer. The UI\nsends it back as a `correct` turn for `slot` with `value`."
       },
       "AssistantTurnResult": {
         "properties": {

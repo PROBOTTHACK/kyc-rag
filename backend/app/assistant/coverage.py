@@ -14,6 +14,7 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.assistant.customer_text import check_customer_text
 from app.assistant.taxonomy import (
     SCOPE_ROLES,
     AccountType,
@@ -101,7 +102,13 @@ class Conversion(_Model):
 class NotEstablishedReason(_Model):
     category: CustomerCategory | None
     account_type: AccountType | None
-    reason: str = Field(min_length=1)
+    reason: str = Field(min_length=1)  # internal, for review only; never sent to the customer
+    explanation: str = Field(min_length=1)  # what the customer reads (plain language)
+
+    @model_validator(mode="after")
+    def _plain(self) -> NotEstablishedReason:
+        check_customer_text("not-established explanation", self.explanation)
+        return self
 
 
 class ItemRuling(_Model):
@@ -137,10 +144,12 @@ class Coverage(_Model):
     cells: tuple[Cell, ...]
     conversion: Conversion
     not_established_reasons: tuple[NotEstablishedReason, ...] = ()
+    default_explanation: str = Field(min_length=1)
     item_rulings: tuple[ItemRuling, ...] = ()
 
     @model_validator(mode="after")
     def _validate(self) -> Coverage:
+        check_customer_text("default explanation", self.default_explanation)
         seen: set[tuple[CustomerCategory, AccountType]] = set()
         for cell in self.cells:
             key = (cell.category, cell.account_type)
@@ -231,6 +240,27 @@ class Coverage(_Model):
             if r.category is None and r.account_type is account_type:
                 return r.reason
         return DEFAULT_NOT_ESTABLISHED
+
+    def not_established_explanation(
+        self, category: CustomerCategory | None, account_type: AccountType | None
+    ) -> str:
+        """The customer's explanation for a combination the documents don't cover. Same lookup
+        order as `not_established_reason`: the category first, then the account type."""
+        if category is not None:
+            for r in self.not_established_reasons:
+                if r.category is category and r.account_type in (None, account_type):
+                    return r.explanation
+        if account_type is not None:
+            for r in self.not_established_reasons:
+                if r.category is None and r.account_type is account_type:
+                    return r.explanation
+        return self.default_explanation
+
+    def covered_accounts(self, category: CustomerCategory) -> tuple[AccountType, ...]:
+        return tuple(a for a in AccountType if self.cell(category, a).covered)
+
+    def covered_categories(self, account_type: AccountType) -> tuple[CustomerCategory, ...]:
+        return tuple(c for c in CustomerCategory if self.cell(c, account_type).covered)
 
     def role(self, document_key: str) -> SourceRole | None:
         doc = self.documents.get(document_key)

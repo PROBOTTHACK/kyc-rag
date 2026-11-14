@@ -25,6 +25,8 @@ import explainAccountType from "./assistant/explain_account_type.json";
 import llpChecklist from "./assistant/llp_checklist.json";
 import llpChecklistPanCopy from "./assistant/llp_checklist_pan_copy.json";
 import llpCorrected from "./assistant/llp_corrected.json";
+import llpSavingsFallback from "./assistant/llp_savings_fallback.json";
+import llpSavingsTakeSuggestion from "./assistant/llp_savings_take_suggestion.json";
 import nriChecklist from "./assistant/nri_checklist.json";
 import nriChecklistPhoto from "./assistant/nri_checklist_photo.json";
 import nriConfirm from "./assistant/nri_confirm.json";
@@ -61,6 +63,8 @@ export const recorded = {
   llpChecklist: () => turn(llpChecklist),
   llpChecklistPanCopy: () => turn(llpChecklistPanCopy),
   llpCorrected: () => turn(llpCorrected),
+  llpSavingsFallback: () => turn(llpSavingsFallback),
+  llpSavingsTakeSuggestion: () => turn(llpSavingsTakeSuggestion),
   residentFallback: () => turn(residentFallback),
   cannotBuild: () => turn(cannotBuild),
   blocked: () => turn(blocked),
