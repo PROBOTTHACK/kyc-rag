@@ -121,7 +121,8 @@ class ChecklistItem(_Frozen):
     kind: str
     classification: Classification
     classification_label: str
-    condition: str | None = None
+    condition: str | None = None  # verbatim from the source
+    condition_note: str | None = None  # the same condition in plain language
     applies_if: tuple[str, ...] = ()
     source_wording: str | None = None  # exact quotation: reliable text only
     approximate_reading: str | None = None  # OCR-uncertain text, never shown as a quotation
@@ -421,7 +422,7 @@ class ChecklistService:
                 Caveat(code=CaveatCode.SCANNED_TEXT, text=self.words.caveats.scanned_text)
             )
         if item.condition is not None:
-            conditional = texts.conditional.format(condition=item.condition)
+            conditional = item.condition_note or texts.conditional.format(condition=item.condition)
             caveats.append(Caveat(code=CaveatCode.CONDITIONAL, text=conditional))
         return ChecklistItem(
             id=item.id,
@@ -430,6 +431,7 @@ class ChecklistService:
             classification=cls,
             classification_label=self.words.classification_labels[cls.value],
             condition=item.condition,
+            condition_note=item.condition_note,
             applies_if=self._applies_if(item, plan),
             source_wording=quote if reliable else None,
             approximate_reading=None if reliable else quote,
@@ -458,10 +460,8 @@ class ChecklistService:
         answered = {t for i in built.values() for t in self._topics(i.id)}
         not_confirmed: list[ChecklistItem] = []
         for e in entries:
-            reason = e.reason
-            if e.ruling is not None:
-                ruling = self.cov.ruling(e.ruling)
-                reason = ruling.reason if ruling else None
+            # The customer reads the plain explanation; the ruling or reason is the internal
+            # basis for the entry and is never shown (owner, A4 language pass).
             related = tuple(c for rid in e.related if rid in built for c in built[rid].citations)
             not_confirmed.append(ChecklistItem(
                 id=e.id,
@@ -469,7 +469,7 @@ class ChecklistService:
                 kind="document",
                 classification=Classification.UNCONFIRMED,
                 classification_label=self.words.classification_labels["unconfirmed"],
-                does_not_establish=reason or self.words.unconfirmed_explanation,
+                does_not_establish=e.explanation,
                 related_citations=related,
                 asked=bool({t.value for t in e.topics} & asked),
             ))  # fmt: skip

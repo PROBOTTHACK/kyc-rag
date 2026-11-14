@@ -87,6 +87,12 @@ The NRI and conversion PAN-card-copy assumptions follow the same pattern (A1 §4
 - **What does not change:** this is presentation only. The rulings (`coverage.yaml` a2-2), the catalogue (`a4-1`, 47 items and 4 entries), the classes, citations and all validation are unchanged.
 - **PAN-number notes (owner, A4 content review):** the NRI, organisation and conversion PAN-number items no longer say anything about a PAN card copy. Their notes now read only "The form has a field for the PAN number." / "The form has PAN number fields for signatories and partners." A card copy is discussed only in Group C, when asked. No general checklist for any covered combination mentions a PAN card (tested).
 - **Passport-number note (owner, A4 content review):** the same distinction applies. `nri_passport_number` now reads only "The form has a field for the passport number." The cited passage (p1, "*Passport No.") is a field label with no instruction to attach a copy, so no passport requirement was removed. The only explicit passport-copy wording in the form is in special-case declarations (Mariners p4, Saudi Arabia residents p6, US indicia in Extended KYC p4). None is a catalogue item, and none was added. `conv_passport_number` never had a note.
+- **Customer language pass (owner, A4 final review):**
+  - **Group C explanations:** each entry has a plain `explanation`, which is what the customer reads. The A2 ruling, or the entry's `reason`, stays as the internal basis, shown only in the review export.
+  - **`nri_name`:** now titled "Enter your name as it appears on your identity document."
+  - **`nri_aadhaar_number`:** the note now reads "The form has a space for an Aadhaar number, but it does not confirm that you have to provide one."
+  - **Condition notes:** three verbatim conditions ("Mandate / POA", "For Payout details", "only face to face") gain a plain `condition_note`, which is also used as their conditional caveat. The verbatim `condition` and its validation are unchanged.
+  - **Internal-text guard:** on load, titles, notes, condition notes and explanations are refused if they name internal details (A0–A9, §, schema, catalogue, chunk, corpus, ruling, stored text).
 - **Review copy:** the full catalogue is exported for review in `A4_CATALOGUE_REVIEW.md`. It is generated from the data by `python -m app.assistant.catalogue_report`, and a unit test keeps it current.
 
 ## 4. Example output (real database; Company × Current, the customer asked about photographs and a PAN card copy)

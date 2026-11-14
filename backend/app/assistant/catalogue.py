@@ -9,6 +9,7 @@ classes are assigned by `checklist.classify` from the source role.
 
 from __future__ import annotations
 
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -23,6 +24,19 @@ from app.assistant.understand import Topic
 
 CATALOGUE_FILE = Path(__file__).with_name("checklist.yaml")
 _UUID = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+# Customer-facing catalogue text never mentions internal stages, rules or implementation
+# (owner, A4 language pass). Checked on load for titles, notes, condition notes, explanations.
+_INTERNAL = re.compile(
+    r"\bA[0-9]\b|§|schema|catalogue|chunk|corpus|ruling|stored text|\brule \d", re.IGNORECASE
+)
+
+
+def _customer_text(owner: str, *texts: str | None) -> None:
+    for text in texts:
+        if text and _INTERNAL.search(text):
+            raise ValueError(f"{owner}: customer-facing text names internal details: {text!r}")
+
+
 ItemKind = Literal["document", "information", "declaration"]
 Scope = Literal["opening", "conversion"]
 
@@ -46,7 +60,8 @@ class CatalogueItem(_Model):
     categories: tuple[CustomerCategory, ...] = ()
     accounts: tuple[AccountType, ...] | None = None
     when: dict[Slot, tuple[str, ...]] = Field(default_factory=dict)
-    condition: str | None = None
+    condition: str | None = None  # verbatim source text (validated against the quote)
+    condition_note: str | None = None  # the same condition in plain customer language
     topics: tuple[Topic, ...] = ()
     only_when_asked: bool = False
     note: str | None = None
@@ -68,6 +83,9 @@ class CatalogueItem(_Model):
             raise ValueError(f"{self.id}: the condition is not verbatim text of its evidence")
         if self.only_when_asked and not self.topics:
             raise ValueError(f"{self.id}: an on-request item names the topics that ask for it")
+        if self.condition_note is not None and self.condition is None:
+            raise ValueError(f"{self.id}: a condition note explains a verbatim condition")
+        _customer_text(self.id, self.title, self.note, self.condition_note)
         return self
 
 
@@ -79,10 +97,12 @@ class NotConfirmedEntry(_Model):
     topics: tuple[Topic, ...] = Field(min_length=1)
     related: tuple[str, ...] = ()
     ruling: str | None = None
-    reason: str | None = None
+    reason: str | None = None  # internal rationale (review only; never shown)
+    explanation: str = Field(min_length=1)  # what the customer reads
 
     @model_validator(mode="after")
     def _shape(self) -> NotConfirmedEntry:
+        _customer_text(self.id, self.title, self.explanation)
         if (self.ruling is None) == (self.reason is None):
             raise ValueError(f"{self.id}: give either the ruling or the reason, not both")
         if self.ruling is not None and self.categories:

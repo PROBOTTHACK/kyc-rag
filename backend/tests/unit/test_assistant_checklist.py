@@ -252,7 +252,9 @@ def test_a_pan_number_field_never_becomes_a_pan_card_copy() -> None:
     copy_item = by_id(nri, "nri_pan_card_copy")
     assert copy_item.classification is Classification.UNCONFIRMED and copy_item.citations == ()
     assert [c.document_key for c in copy_item.related_citations] == [NRI]  # context, not a basis
-    assert "does not establish" in copy_item.does_not_establish
+    assert (
+        "do not confirm whether a copy of your PAN card is needed" in copy_item.does_not_establish
+    )
 
 
 def test_form_60_61_keeps_its_existing_customers_condition() -> None:
@@ -534,7 +536,11 @@ def test_on_request_items_appear_only_when_asked() -> None:
     assert "nri_aadhaar_number" not in ids(items(build(profile(C.NRI_INDIVIDUAL, A.SAVINGS))))
     asked = build(profile(C.NRI_INDIVIDUAL, A.SAVINGS, topics=("aadhaar",)))
     item = by_id(asked, "nri_aadhaar_number")
-    assert item.asked and item.note and "does not establish" in item.note
+    assert item.asked
+    assert item.note == (
+        "The form has a space for an Aadhaar number, but it does not confirm that you have to "
+        "provide one."
+    )
 
 
 def test_asked_topics_are_marked_and_unanswered_ones_are_not_found() -> None:
@@ -748,9 +754,8 @@ def test_asking_about_a_card_copy_still_explains_it_is_not_established() -> None
     ):
         item = by_id(build(p), entry)
         assert item.classification is Classification.UNCONFIRMED and item.citations == ()
-        assert "does not establish" in item.does_not_establish or "No applicable" in (
-            item.does_not_establish
-        )
+        assert "do not confirm whether a copy of" in item.does_not_establish
+        assert item.does_not_establish.endswith("Please check with HDFC Bank.")
 
 
 def test_asking_about_signatory_photographs_shows_the_unconfirmed_result() -> None:
@@ -760,7 +765,10 @@ def test_asking_about_signatory_photographs_shows_the_unconfirmed_result() -> No
     assert item.asked and item.classification is Classification.UNCONFIRMED
     assert item.classification_label == "Could not be confirmed"
     assert item.citations == () and item.related_citations == () and item.fallback is None
-    assert "No stored text or form-schema field" in item.does_not_establish
+    assert item.does_not_establish == (
+        "The HDFC Bank documents available to this assistant do not confirm whether photographs "
+        "of authorised signatories are needed. Please check with HDFC Bank."
+    )
     assert not any("photo" in i.title.lower() for i in [*a.groups.documents, *a.groups.information])  # type: ignore[union-attr]
 
 
@@ -846,3 +854,121 @@ def test_a_passport_number_field_never_becomes_a_passport_copy(p: ReadyProfile) 
         assert passport[0].asked is bool(topics)
     nri_note = catalogue().item("nri_passport_number").note  # type: ignore[union-attr]
     assert nri_note == "The form has a field for the passport number."
+
+
+# --- customer language pass (owner, A4 final review) ---------------------------------------------
+
+INTERNAL_WORDS = (
+    "A0",
+    "A1",
+    "A2",
+    "§",
+    "schema",
+    "catalogue",
+    "chunk",
+    "corpus",
+    "ruling",
+    "stored text",
+)
+
+
+def group_c_profiles() -> list[ReadyProfile]:
+    asked = ("photograph", "pan_card_copy")
+    return [profile(cat, A.CURRENT, topics=asked) for cat in ORGS] + [
+        profile(C.NRI_INDIVIDUAL, A.SAVINGS, topics=asked),
+        profile(None, None, topics=asked),
+    ]
+
+
+@pytest.mark.parametrize("p", group_c_profiles(), ids=lambda p: f"{p.customer_category}")
+def test_group_c_explanations_are_plain_and_neutral(p: ReadyProfile) -> None:
+    a = build(p)
+    entries = [i for i in a.groups.not_confirmed if i.classification is Classification.UNCONFIRMED]  # type: ignore[union-attr]
+    assert entries
+    for item in entries:
+        text = item.does_not_establish
+        assert not any(w.lower() in text.lower() for w in INTERNAL_WORDS), (item.id, text)
+        assert item.id not in text
+        assert "HDFC Bank documents available to this assistant do not confirm whether" in text
+        for word in ("required", "mandatory", "not needed", "no need", "must"):
+            assert word not in text.lower(), (item.id, word)
+        assert text.endswith("Please check with HDFC Bank.")
+
+
+def test_group_c_explanations_are_not_the_internal_rationale() -> None:
+    cov, cat = coverage(), catalogue()
+    for e in cat.not_confirmed:
+        internal = cov.ruling(e.ruling).reason if e.ruling else e.reason  # type: ignore[union-attr]
+        assert internal and e.explanation != internal
+    # the A2 rulings themselves are unchanged
+    assert cov.ruling("org_signatory_photograph").reason.startswith("No stored text")  # type: ignore[union-attr]
+
+
+def test_the_nri_name_title_keeps_the_id_proof_meaning_without_a_copy() -> None:
+    a = build(profile(C.NRI_INDIVIDUAL, A.SAVINGS))
+    item = by_id(a, "nri_name")
+    assert item.title == "Enter your name as it appears on your identity document."
+    assert item.kind == "information" and item.classification is Classification.FORM_INDICATED
+    assert item.source_wording == "APPLICANT'S NAME (SAME AS ID PROOF)"
+    assert item.note is None and "copy" not in item.title.lower()
+    text = a.model_dump_json().lower()
+    for phrase in (
+        "copy of your identity",
+        "identity document copy",
+        "copy of the id",
+        "id proof copy",
+    ):
+        assert phrase not in text
+
+
+@pytest.mark.parametrize(
+    ("item_id", "acct", "condition", "note"),
+    [
+        ("nri_mandate_poa", A.SAVINGS, "Mandate / POA",
+         "Only if you choose to have the account operated under a mandate "
+         "or power of attorney (POA)."),
+        ("nri_deposit_payout_instruction", A.FIXED_DEPOSIT, "For Payout details",
+         "This is for the payout details of the deposit "
+         "(how the interest or maturity amount is to be paid)."),
+        ("nri_fcnr_option", A.FCNR_RFC, "only face to face",
+         "The form marks the FCNR deposit option as available "
+         "only face to face (in person)."),
+    ],
+)  # fmt: skip
+def test_conditions_keep_the_verbatim_text_and_gain_a_plain_note(
+    item_id: str, acct: AccountType, condition: str, note: str
+) -> None:
+    item = by_id(build(profile(C.NRI_INDIVIDUAL, acct)), item_id)
+    assert item.condition == condition and item.condition_note == note
+    assert any(condition in c.passage for c in item.citations)  # still verbatim source text
+    caveat = next(c for c in item.caveats if c.code is CaveatCode.CONDITIONAL)
+    assert caveat.text == note
+
+
+def test_conditions_without_a_note_keep_the_verbatim_caveat() -> None:
+    item = by_id(build(profile(C.LLP, A.CURRENT)), "org_form_60_61")
+    assert item.condition == "for existing customers" and item.condition_note is None
+    caveat = next(c for c in item.caveats if c.code is CaveatCode.CONDITIONAL)
+    assert caveat.text == "The form states a condition: for existing customers"
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda d: d["not_confirmed"][0].update(
+            explanation="See A2 ruling org_signatory_photograph."
+        ),
+        lambda d: d["not_confirmed"][2].update(explanation="Per A1 §4 rule 1."),
+        lambda d: d["not_confirmed"][1].update(explanation="Not in the form-schema field."),
+        lambda d: d["not_confirmed"][3].pop("explanation"),
+        lambda d: d["items"][0].update(note="Taken from the stored text of chunk e7434b9c."),
+        lambda d: next(i for i in d["items"] if i["id"] == "org_type_of_entity").update(
+            condition_note="A condition without a verbatim condition"
+        ),
+    ],
+)
+def test_internal_language_in_customer_text_fails_to_load(mutate: Any) -> None:
+    data = raw_catalogue()
+    mutate(data)
+    with pytest.raises(ValidationError):
+        Catalogue.model_validate(data)

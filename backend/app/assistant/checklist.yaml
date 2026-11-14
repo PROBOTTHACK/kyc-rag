@@ -74,6 +74,7 @@ items:
     scope: opening
     categories: [NRI_INDIVIDUAL]
     condition: Mandate / POA
+    condition_note: Only if you choose to have the account operated under a mandate or power of attorney (POA).
     evidence:
       - {chunk_id: 94504e3d-b4a9-5dcf-95cd-7c9e250c6188, document_key: hdfc_nri_account_opening, page: 1, quote: "Mandate / POA (please attach relevant document)"}
   - id: nri_deposit_payout_instruction
@@ -83,10 +84,11 @@ items:
     categories: [NRI_INDIVIDUAL]
     accounts: [FIXED_DEPOSIT, FCNR_RFC]
     condition: For Payout details
+    condition_note: This is for the payout details of the deposit (how the interest or maturity amount is to be paid).
     evidence:
       - {chunk_id: 6917713f-d6ca-5974-ab58-56aefd0074c9, document_key: hdfc_nri_account_opening, page: 3, quote: "For Payout details, please attach a separate instruction"}
   - id: nri_name
-    title: Your name, as it appears on your ID proof
+    title: Enter your name as it appears on your identity document.
     kind: information
     scope: opening
     categories: [NRI_INDIVIDUAL]
@@ -182,7 +184,7 @@ items:
     categories: [NRI_INDIVIDUAL]
     topics: [aadhaar]
     only_when_asked: true
-    note: The form has a field for an Aadhaar number. It does not establish that an Aadhaar number has to be given.
+    note: The form has a space for an Aadhaar number, but it does not confirm that you have to provide one.
     evidence:
       - {chunk_id: a37c01f2-8338-5a70-aae0-0a808d075e6e, document_key: hdfc_nri_account_opening, page: 1, quote: "Aadhaar No."}
   - id: nri_nominee
@@ -253,6 +255,7 @@ items:
     categories: [NRI_INDIVIDUAL]
     accounts: [FCNR_RFC]
     condition: only face to face
+    condition_note: The form marks the FCNR deposit option as available only face to face (in person).
     evidence:
       - {chunk_id: 905c3f50-d152-5512-91fd-32e96f63ab2f, document_key: hdfc_nri_account_opening, page: 3, quote: "FCNR (only face to face)"}
 
@@ -414,17 +417,21 @@ items:
 # --- could not be confirmed (Group C; classification `unconfirmed`) -----------------------------
 # Natural assumptions that no applicable source establishes. Never cited as evidence; `related`
 # names the item whose field the assumption comes from (shown for context only).
+# `explanation` is what the customer reads; `ruling` / `reason` is the internal basis,
+# never shown.
 not_confirmed:
   - id: org_signatory_photograph
     ruling: org_signatory_photograph
     title: Photographs of authorised signatories
     scope: opening
     topics: [photograph]
+    explanation: The HDFC Bank documents available to this assistant do not confirm whether photographs of authorised signatories are needed. Please check with HDFC Bank.
   - id: org_entity_pan_card_copy
     ruling: org_entity_pan_card_copy
     title: A copy of the organisation's PAN card
     scope: opening
     topics: [pan_card_copy]
+    explanation: The form asks for the PAN numbers of authorised signatories and partners. The HDFC Bank documents available to this assistant do not confirm whether a copy of the organisation's PAN card is needed. Please check with HDFC Bank.
     related: [org_signatory_pan_number]
   - id: nri_pan_card_copy
     title: A copy of the PAN card
@@ -432,12 +439,14 @@ not_confirmed:
     categories: [NRI_INDIVIDUAL]
     topics: [pan_card_copy]
     related: [nri_pan_number]
+    explanation: The form asks for your PAN number. The HDFC Bank documents available to this assistant do not confirm whether a copy of your PAN card is needed. Please check with HDFC Bank.
     reason: The form asks for the PAN number. A number field does not establish that a copy of the PAN card has to be submitted, and no applicable HDFC Bank document asks for one (A1 §4 rule 1).
   - id: conv_pan_card_copy
     title: A copy of the PAN card
     scope: conversion
     topics: [pan_card_copy]
     related: [conv_pan_number]
+    explanation: The conversion form asks for your PAN number. The HDFC Bank documents available to this assistant do not confirm whether a copy of your PAN card is needed. Please check with HDFC Bank.
     reason: The conversion form asks for the PAN number. A number field does not establish that a copy of the PAN card has to be submitted, and no applicable HDFC Bank document asks for one (A1 §4 rule 1).
 
 # --- fixed customer-facing wording for checklists (A1 §3, §7, §8) -------------------------------

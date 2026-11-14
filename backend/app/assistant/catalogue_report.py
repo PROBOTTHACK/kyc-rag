@@ -91,6 +91,7 @@ def _item_row(item: CatalogueItem, cat: Catalogue, cov: Coverage) -> str:
                 _cell(stored),
                 _cell(warning),
                 _cell(item.condition),
+                _cell(item.condition_note),
                 ", ".join(t.value for t in item.topics) or "—",
             ]
         )
@@ -112,7 +113,7 @@ def _entry_row(entry: NotConfirmedEntry, cov: Coverage) -> str:
             [
                 f"`{entry.id}`",
                 _cell(entry.title),
-                _cell(reason),
+                _cell(entry.explanation),
                 applies,
                 f"only when asked about: {', '.join(t.value for t in entry.topics)}",
                 "C",
@@ -122,6 +123,7 @@ def _entry_row(entry: NotConfirmedEntry, cov: Coverage) -> str:
                     if entry.ruling
                     else "A1 §4 rule 1 (identifier field)"
                 ),
+                _cell(reason),
                 ", ".join(f"`{r}`" for r in entry.related) or "—",
             ]
         )
@@ -133,13 +135,15 @@ ITEM_HEADER = (
     "| ID | Customer-facing title | Note | Customer categories | Account types | Shown when "
     "| Group | Classification | Source (document, page) | Exact quotation (reliable text only) "
     "| Stored OCR text (verification only, never shown as a quotation) | OCR warning "
-    "| Condition (verbatim) | Topics |\n"
-    "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"
+    "| Condition (verbatim) | Condition as shown to the customer | Topics |\n"
+    "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"
 )
 ENTRY_HEADER = (
-    "| ID | Customer-facing title | Explanation shown | Customer categories | Shown when | Group "
-    "| Classification | Basis | Related item (context only, never evidence) |\n"
-    "|---|---|---|---|---|---|---|---|---|"
+    "| ID | Customer-facing title | Explanation shown to the customer | Customer categories "
+    "| Shown when | Group | Classification | Basis "
+    "| Internal rationale (review only, never shown) "
+    "| Related item (context only, never evidence) |\n"
+    "|---|---|---|---|---|---|---|---|---|---|"
 )
 
 
