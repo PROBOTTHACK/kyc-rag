@@ -93,6 +93,48 @@ class ContextWording(_Model):
         return self
 
 
+class SocialWording(_Model):
+    """Replies to greetings and small talk: they never change the profile or checklist."""
+
+    greeting: str = Field(min_length=1)
+    greeting_again: str = Field(min_length=1)  # {subject}
+    thanks: str = Field(min_length=1)
+    goodbye: str = Field(min_length=1)
+    acknowledgement: str = Field(min_length=1)
+    small_talk: str = Field(min_length=1)
+
+
+class ScenarioWording(_Model):
+    """More than one account in a conversation (scenarios.py)."""
+
+    account_for: str = Field(min_length=1)  # {holder}
+    account_only: str = Field(min_length=1)  # {account}
+    unnamed: str = Field(min_length=1)
+    offer: str = Field(min_length=1)  # {subject}
+    separate_option: str = Field(min_length=1)
+    change_option: str = Field(min_length=1)
+    started: str = Field(min_length=1)  # {subject}
+    started_fresh: str = Field(min_length=1)
+    switch_offer: str = Field(min_length=1)  # {subject}
+    switch_option: str = Field(min_length=1)
+    stay_option: str = Field(min_length=1)
+    switched: str = Field(min_length=1)  # {subject}
+
+    @model_validator(mode="after")
+    def _placeholders(self) -> ScenarioWording:
+        for name, needed in [
+            ("account_for", "{holder}"),
+            ("account_only", "{account}"),
+            ("offer", "{subject}"),
+            ("started", "{subject}"),
+            ("switch_offer", "{subject}"),
+            ("switched", "{subject}"),
+        ]:
+            if needed not in getattr(self, name):
+                raise ValueError(f"scenario wording {name} lost {needed}")
+        return self
+
+
 class Wording(_Model):
     version: str
     slots: dict[Slot, SlotWording]
@@ -112,6 +154,8 @@ class Wording(_Model):
     privacy: str
     replies: ReplyWording
     context: ContextWording
+    social: SocialWording
+    scenarios: ScenarioWording
     fallback: str
     notice: str
 

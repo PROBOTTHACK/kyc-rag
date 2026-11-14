@@ -73,7 +73,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         checklist = LazyChecklist(settings)
         app.state.assistant = AssistantService(
-            PostgresAssistantStore(app.state.sessionmaker), checklist, assistant_llm(settings)
+            PostgresAssistantStore(app.state.sessionmaker),
+            checklist,
+            assistant_llm(settings),
+            context_tokens=settings.ASSISTANT_CONTEXT_TOKENS,
+            recent_turns=settings.ASSISTANT_RECENT_TURNS,
         )
     try:
         await workflow.log_stale_leases()

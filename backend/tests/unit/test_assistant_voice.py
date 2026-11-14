@@ -224,22 +224,39 @@ def test_claims_about_what_the_documents_only_cover_are_rejected() -> None:
     assert check_reply("Only if you choose that option.", '{"x":"Only if you choose"}') is None
 
 
-def test_recent_turns_are_sent_as_context_but_never_count_as_facts() -> None:
+def _context_with(customer: str, assistant: str) -> Any:
+    from app.assistant.memory import ConversationContext, HistoryTurn
+
+    return ConversationContext(
+        profile={},
+        corrected=[],
+        unconfirmed=[],
+        open_question=None,
+        other_scenarios=["a current account for a limited liability partnership (LLP)"],
+        summary=None,
+        recent=[HistoryTurn(1, customer, assistant)],
+    )
+
+
+def test_the_conversation_is_sent_as_context_but_never_counts_as_facts() -> None:
     from app.assistant.voice import build_request
 
     a = answer_after(*NRI_SAVINGS)
-    recent = [("current account for my LLP", "The documents: Form 60/61, for existing customers")]
-    request, fact_text = build_request(a, "what about that?", recent)
+    context = _context_with(
+        "current account for my LLP", "The documents: Form 60/61, for existing customers"
+    )
+    request, fact_text = build_request(a, "what about that?", context)
     assert "<recent_conversation>" in request.user and "Form 60/61" in request.user
+    assert "other_account_scenarios" in request.user
     assert "Form 60/61" not in fact_text  # an earlier profile's item is not a fact now
     assert "Never take facts from it" in request.system
 
 
 async def test_a_reply_reusing_an_earlier_profiles_item_is_rejected() -> None:
     a = answer_after(*NRI_SAVINGS)
-    recent = [("current account for my LLP", "Bring Form 61 and a board resolution.")]
+    context = _context_with("current account for my LLP", "Bring Form 61 and a board resolution.")
     bad = "As before, bring a board resolution."
-    out = await voice_reply(scripted_llm(say(bad)), a, "and for me?", recent=recent)
+    out = await voice_reply(scripted_llm(say(bad)), a, "and for me?", context=context)
     assert out == a.reply
 
 

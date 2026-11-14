@@ -709,6 +709,10 @@ class AssistantSessionRow(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # The rolling conversation summary (memory.py): older turns condensed, recent turns stay
+    # verbatim in `assistant_turns`. Deleted with the session (no separate copy).
+    summary: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    summary_through_turn: Mapped[int | None] = mapped_column(Integer)
 
     __table_args__ = (CheckConstraint("turn_count >= 0", name="ck_assistant_sessions_turn_count"),)
 

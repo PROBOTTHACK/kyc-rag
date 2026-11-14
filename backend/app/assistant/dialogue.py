@@ -71,6 +71,10 @@ class Action(StrEnum):
     EXPLAIN = "explain"
     CONFIRM_YES = "confirm_yes"
     CONFIRM_NO = "confirm_no"
+    # Account scenarios (more than one account in a conversation).
+    NEW_SCENARIO = "new_scenario"  # ask about a separate account; this one is kept
+    CHANGE_APPLICATION = "change_application"  # change this account's holder instead
+    SWITCH_SCENARIO = "switch_scenario"  # go back to an earlier account (value: its number)
 
 
 class TurnInput(_Frozen):
@@ -89,6 +93,11 @@ class TurnInput(_Frozen):
         if self.action in (Action.CHOOSE, Action.CORRECT):
             if self.slot is None or self.value is None or not valid_value(self.slot, self.value):
                 raise ValueError("a choice or correction carries a valid value for its slot")
+        elif self.action is Action.SWITCH_SCENARIO:
+            if self.slot is not None or self.value is None or not self.value.isdigit():
+                raise ValueError("a scenario switch carries the scenario number only")
+            if len(self.value) > 2:
+                raise ValueError("a scenario number is small")
         elif self.value is not None:
             raise ValueError("only a choice or correction carries a value")
         return self
@@ -808,6 +817,7 @@ async def respond(
     *,
     llm: LLMProvider | None = None,
     llm_timeout_s: float = 15.0,
+    context: str | None = None,
 ) -> tuple[DialogueState, DialogueResponse]:
     """As `respond_deterministic`, plus the optional LLM: consulted only for a free-text
     message the rules could not read at all, and only to PROPOSE slot values, each of which
@@ -829,7 +839,7 @@ async def respond(
         if open_slots:
             consulted = True
             hints = await extract_with_llm(
-                llm, interp.screen.text, open_slots, timeout_s=llm_timeout_s
+                llm, interp.screen.text, open_slots, timeout_s=llm_timeout_s, context=context
             )
     new_state, response = advance(state, turn, interp, llm_hints=hints)
     return new_state, response.model_copy(update={"llm_consulted": consulted})

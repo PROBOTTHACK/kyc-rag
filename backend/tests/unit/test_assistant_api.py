@@ -52,6 +52,7 @@ class _Session:
     expires_at: datetime
     turns: list[TurnRecord] = field(default_factory=list)
     keys: dict[str, tuple[str, int]] = field(default_factory=dict)
+    summary: tuple[dict[str, Any], int] | None = None
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
 
@@ -62,7 +63,10 @@ class _MemoryTurn:
     @property
     def session(self) -> StoredSession | None:
         s = self._s
-        return None if s is None else StoredSession(self._sid, s.state, s.expires_at)
+        if s is None:
+            return None
+        summary, through = s.summary if s.summary else (None, None)
+        return StoredSession(self._sid, s.state, s.expires_at, (), summary, through)
 
     async def replay(self, key: str) -> Replay | None:
         assert self._s is not None
@@ -73,18 +77,26 @@ class _MemoryTurn:
         turn = next(t for t in self._s.turns if t.turn_no == turn_no)
         return Replay(sha, turn_no, turn.answer)
 
-    async def recent(self, n: int) -> list[tuple[str | None, str | None]]:
+    async def turns_after(self, turn_no: int, limit: int) -> list[TurnRecord]:
         assert self._s is not None
-        return [(t.message, t.answer.get("reply")) for t in self._s.turns[-n:]]
+        return [t for t in self._s.turns if t.turn_no > turn_no][-limit:]
 
     async def save(
-        self, state: DialogueState, record: TurnRecord, key: str, sha: str, expires_at: datetime
+        self,
+        state: DialogueState,
+        record: TurnRecord,
+        key: str,
+        sha: str,
+        expires_at: datetime,
+        summary: tuple[dict[str, Any], int] | None = None,
     ) -> None:
         assert self._s is not None
         assert all(t.turn_no != record.turn_no for t in self._s.turns)  # UNIQUE(session, turn)
         self._s.turns.append(record)
         self._s.keys[key] = (sha, record.turn_no)
         self._s.state, self._s.expires_at = state, expires_at
+        if summary is not None:
+            self._s.summary = summary
 
 
 class MemoryStore:
@@ -98,7 +110,10 @@ class MemoryStore:
 
     async def load(self, sid: uuid.UUID) -> StoredSession | None:
         s = self.sessions.get(sid)
-        return None if s is None else StoredSession(sid, s.state, s.expires_at, tuple(s.turns))
+        if s is None:
+            return None
+        summary, through = s.summary if s.summary else (None, None)
+        return StoredSession(sid, s.state, s.expires_at, tuple(s.turns), summary, through)
 
     @asynccontextmanager
     async def _turn(self, sid: uuid.UUID) -> AsyncIterator[_MemoryTurn]:

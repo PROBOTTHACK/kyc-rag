@@ -82,10 +82,15 @@ class LLMHint:
     value: str
 
 
-def build_request(message: str, open_slots: tuple[Slot, ...]) -> LLMRequest:
+def build_request(
+    message: str, open_slots: tuple[Slot, ...], context: str | None = None
+) -> LLMRequest:
     slots = ", ".join(s.value for s in open_slots)
+    # The conversation so far (memory.py): only to understand references such as "she" or
+    # "we live in India". Quotes must still come from the customer's message itself.
+    history = f"<conversation>\n{context}\n</conversation>\n\n" if context else ""
     user = (
-        f"Slots still unknown: {slots}\n\n"
+        f"{history}Slots still unknown: {slots}\n\n"
         f"<customer_message>\n{message}\n</customer_message>"
     )  # fmt: skip
     return LLMRequest(
@@ -121,8 +126,9 @@ async def extract_with_llm(
     open_slots: tuple[Slot, ...],
     *,
     timeout_s: float = 15.0,
+    context: str | None = None,
 ) -> tuple[LLMHint, ...]:
-    request = build_request(message, open_slots)
+    request = build_request(message, open_slots, context)
     try:
         call = await asyncio.wait_for(
             generate_validated(llm, request, LLMSlotExtraction), timeout=timeout_s

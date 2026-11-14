@@ -37,6 +37,8 @@ class StoredSession:
     state: DialogueState
     expires_at: datetime
     turns: tuple[TurnRecord, ...] = ()  # filled by `load` only
+    summary: dict[str, Any] | None = None  # the rolling conversation summary (memory.py)
+    summary_through_turn: int | None = None
 
 
 @dataclass(frozen=True)
@@ -52,12 +54,18 @@ class TurnTx(Protocol):
 
     async def replay(self, key: str) -> Replay | None: ...
 
-    async def recent(self, n: int) -> list[tuple[str | None, str | None]]:
-        """The last `n` turns, oldest first: (screened customer message, assistant reply)."""
+    async def turns_after(self, turn_no: int, limit: int) -> list[TurnRecord]:
+        """Up to `limit` most recent turns numbered above `turn_no`, oldest first."""
         ...
 
     async def save(
-        self, state: DialogueState, record: TurnRecord, key: str, sha: str, expires_at: datetime
+        self,
+        state: DialogueState,
+        record: TurnRecord,
+        key: str,
+        sha: str,
+        expires_at: datetime,
+        summary: tuple[dict[str, Any], int] | None = None,
     ) -> None: ...
 
 
@@ -108,6 +116,8 @@ class _PostgresTurn:
                 id=row.id,
                 state=DialogueState.model_validate(row.state),
                 expires_at=row.expires_at,
+                summary=row.summary,
+                summary_through_turn=row.summary_through_turn,
             )
         )
 
@@ -132,20 +142,29 @@ class _PostgresTurn:
         sha, turn = found
         return Replay(request_sha256=sha, turn_no=turn.turn_no, answer=turn.answer)
 
-    async def recent(self, n: int) -> list[tuple[str | None, str | None]]:
+    async def turns_after(self, turn_no: int, limit: int) -> list[TurnRecord]:
         assert self._row is not None  # noqa: S101 - only called for an existing session
         rows = (
             await self._s.scalars(
                 select(AssistantTurnRow)
-                .where(AssistantTurnRow.session_id == self._row.id)
+                .where(
+                    AssistantTurnRow.session_id == self._row.id,
+                    AssistantTurnRow.turn_no > turn_no,
+                )
                 .order_by(AssistantTurnRow.turn_no.desc())
-                .limit(n)
+                .limit(limit)
             )
         ).all()
-        return [(t.message, (t.answer or {}).get("reply")) for t in reversed(rows)]
+        return [_record(t) for t in reversed(rows)]
 
     async def save(
-        self, state: DialogueState, record: TurnRecord, key: str, sha: str, expires_at: datetime
+        self,
+        state: DialogueState,
+        record: TurnRecord,
+        key: str,
+        sha: str,
+        expires_at: datetime,
+        summary: tuple[dict[str, Any], int] | None = None,
     ) -> None:
         row = self._row
         assert row is not None  # noqa: S101 - only called for an existing session
@@ -157,6 +176,8 @@ class _PostgresTurn:
         )
         row.state = _state_json(state)
         row.turn_count = state.turn
+        if summary is not None:
+            row.summary, row.summary_through_turn = summary
         row.updated_at = func.now()
         row.expires_at = expires_at
 
@@ -194,6 +215,8 @@ class PostgresAssistantStore:
                 state=DialogueState.model_validate(row.state),
                 expires_at=row.expires_at,
                 turns=tuple(_record(t) for t in turns),
+                summary=row.summary,
+                summary_through_turn=row.summary_through_turn,
             )
 
     @asynccontextmanager

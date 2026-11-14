@@ -36,6 +36,7 @@ from app.assistant.answer import (
 from app.assistant.catalogue import catalogue
 from app.assistant.checklist import AnswerKind, ChecklistAnswer, ChecklistService
 from app.assistant.dialogue import ReadyProfile, TurnInput, opening, respond
+from app.assistant.memory import ConversationContext, ConversationSummary, assemble
 from app.assistant.store import AssistantStore, TurnRecord
 from app.assistant.voice import voice_reply
 from app.assistant.wording import Wording, wording
@@ -48,7 +49,8 @@ log = logging.getLogger(__name__)
 SESSION_TTL = timedelta(hours=24)  # sliding: every stored turn extends it
 MAX_BODY_BYTES = 16_384
 MAX_KEY_CHARS = 200
-RECENT_TURNS = 3  # earlier turns the voice may read to resolve "that" or "my child"
+CONTEXT_TOKENS = 1500  # default conversation-context budget (Settings.ASSISTANT_CONTEXT_TOKENS)
+RECENT_TURNS = 10  # default verbatim turns (Settings.ASSISTANT_RECENT_TURNS)
 
 ChecklistFactory = Callable[[], ChecklistService]
 
@@ -135,7 +137,11 @@ class AssistantService:
         *,
         words: Wording | None = None,
         clock: Callable[[], datetime] = _now,
+        context_tokens: int = CONTEXT_TOKENS,
+        recent_turns: int = RECENT_TURNS,
     ) -> None:
+        self.context_tokens = context_tokens
+        self.recent_turns = recent_turns
         self.store = store
         self._checklist = checklist
         self.llm = llm
@@ -199,7 +205,11 @@ class AssistantService:
             now = self.clock()
             if session.expires_at <= now:
                 raise EXPIRED
-            state, response = await respond(session.state, turn, llm=self.llm)
+            # Memory: the stored history (and rolling summary) as context for the LLM.
+            context, summary = await self._context(tx, session)
+            state, response = await respond(
+                session.state, turn, llm=self.llm, context=context.render()
+            )
             checklist: ChecklistAnswer | None = None
             if response.ready is not None:
                 checklist = await self._build(response.ready)
@@ -219,8 +229,7 @@ class AssistantService:
             # voice speaks for free text, checklists, fallbacks and confirmations.
             chip_question = turn.message is None and built.kind == "question"
             if self.llm is not None and built.kind != "blocked" and not chip_question:
-                recent = await tx.recent(RECENT_TURNS)
-                reply = await voice_reply(self.llm, built, message, recent=recent)
+                reply = await voice_reply(self.llm, built, message, context=context)
                 built = built.model_copy(update={"reply": reply})
             record = TurnRecord(
                 turn_no=state.turn,
@@ -229,8 +238,38 @@ class AssistantService:
                 request=_choice(turn),
                 answer=built.model_dump(mode="json"),
             )
-            await tx.save(state, record, key, sha, now + SESSION_TTL)
+            stored_summary = (
+                None if summary is None else (summary.model_dump(mode="json"), summary.through_turn)
+            )
+            await tx.save(state, record, key, sha, now + SESSION_TTL, summary=stored_summary)
         return {"session_id": str(sid), "turn": record.turn_no, "answer": record.answer}
+
+    # --- memory ----------------------------------------------------------------------------------
+
+    async def _context(
+        self, tx: Any, session: Any
+    ) -> tuple[ConversationContext, ConversationSummary | None]:
+        """Recent turns verbatim + the rolling summary, within the token budget. Logged as
+        sizes and timings only (never content)."""
+        previous = ConversationSummary.model_validate(session.summary) if session.summary else None
+        after = previous.through_turn if previous is not None else 0
+        turns = await tx.turns_after(after, limit=self.recent_turns * 4)
+        context, summary = assemble(
+            session.state,
+            turns,
+            previous,
+            self.words,
+            budget_tokens=self.context_tokens,
+            max_recent=self.recent_turns,
+        )
+        log.info(
+            "assistant context: %d tokens, %d recent turns, %d summarised, %.1f ms",
+            context.tokens,
+            len(context.recent),
+            context.dropped_turns,
+            context.assembly_ms,
+        )
+        return context, summary
 
     # --- checklist -------------------------------------------------------------------------------
 

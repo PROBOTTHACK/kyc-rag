@@ -96,6 +96,8 @@ class SlotEvent(_Frozen):
 class PendingKind(StrEnum):
     QUESTION = "question"  # a slot question
     CONFIRM = "confirm"  # a yes/no confirmation of a proposed value
+    SCENARIO = "scenario"  # separate account or change this one? (value: who it is about)
+    SWITCH = "switch"  # go back to an earlier scenario? (value: its index)
 
 
 class ConfirmReason(StrEnum):
@@ -115,6 +117,16 @@ def _empty_slots() -> dict[Slot, SlotEntry]:
     return {s: SlotEntry() for s in Slot}
 
 
+class Scenario(_Frozen):
+    """Another account discussed in this conversation, parked while a different one is
+    active. Its answers, topics and history are kept unchanged until the customer returns."""
+
+    slots: dict[Slot, SlotEntry] = Field(default_factory=_empty_slots)
+    intent: Intent | None = None
+    open_topics: tuple[str, ...] = ()
+    history: tuple[SlotEvent, ...] = ()
+
+
 class DialogueState(_Frozen):
     turn: int = 0
     intent: Intent | None = None
@@ -124,6 +136,8 @@ class DialogueState(_Frozen):
     organisation_hint: bool = False  # "my business" etc.: an organisation, kind unknown (R7)
     open_topics: tuple[str, ...] = ()  # item questions waiting for the checklist (R5)
     history: tuple[SlotEvent, ...] = ()
+    # Other account scenarios in this conversation (the active one is the fields above).
+    scenarios: tuple[Scenario, ...] = ()
 
     def entry(self, slot: Slot) -> SlotEntry:
         return self.slots.get(slot, SlotEntry())

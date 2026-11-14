@@ -155,6 +155,30 @@ context:
   separate: It sounds like you'd like a separate checklist for another account. I'll keep this one as it is, and you can start a separate checklist whenever you're ready.
   not_applicable: "That doesn't change anything for {subject}."
 
+# Greetings and small talk: answered naturally; they never change answers or the checklist.
+social:
+  greeting: "Hi! Welcome. I'm here to help you understand what you need to open an account. Is it for you, a family member or a business?"
+  greeting_again: "Hello again! We were looking at {subject}. What would you like to know?"
+  thanks: You're welcome! Let me know if there's anything else you'd like to check.
+  goodbye: Goodbye! If you come back in this browser tab, your conversation will still be here.
+  acknowledgement: Sure. Is there anything else you'd like to check?
+  small_talk: I'm doing well, thanks for asking! I'm here to help with opening an account.
+
+# More than one account in a conversation. A separate account never changes the other one.
+scenarios:
+  account_for: "an account for {holder}"
+  account_only: "a {account}"
+  unnamed: a new account
+  offer: "We've been looking at {subject}. Is your question about a separate account, or do you want to change this application?"
+  separate_option: Ask about a separate account
+  change_option: Change this application
+  started: "OK, let's look at that account separately. I'll keep {subject} as it is, and you can go back to it at any time."
+  started_fresh: OK, let's look at a separate account.
+  switch_offer: "We looked at {subject} earlier in this conversation. Do you want to go back to it?"
+  switch_option: Yes, go back to it
+  stay_option: No, stay with this one
+  switched: "We're back to {subject}."
+
 # A1 §7, verbatim.
 fallback: I couldn't find this information in the available HDFC Bank documents. I don't want to give you an incorrect answer.
 notice: These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply.
