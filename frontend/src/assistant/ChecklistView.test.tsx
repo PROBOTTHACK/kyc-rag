@@ -1,7 +1,7 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRef } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { AssistantAnswer, AssistantItem } from "../api/types";
 import { chat, setup, startConversation } from "../test/assistantHarness";
@@ -62,6 +62,7 @@ describe("the checklist renders exactly what the API sent", () => {
     show(answer);
     const item = allItems(answer).find((i) => i.source_wording)!;
     const card = screen.getByRole("article", { name: item.title });
+    await user.click(within(card).getByRole("button", { name: `Details: ${item.title}` }));
     expect(within(card).getByText(`“${item.source_wording}”`)).toBeTruthy();
     const cite = item.citations![0]!;
     const toggle = within(card).getAllByRole("button", {
@@ -103,6 +104,7 @@ describe("the checklist renders exactly what the API sent", () => {
       }
     }
     const card = screen.getAllByRole("article")[0]!;
+    await user.click(within(card).getByRole("button", { name: /^Details:/ }));
     await user.click(within(card).getAllByRole("button", { name: /Source:/ })[0]!);
     expect(card.textContent).toContain("Text read automatically from the scanned page");
     expect(
@@ -133,12 +135,80 @@ describe("the checklist renders exactly what the API sent", () => {
   });
 });
 
+describe("the document workspace", () => {
+  it("shows a summary per item and hides the evidence until it is expanded", async () => {
+    const user = userEvent.setup();
+    const answer = recorded.nriChecklist().answer;
+    show(answer);
+    const item = allItems(answer).find((i) => i.source_wording)!;
+    const card = screen.getByRole("article", { name: item.title });
+    const cite = item.citations![0]!;
+    // Always visible: the classification label and where it comes from (title and page).
+    expect(card.textContent).toContain(item.classification_label);
+    expect(card.textContent).toContain(`${cite.document_title} · page ${cite.page}`);
+    const toggle = within(card).getByRole("button", { name: `Details: ${item.title}` });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    const details = document.getElementById(toggle.getAttribute("aria-controls")!)!;
+    expect(details.hidden).toBe(true);
+    expect(within(card).queryByRole("button", { name: /Source:/ })).toBeNull();
+    await user.click(toggle);
+    expect(details.hidden).toBe(false);
+    expect(details.textContent).toContain("Why this is here");
+    expect(details.textContent).toContain(item.does_not_establish);
+  });
+
+  it("expands and collapses every item at once", async () => {
+    const user = userEvent.setup();
+    const answer = recorded.nriChecklist().answer;
+    show(answer);
+    await user.click(screen.getByRole("button", { name: "Expand all" }));
+    const toggles = screen.getAllByRole("button", { name: /^Hide details:/ });
+    expect(toggles).toHaveLength(allItems(answer).length);
+    await user.click(screen.getByRole("button", { name: "Collapse all" }));
+    expect(screen.queryAllByRole("button", { name: /^Hide details:/ })).toHaveLength(0);
+  });
+
+  it("keeps a Group C explanation visible without expanding, and never as a requirement", () => {
+    const answer = recorded.llpChecklistPanCopy().answer;
+    show(answer);
+    const entry = answer.checklist!.groups.not_confirmed[0]!;
+    const card = screen.getByRole("article", { name: entry.title });
+    const toggle = within(card).getByRole("button", { name: `Details: ${entry.title}` });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    const summary = card.firstElementChild!.textContent ?? "";
+    expect(summary).toContain(entry.does_not_establish);
+    expect(summary).toContain("Could not be confirmed");
+    expect(summary).not.toContain("Asked for on the HDFC Bank form");
+  });
+
+  it("flags scanned-form items in the summary", () => {
+    const answer = recorded.llpChecklist().answer;
+    show(answer);
+    for (const card of screen.getAllByRole("article")) {
+      expect(card.firstElementChild!.textContent).toContain("Scanned form");
+    }
+  });
+
+  it("prints through the browser, with the evidence expanded for paper", async () => {
+    const user = userEvent.setup();
+    const print = vi.spyOn(window, "print").mockImplementation(() => {});
+    const answer = recorded.nriChecklist().answer;
+    show(answer);
+    const section = screen.getByRole("region", { name: "Your checklist" });
+    expect(section.getAttribute("data-print")).toBe("expand");
+    await user.click(screen.getByRole("button", { name: "Print checklist" }));
+    expect(print).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("several citations", () => {
-  it("are numbered so that identical-looking sources can be told apart", () => {
+  it("are numbered so that identical-looking sources can be told apart", async () => {
+    const user = userEvent.setup();
     const answer = recorded.llpChecklist().answer;
     show(answer);
     const item = allItems(answer).find((i) => (i.citations ?? []).length > 1)!;
     const card = screen.getByRole("article", { name: item.title });
+    await user.click(within(card).getByRole("button", { name: `Details: ${item.title}` }));
     const toggles = within(card).getAllByRole("button", { name: /^Source \d:/ });
     expect(toggles.map((t) => t.textContent?.split(":")[0])).toEqual(
       item.citations!.map((_, i) => `Source ${i + 1}`),
@@ -154,7 +224,7 @@ describe("in the conversation", () => {
     expect(await chat().findByText("Your checklist is ready.")).toBeTruthy();
     const heading = screen.getByRole("heading", { name: "Your checklist", level: 2 });
     await user.click(chat().getByRole("button", { name: "View your checklist" }));
-    expect(document.activeElement).toBe(heading);
+    await waitFor(() => expect(document.activeElement).toBe(heading));
   });
 
   it("is replaced when an answer changes the profile", async () => {

@@ -1,1 +1,178 @@
 @import "tailwindcss";
+
+/*
+ * Design tokens for the Account Opening Assistant (dark, graphite/navy foundation).
+ * Utilities follow the token names: bg-void, bg-surface, bg-raised, border-line,
+ * text-fg, text-muted, text-cyan, text-violet ... The legacy M5 screens use Tailwind's
+ * default palette and are unaffected.
+ */
+@theme {
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-ui: "Inter", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+
+  --color-void: #090d16;
+  --color-surface: #111827;
+  --color-raised: #172234;
+  --color-hover: #1d2a3f;
+  --color-line: #263449;
+  --color-line-strong: #344760;
+  --color-fg: #f3f7fc;
+  --color-muted: #a4b1c4;
+  --color-subtle: #7d8ca3;
+  --color-cyan: #54d6ff;
+  --color-cyan-deep: #1b9fcf;
+  --color-violet: #9275ff;
+  --color-ok: #4fd1a1;
+  --color-warn: #f0b95a;
+  --color-danger: #f07878;
+}
+
+/* --- motion (fast, purposeful; off for reduced motion) --------------------------------- */
+@keyframes oa-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes oa-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes oa-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes oa-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -8px, 0) scale(1.03);
+  }
+}
+.oa-rise {
+  animation: oa-rise 220ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.oa-fade {
+  animation: oa-fade 260ms ease-out both;
+}
+.oa-dot {
+  animation: oa-pulse 1.1s ease-in-out infinite;
+}
+.oa-drift {
+  animation: oa-drift 9s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .oa-rise,
+  .oa-fade,
+  .oa-dot,
+  .oa-drift {
+    animation: none;
+  }
+  .oa * {
+    transition-duration: 0ms !important;
+  }
+}
+
+/* --- the assistant's own canvas ---------------------------------------------------------- */
+.oa {
+  font-family: var(--font-ui);
+  color: var(--color-fg);
+  background-color: var(--color-void);
+  color-scheme: dark;
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+}
+.oa ::selection {
+  background: color-mix(in srgb, var(--color-cyan) 35%, transparent);
+}
+/* In the base layer so a component's own focus style (Tailwind utilities) takes precedence. */
+@layer base {
+  .oa :focus-visible {
+    outline: 2px solid var(--color-cyan);
+    outline-offset: 2px;
+  }
+}
+.oa-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+/* A faint grid that fades out: the "atmosphere" behind the welcome screen. */
+.oa-grid {
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--color-line) 55%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--color-line) 55%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, black 20%, transparent 75%);
+}
+
+/* --- print: the checklist on white paper ----------------------------------------------- */
+@media print {
+  @page {
+    margin: 16mm 14mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+    color-scheme: light;
+  }
+  .oa {
+    color-scheme: light;
+  }
+  .oa,
+  .oa * {
+    background: transparent !important;
+    color: #111 !important;
+    box-shadow: none !important;
+    border-color: #bbb !important;
+    text-shadow: none !important;
+  }
+  .oa {
+    font-size: 11pt;
+  }
+  .oa [data-print="hide"] {
+    display: none !important;
+  }
+  .oa [data-print="only"] {
+    display: block !important;
+  }
+  .oa article {
+    break-inside: avoid;
+  }
+  .oa a {
+    text-decoration: none !important;
+  }
+}
+
+/* Collapsed checklist details print in full. In the base layer: Tailwind's preflight hides
+   [hidden] with !important there, and a layered !important outranks an unlayered one. */
+@layer base {
+  @media print {
+    .oa [data-print="expand"] [hidden] {
+      display: block !important;
+    }
+  }
+}

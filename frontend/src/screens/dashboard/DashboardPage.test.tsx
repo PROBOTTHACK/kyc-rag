@@ -80,7 +80,7 @@ function setup(server: Server, health: () => Promise<HealthResponse> = async () 
     resume: vi.fn(),
     retry: vi.fn(),
   };
-  const view = (path = "/") =>
+  const view = (path = "/legacy") =>
     render(
       <QueryClientProvider
         client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
@@ -190,7 +190,7 @@ describe("Dashboard: sessions in this browser tab", () => {
     expect(row(3).textContent).toContain("Latest question: Waiting for your answers");
     expect(row(4).textContent).toContain("Latest question: Finished · Result: Degraded result");
     expect(within(row(4)).getByRole("link", { name: "Open the report" }).getAttribute("href")).toBe(
-      `/reports/${report}`,
+      `/legacy/reports/${report}`,
     );
     expect(row(5).textContent).toContain("Expired.");
     expect(row(6).textContent).toContain("No longer available on the server");
@@ -255,7 +255,7 @@ describe("Session persistence across a reload of the tab", () => {
     await screen.findByRole("textbox", { name: "Your question" });
 
     utils.unmount(); // the reload: only sessionStorage survives
-    rerender("/assistant");
+    rerender("/legacy/assistant");
     await screen.findByRole("textbox", { name: "Your question" }); // same session, no start screen
     expect(client.createSession).toHaveBeenCalledTimes(1);
     expect(client.getSession).toHaveBeenLastCalledWith(sid, expect.anything());

@@ -40,9 +40,9 @@ describe("error boundaries", () => {
     quietConsole();
     const user = userEvent.setup();
     render(
-      <MemoryRouter initialEntries={["/"]}>
+      <MemoryRouter initialEntries={["/legacy"]}>
         <Routes>
-          <Route element={<Layout />}>
+          <Route path="legacy" element={<Layout />}>
             <Route index element={<Boom />} />
             <Route path="assistant" element={<h1>Assistant ok</h1>} />
           </Route>

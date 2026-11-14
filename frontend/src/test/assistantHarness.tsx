@@ -51,7 +51,7 @@ export function setup(
   render(
     <QueryClientProvider client={queryClient}>
       <ApiContext.Provider value={client}>
-        <MemoryRouter initialEntries={["/open-account"]}>
+        <MemoryRouter initialEntries={["/"]}>
           <App />
         </MemoryRouter>
       </ApiContext.Provider>

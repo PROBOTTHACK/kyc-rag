@@ -27,18 +27,29 @@ export const REAL_DATA_WARNING = {
 } as const;
 
 export const WELCOME = {
-  title: "Find out what you need to open an account",
+  eyebrow: "Account opening, explained",
+  title: "Know exactly what to bring before you open an account.",
   lead:
-    "Answer a few short questions and get a checklist of the documents and information the " +
-    "HDFC Bank account opening forms ask for, with the form and page each item comes from.",
+    "Answer a few short questions. The assistant reads the HDFC Bank account opening forms " +
+    "held in this prototype and builds your checklist: every item linked to the form and " +
+    "page it comes from.",
   points: [
-    "It uses only the HDFC Bank documents held in this prototype. Those documents are dated, " +
-      "so always confirm the requirements with HDFC Bank before you apply.",
-    "When the documents don't cover your situation, it says so instead of guessing.",
-    "It doesn't approve, reject or assess applications.",
+    {
+      title: "Evidence, not guesses",
+      body: "Every item cites a form and page. When the documents don't cover your case, it says so.",
+    },
+    {
+      title: "Dated sources, clearly marked",
+      body: "The forms are dated copies. Always confirm the requirements with HDFC Bank before you apply.",
+    },
+    {
+      title: "No approvals, no scoring",
+      body: "It doesn't approve, reject or assess applications. It only shows what the forms ask for.",
+    },
   ],
   start: "I understand — start",
   resuming: "Reopening your conversation…",
+  steps: ["Tell it about the account", "Answer a few questions", "Get your cited checklist"],
 } as const;
 
 /** Names of the profile slots (API keys) as the customer reads them. */
@@ -135,6 +146,18 @@ export const TEXT = {
   page: (page: number, end: number | null | undefined) =>
     end && end !== page ? `pages ${page}–${end}` : `page ${page}`,
   chooseOne: "Choose one",
+  orType: "Or type your answer below.",
+  conversationTab: "Conversation",
+  checklistTab: "Checklist",
+  expandAll: "Expand all",
+  collapseAll: "Collapse all",
+  details: "Details",
+  hideDetails: "Hide details",
+  whyHere: "Why this is here",
+  print: "Print checklist",
+  answersButton: "Your answers",
+  close: "Close",
+  updated: "Updated",
   changeTo: (slot: string) => `Change: ${slot}`,
 } as const;
 

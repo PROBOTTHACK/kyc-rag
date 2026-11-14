@@ -1,5 +1,7 @@
 # A6: Customer-facing account opening assistant (`/open-account`)
 
+> **Updated by the product redesign (2026-11-14; [`REDESIGN.md`](REDESIGN.md)).** The assistant is now the application at **`/`**, and `/open-account` redirects there. It has a dark design system and a rebuilt workspace and checklist. The legacy M5 screens moved to `/legacy`. The behaviour described below is unchanged; the layout and visual descriptions in §2 and §5 are superseded by REDESIGN.md.
+
 Stage A6 of the HDFC Bank Account Opening Assistant (independent portfolio prototype; synthetic data only). It is the web interface for the A5 API (`/api/v2/assistant`). The frontend decides nothing about requirements: every question, checklist item, classification, condition, quotation, page and source it shows comes from the API answer.
 
 ## 1. Owner decisions (A6 plan review, 2026-11-14)

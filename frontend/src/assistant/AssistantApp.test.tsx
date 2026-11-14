@@ -35,7 +35,7 @@ describe("welcome", () => {
     const cards = within(
       screen.getByRole("group", { name: /Which account would you like/ }),
     ).getAllByRole("button");
-    expect(cards.map((c) => c.textContent)).toContain("Savings account→");
+    expect(cards.map((c) => c.textContent)).toContain("Savings account");
     expect(screen.getByRole("textbox", { name: "Type your question or answer" })).toBeTruthy();
     expect(screen.getByText(REAL_DATA_WARNING.short)).toBeTruthy();
     // The id is kept in this tab's sessionStorage only: never in the URL or on the page.

@@ -1,85 +1,83 @@
 /**
- * `/open-account`: the customer-facing account opening assistant (A6). Its own shell, apart
- * from the legacy compliance-engine layout: a header, the persistent prototype disclaimer
- * and one screen at a time (welcome → conversation). The phase is state, not a URL, so the
- * session id never reaches the address bar.
+ * The Account Opening Assistant: the main application (served at `/`). Its own shell: the
+ * product header, the persistent prototype disclaimer and one screen at a time (welcome →
+ * workspace). The phase is state, not a URL, so the session id never reaches the address bar.
  */
 import { ErrorBoundary } from "../components/ErrorBoundary";
-import { ConversationScreen } from "./ConversationScreen";
 import { DISCLAIMER_LINES, PRODUCT_NAME, TEXT } from "./labels";
+import { Button, Icon, Mark } from "./ui";
 import { useConversation } from "./useConversation";
 import { EndedScreen, WelcomeScreen } from "./WelcomeScreen";
+import { Workspace } from "./Workspace";
 
 export function AssistantApp() {
   const conversation = useConversation();
   const { state, restart } = conversation;
   const active = state.phase === "active";
   return (
-    <div className="flex min-h-screen flex-col bg-slate-100 text-slate-900">
+    <div className="oa flex min-h-dvh flex-col">
       <a
         href="#assistant-main"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:shadow"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-raised focus:px-3 focus:py-2 focus:outline-2 focus:outline-cyan"
       >
         Skip to main content
       </a>
-      <header className="bg-slate-900 text-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+      <header
+        className="sticky top-0 z-30 border-b border-line/80 bg-void/85 backdrop-blur-md"
+        data-print="hide"
+      >
+        <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <span
-              aria-hidden="true"
-              className="grid h-9 w-9 place-items-center rounded-lg bg-sky-500/20 ring-1 ring-sky-300/40"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-5 w-5 fill-none stroke-sky-200"
-                strokeWidth="1.8"
-              >
-                <path d="M9 4h6M8 4h8a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />
-                <path d="m9 12 2 2 4-4" />
-              </svg>
-            </span>
+            <Mark />
             <div className="leading-tight">
-              <p className="text-base font-semibold tracking-tight">{PRODUCT_NAME}</p>
-              <p className="text-xs text-slate-300">Independent prototype</p>
+              <p className="font-display text-sm font-semibold tracking-tight sm:text-[0.95rem]">
+                {PRODUCT_NAME}
+              </p>
+              <p className="font-code text-[0.65rem] uppercase tracking-[0.18em] text-subtle">
+                Independent prototype
+              </p>
             </div>
           </div>
           {active && (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
               onClick={restart}
-              className="rounded-md px-3 py-2 text-sm font-medium text-slate-200 ring-1 ring-slate-600 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300"
+              className="-mr-2"
+              aria-label={TEXT.startAgain}
             >
-              {TEXT.startAgain}
-            </button>
+              <Icon name="refresh" />
+              <span className="hidden sm:inline">{TEXT.startAgain}</span>
+            </Button>
           )}
         </div>
-        <aside
-          aria-label="Prototype disclaimer"
-          className="border-t border-amber-200 bg-amber-50 text-amber-950"
-        >
-          <p className="mx-auto max-w-6xl px-4 py-2 text-xs sm:px-6 sm:text-sm">
-            <strong className="font-semibold">{DISCLAIMER_LINES.headline}</strong>{" "}
-            {DISCLAIMER_LINES.detail}
-          </p>
-        </aside>
       </header>
-      <main
-        id="assistant-main"
-        tabIndex={-1}
-        className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8"
-      >
+      <aside aria-label="Prototype disclaimer" className="border-b border-warn/15 bg-warn/[0.06]">
+        <p className="mx-auto flex max-w-[1440px] items-start gap-2.5 px-4 py-2 text-xs leading-relaxed text-warn/90 sm:px-6 sm:text-[0.8rem]">
+          <Icon name="shield" className="mt-px h-4 w-4 text-warn" />
+          <span>
+            <strong className="font-semibold text-warn">{DISCLAIMER_LINES.headline}</strong>{" "}
+            <span className="text-muted">{DISCLAIMER_LINES.detail}</span>
+          </span>
+        </p>
+      </aside>
+      <main id="assistant-main" tabIndex={-1} className="relative flex-1 focus:outline-none">
         <ErrorBoundary resetKey={state.phase}>
-          {state.phase === "active" ? (
-            <ConversationScreen conversation={conversation} />
-          ) : state.phase === "ended" ? (
-            <EndedScreen reason={state.ended} onStart={restart} />
-          ) : (
-            <WelcomeScreen
-              phase={state.phase}
-              error={state.startError}
-              onStart={() => void conversation.start()}
-            />
-          )}
+          <div
+            key={active ? "active" : state.phase === "ended" ? "ended" : "welcome"}
+            className="oa-fade h-full"
+          >
+            {active ? (
+              <Workspace conversation={conversation} />
+            ) : state.phase === "ended" ? (
+              <EndedScreen reason={state.ended} onStart={restart} />
+            ) : (
+              <WelcomeScreen
+                phase={state.phase}
+                error={state.startError}
+                onStart={() => void conversation.start()}
+              />
+            )}
+          </div>
         </ErrorBoundary>
       </main>
     </div>

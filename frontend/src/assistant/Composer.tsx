@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type KeyboardEvent } from "react";
 
 import { TEXT } from "./labels";
+import { Icon } from "./ui";
 import { RealDataWarning } from "./WelcomeScreen";
 
 /** The API screens up to 2 000 characters; longer text would be refused anyway. */
@@ -30,39 +31,39 @@ export function Composer({
   }
 
   return (
-    <form onSubmit={submit} className="border-t border-slate-200 bg-white p-3 sm:p-4">
-      <RealDataWarning compact />
+    <form onSubmit={submit} className="border-t border-line bg-surface p-3 sm:px-4">
       <label htmlFor="composer" className="sr-only">
         {TEXT.composerLabel}
       </label>
-      <div className="mt-2 flex items-end gap-2">
+      <div className="flex items-end gap-2 rounded-2xl border border-line-strong bg-void/60 p-1.5 pl-3 transition-colors focus-within:border-cyan/60 focus-within:shadow-[0_0_0_3px_rgba(84,214,255,0.12)]">
         <textarea
           id="composer"
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={onKeyDown}
           maxLength={MAX_MESSAGE}
-          rows={2}
+          rows={1}
           placeholder={TEXT.composerLabel}
           aria-describedby="composer-hint"
           autoComplete="off"
           spellCheck
-          className="min-h-12 flex-1 resize-none rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-[0.95rem] text-slate-900 placeholder:text-slate-400 focus:border-sky-600 focus:outline-2 focus:outline-sky-600/30"
+          className="max-h-32 min-h-10 flex-1 resize-none bg-transparent py-2 text-[0.94rem] text-fg placeholder:text-subtle focus:outline-none [field-sizing:content]"
         />
         <button
           type="submit"
           disabled={!canSend}
-          className="min-h-12 rounded-xl bg-slate-900 px-5 font-semibold text-white hover:bg-slate-800 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-sky-600 disabled:cursor-not-allowed disabled:bg-slate-300"
+          aria-label={TEXT.send}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-b from-cyan to-cyan-deep text-void transition-[filter] hover:brightness-110 disabled:from-line disabled:to-line disabled:text-subtle"
         >
-          {TEXT.send}
+          <Icon name="send" className="h-4 w-4" strokeWidth={1.9} />
         </button>
       </div>
-      <p id="composer-hint" className="mt-1.5 flex justify-between gap-2 text-xs text-slate-500">
-        <span>{TEXT.composerHint}</span>
-        <span aria-live="polite">
+      <div id="composer-hint" className="mt-2 flex items-center justify-between gap-3 px-1">
+        <RealDataWarning compact />
+        <span className="shrink-0 font-code text-[0.68rem] text-subtle" aria-live="polite">
           {text.length > MAX_MESSAGE - 200 ? `${text.length} / ${MAX_MESSAGE}` : ""}
         </span>
-      </p>
+      </div>
     </form>
   );
 }

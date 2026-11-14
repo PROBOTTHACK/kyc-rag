@@ -1,4 +1,5 @@
 import { customerError, TEXT } from "./labels";
+import { Button, Icon } from "./ui";
 import type { Failure } from "./useConversation";
 
 /** A turn that did not produce an answer: the API's fixed technical message, or a fixed
@@ -17,30 +18,21 @@ export function StatusNotice({
   const text =
     failure.technicalMessage ?? (failure.error ? customerError(failure.error) : TEXT.tryAgain);
   return (
-    <div
-      role="alert"
-      className="rounded-xl bg-rose-50 p-4 text-sm text-rose-950 ring-1 ring-rose-200"
-    >
-      <p className="font-medium">{text}</p>
-      <div className="mt-3 flex flex-wrap gap-2">
+    <div role="alert" className="oa-rise rounded-xl border border-danger/30 bg-danger/[0.08] p-3.5">
+      <p className="flex gap-2 text-sm font-medium text-fg">
+        <Icon name="alert" className="mt-0.5 h-4 w-4 text-danger" />
+        <span>{text}</span>
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2 pl-6">
         {failure.retryable && (
-          <button
-            type="button"
-            onClick={onRetry}
-            disabled={disabled}
-            className="min-h-11 rounded-lg bg-rose-900 px-4 font-semibold text-white hover:bg-rose-800 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-rose-700 disabled:opacity-60"
-          >
+          <Button variant="danger" onClick={onRetry} disabled={disabled}>
+            <Icon name="refresh" />
             {TEXT.tryAgain}
-          </button>
+          </Button>
         )}
-        <button
-          type="button"
-          onClick={onDismiss}
-          disabled={disabled}
-          className="min-h-11 rounded-lg px-4 font-medium text-rose-900 ring-1 ring-rose-300 hover:bg-rose-100 focus-visible:outline-2 focus-visible:outline-rose-700"
-        >
+        <Button variant="ghost" onClick={onDismiss} disabled={disabled}>
           {TEXT.dismiss}
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -17,7 +17,7 @@
 
 > **Product direction change (2026-11-14).** New work builds the **HDFC Bank Account Opening Assistant**: a customer-facing conversational assistant that uses only HDFC material from the corpus. See [`docs/assistant/A1_PRODUCT_SPEC.md`](docs/assistant/A1_PRODUCT_SPEC.md) and [`docs/assistant/A0_AUDIT.md`](docs/assistant/A0_AUDIT.md). The rest of this README describes the preserved compliance-engine implementation (M0–M5), which remains in the repository.
 >
-> **Try the assistant:** `make up && make migrate && make api`, then `make web` and open <http://127.0.0.1:5173/open-account> (synthetic data only). API: [`docs/assistant/A5_API.md`](docs/assistant/A5_API.md); interface and browser demo: [`docs/assistant/A6_UI.md`](docs/assistant/A6_UI.md).
+> **Try the assistant:** `make up && make migrate && make api`, then `make web` and open <http://127.0.0.1:5173/> (synthetic data only). The Account Opening Assistant is the application at `/`; the preserved M5 screens are under `/legacy`. API: [`docs/assistant/A5_API.md`](docs/assistant/A5_API.md); interface: [`docs/assistant/A6_UI.md`](docs/assistant/A6_UI.md); design system and structure: [`docs/assistant/REDESIGN.md`](docs/assistant/REDESIGN.md).
 
 > **Disclaimer:** This is an independent portfolio prototype built on authorized or illustrative documents. It is **not** an official HDFC Bank product, does not approve or reject real applications, and does not replace a bank's compliance team.
 
@@ -158,10 +158,10 @@ make api                            # http://localhost:8000/docs, health at /api
 #    GET /api/v1/sessions/{id}/events streams progress (SSE; open it before the message).
 #    Without Groq live calls enabled, intake asks every question and the report is DEGRADED.
 
-# 6b. Frontend (M5, Node 26.13.1): Dashboard (API health, this tab's sessions), KYC Assistant,
-#     Compliance Report with read-only review cases. Needs `make api` running.
+# 6b. Frontend (Node 26.13.1): the Account Opening Assistant at / (the M5 Dashboard, KYC
+#     Assistant and Compliance Report are preserved under /legacy). Needs `make api` running.
 make web-install                    # npm ci from frontend/package-lock.json (no install scripts)
-make web                            # http://127.0.0.1:5173; /api is proxied to `make api`
+make web                            # http://127.0.0.1:5173/ ; /api is proxied to `make api`
 make web-test web-lint              # Vitest; type-check + ESLint + Prettier + API types up to date
 
 # 7. The M3 LLP demo through the running API (a second terminal; synthetic question only)
@@ -330,7 +330,7 @@ M3 limits:
 | **M4 closure report** | [`docs/milestones/M4_CLOSURE_REPORT.md`](docs/milestones/M4_CLOSURE_REPORT.md) |
 | **M5 plan and closure (frontend)** | [`docs/milestones/M5_PLAN.md`](docs/milestones/M5_PLAN.md), [`docs/milestones/M5_CLOSURE_REPORT.md`](docs/milestones/M5_CLOSURE_REPORT.md) |
 | Published API contract | [`docs/api/openapi.json`](docs/api/openapi.json) |
-| **Account Opening Assistant** (spec, API, interface) | [`docs/assistant/A1_PRODUCT_SPEC.md`](docs/assistant/A1_PRODUCT_SPEC.md), [`docs/assistant/A5_API.md`](docs/assistant/A5_API.md), [`docs/assistant/A6_UI.md`](docs/assistant/A6_UI.md) |
+| **Account Opening Assistant** (spec, API, interface, design system) | [`docs/assistant/A1_PRODUCT_SPEC.md`](docs/assistant/A1_PRODUCT_SPEC.md), [`docs/assistant/A5_API.md`](docs/assistant/A5_API.md), [`docs/assistant/A6_UI.md`](docs/assistant/A6_UI.md), [`docs/assistant/REDESIGN.md`](docs/assistant/REDESIGN.md) |
 
 ## License
 

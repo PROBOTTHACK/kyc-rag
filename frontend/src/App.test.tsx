@@ -29,12 +29,33 @@ function renderAt(path: string) {
   );
 }
 
-describe("application shell", () => {
+describe("the Account Opening Assistant is the application", () => {
+  it.each(["/", "/open-account"])("opens the assistant's welcome screen at %s", (path) => {
+    renderAt(path);
+    expect(
+      screen.getByRole("heading", { level: 1, name: /Know exactly what to bring/ }),
+    ).toBeTruthy();
+    expect(screen.getByLabelText("Prototype disclaimer").textContent).toContain(
+      "Not affiliated with or endorsed by HDFC Bank or the RBI.",
+    );
+    expect(screen.queryByRole("navigation", { name: "Main" })).toBeNull(); // no legacy shell
+  });
+
+  it("shows its own not-found page for an unknown address", () => {
+    renderAt("/no/such/page");
+    expect(screen.getByRole("heading", { level: 1, name: "Page not found" })).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: /Account Opening Assistant/ }).getAttribute("href"),
+    ).toBe("/");
+  });
+});
+
+describe("preserved legacy shell (/legacy)", () => {
   it.each([
-    ["/", "Dashboard"],
-    ["/assistant", "KYC Assistant"],
-    ["/reports/5d0c1f2e-3a4b-4c5d-8e6f-7a8b9c0d1e2f", "Compliance Report"],
-    ["/no/such/page", "Page not found"],
+    ["/legacy", "Dashboard"],
+    ["/legacy/assistant", "KYC Assistant"],
+    ["/legacy/reports/5d0c1f2e-3a4b-4c5d-8e6f-7a8b9c0d1e2f", "Compliance Report"],
+    ["/legacy/no/such/page", "Page not found"],
   ])("shows the disclaimer and the right page at %s", (path, heading) => {
     renderAt(path);
     const disclaimer = screen.getByRole("complementary", { name: "Disclaimer" });
@@ -48,7 +69,7 @@ describe("application shell", () => {
 
   it("navigates between pages and keeps the disclaimer", async () => {
     const user = userEvent.setup();
-    renderAt("/");
+    renderAt("/legacy");
     await user.click(screen.getByRole("link", { name: "KYC Assistant" }));
     expect(screen.getByRole("heading", { level: 1, name: "KYC Assistant" })).toBeTruthy();
     expect(screen.getByText(DISCLAIMER)).toBeTruthy();
@@ -57,7 +78,7 @@ describe("application shell", () => {
   });
 
   it("shows only the screens in the M5 scope", () => {
-    renderAt("/");
+    renderAt("/legacy");
     const nav = screen.getByRole("navigation", { name: "Main" });
     const labels = within(nav)
       .getAllByRole("link")
@@ -66,7 +87,7 @@ describe("application shell", () => {
   });
 
   it("never presents an approval or rejection", () => {
-    for (const path of ["/", "/assistant", "/reports/x", "/nope"]) {
+    for (const path of ["/", "/legacy", "/legacy/assistant", "/legacy/reports/x", "/nope"]) {
       const { container, unmount } = renderAt(path);
       expect(container.textContent ?? "").not.toMatch(/\b(approved|rejected|compliant)\b/i);
       unmount();

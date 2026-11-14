@@ -66,7 +66,7 @@ function setup(initial: SessionView = live.sessionNoRun()) {
   render(
     <QueryClientProvider client={queryClient}>
       <ApiContext.Provider value={client as unknown as ApiClient}>
-        <MemoryRouter initialEntries={["/assistant"]}>
+        <MemoryRouter initialEntries={["/legacy/assistant"]}>
           <App />
         </MemoryRouter>
       </ApiContext.Provider>
@@ -177,7 +177,7 @@ describe("KYC Assistant", () => {
     await waitFor(() => expect(document.activeElement).toBe(resultHeading)); // S7: focus kept
     const report = live.sessionCompleted().workflow!.report_id!;
     expect(screen.getByRole("link", { name: "Open the report" }).getAttribute("href")).toBe(
-      `/reports/${report}`,
+      `/legacy/reports/${report}`,
     );
     expect(bodyText()).toContain("Every result requires human review");
     expect(
