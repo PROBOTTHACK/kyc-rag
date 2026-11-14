@@ -5,8 +5,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 const PATHS = {
-  spark:
-    "M12 3v4M12 17v4M3 12h4M17 12h4M6.3 6.3l2.5 2.5M15.2 15.2l2.5 2.5M6.3 17.7l2.5-2.5M15.2 8.8l2.5-2.5",
   document: "M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Zm0 0v5h5M9 13h6M9 17h4",
   info: "M4 6h16M4 10h16M4 14h10M4 18h7",
   pen: "M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4",
@@ -106,42 +104,32 @@ const VALUE_ICONS: Record<string, IconName> = {
 };
 
 export function valueIcon(value: string): IconName {
-  return VALUE_ICONS[value] ?? "spark";
+  return VALUE_ICONS[value] ?? "document";
 }
 
 export function Spinner({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <span
       aria-hidden="true"
-      className={`inline-block animate-spin rounded-full border-2 border-line-strong border-t-cyan motion-reduce:animate-none ${className}`}
+      className={`inline-block animate-spin rounded-full border-2 border-line-strong border-t-accent motion-reduce:animate-none ${className}`}
     />
   );
 }
 
-/** Three pulsing dots: the assistant is working. */
+/** The assistant is working: a quiet text line (no animation). */
 export function Thinking() {
-  return (
-    <span aria-hidden="true" className="inline-flex items-center gap-1">
-      {[0, 150, 300].map((delay) => (
-        <span
-          key={delay}
-          className="oa-dot h-1.5 w-1.5 rounded-full bg-cyan"
-          style={{ animationDelay: `${delay}ms` }}
-        />
-      ))}
-    </span>
-  );
+  return <span className="text-sm text-subtle">Checking the documents…</span>;
 }
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 
 const VARIANTS: Record<Variant, string> = {
   primary:
-    "bg-gradient-to-b from-cyan to-cyan-deep text-void font-semibold shadow-[0_0_0_1px_rgba(84,214,255,0.35),0_8px_24px_-10px_rgba(84,214,255,0.65)] hover:brightness-110 active:brightness-95 disabled:from-line disabled:to-line disabled:text-subtle disabled:shadow-none",
+    "bg-fg text-void font-medium hover:bg-white active:bg-fg/90 disabled:bg-line disabled:text-subtle",
   secondary:
-    "bg-raised text-fg ring-1 ring-line-strong hover:bg-hover hover:ring-subtle/60 active:bg-raised disabled:text-subtle disabled:ring-line",
+    "border border-line-strong text-fg hover:bg-raised active:bg-surface disabled:text-subtle disabled:border-line",
   ghost: "text-muted hover:text-fg hover:bg-raised disabled:text-subtle/70",
-  danger: "bg-danger/15 text-danger ring-1 ring-danger/40 hover:bg-danger/25 disabled:opacity-60",
+  danger: "border border-danger/40 text-danger hover:bg-danger/10 disabled:opacity-60",
 };
 
 export function Button({
@@ -154,34 +142,21 @@ export function Button({
     <button
       type="button"
       {...props}
-      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-[background-color,box-shadow,color,filter] duration-150 disabled:cursor-not-allowed ${VARIANTS[variant]} ${className}`}
+      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-colors duration-150 disabled:cursor-not-allowed ${VARIANTS[variant]} ${className}`}
     >
       {children}
     </button>
   );
 }
 
-/** The product mark: an abstract "verified document" glyph (no third-party branding). */
-export function Mark({ className = "h-9 w-9" }: { className?: string }) {
+/** The product mark: a plain monogram in a hairline square (no third-party branding). */
+export function Mark({ className = "h-8 w-8" }: { className?: string }) {
   return (
     <span
       aria-hidden="true"
-      className={`relative grid place-items-center rounded-xl bg-gradient-to-br from-cyan/25 via-raised to-violet/30 ring-1 ring-cyan/30 ${className}`}
+      className={`grid place-items-center rounded-md border border-line-strong font-display text-[0.8rem] font-semibold tracking-tight text-fg ${className}`}
     >
-      <svg
-        viewBox="0 0 24 24"
-        className="h-[55%] w-[55%]"
-        fill="none"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path
-          d="M7 3.5h7l4 4V19a1.5 1.5 0 0 1-1.5 1.5h-9.5A1.5 1.5 0 0 1 5.5 19V5A1.5 1.5 0 0 1 7 3.5Z"
-          stroke="#a4b1c4"
-        />
-        <path d="m9 13 2.2 2.2L15.5 11" stroke="#54d6ff" />
-      </svg>
+      AO
     </span>
   );
 }

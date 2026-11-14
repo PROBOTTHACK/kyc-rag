@@ -15,9 +15,9 @@ type Send = (body: AssistantTurnRequest) => void;
 
 /** Large selection cards. Choosing a card sends it at once (one question at a time). */
 const cardClass =
-  "group relative flex min-h-11 w-full items-center gap-2.5 rounded-xl border border-line bg-raised/60 px-3 py-2 text-left text-sm font-medium text-fg transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px hover:border-cyan/50 hover:bg-hover active:translate-y-0 disabled:pointer-events-none disabled:opacity-50 motion-reduce:hover:translate-y-0";
+  "group flex min-h-11 w-full items-center gap-3 rounded-md border border-line px-3 py-2 text-left text-sm font-medium text-fg transition-colors duration-150 hover:border-line-strong hover:bg-raised disabled:pointer-events-none disabled:opacity-50";
 const linkClass =
-  "inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-sm text-muted hover:bg-raised hover:text-fg disabled:opacity-50";
+  "inline-flex min-h-10 items-center gap-1.5 rounded-md px-2.5 text-sm text-subtle hover:bg-raised hover:text-fg disabled:opacity-50";
 
 function Eyebrow({
   id,
@@ -71,17 +71,13 @@ export function QuestionCard({
             key={chip.value}
             type="button"
             disabled={disabled}
-            className={`${cardClass} ${many ? "text-[0.85rem]" : ""}`}
+            className={cardClass}
             onClick={() => onSend({ action: "choose", slot: question.slot, value: chip.value })}
           >
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors group-hover:text-cyan group-hover:ring-cyan/40">
+            <span aria-hidden="true" className="text-subtle group-hover:text-fg">
               <Icon name={valueIcon(chip.value)} className="h-3.5 w-3.5" />
             </span>
             <span className="flex-1">{chip.label}</span>
-            <Icon
-              name="arrow"
-              className="h-4 w-4 text-subtle transition-colors group-hover:text-cyan"
-            />
           </button>
         ))}
       </div>
@@ -144,7 +140,7 @@ export function ConfirmCard({
           className={cardClass}
           onClick={() => onSend({ action: "confirm_yes" })}
         >
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-ok/10 text-ok ring-1 ring-ok/30">
+          <span aria-hidden="true" className="text-subtle group-hover:text-fg">
             <Icon name="check" className="h-4 w-4" />
           </span>
           {ACTION_LABELS.confirm_yes}
@@ -155,7 +151,7 @@ export function ConfirmCard({
           className={cardClass}
           onClick={() => onSend({ action: "confirm_no" })}
         >
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-surface text-muted ring-1 ring-line">
+          <span aria-hidden="true" className="text-subtle group-hover:text-fg">
             <Icon name="x" className="h-4 w-4" />
           </span>
           {ACTION_LABELS.confirm_no}
@@ -199,11 +195,7 @@ export function ScenarioCard({
               )
             }
           >
-            <span
-              className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ring-1 ${
-                i === 0 ? "bg-cyan/10 text-cyan ring-cyan/30" : "bg-surface text-muted ring-line"
-              }`}
-            >
+            <span aria-hidden="true" className="text-subtle group-hover:text-fg">
               <Icon name={i === 0 ? "arrow" : "x"} className="h-4 w-4" />
             </span>
             <span className="flex-1">{o.label}</span>
@@ -248,14 +240,10 @@ export function SuggestionCard({
               onSend({ action: "correct", slot: s.slot, value: s.value } as AssistantTurnRequest)
             }
           >
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-ok/10 text-ok ring-1 ring-ok/30">
+            <span aria-hidden="true" className="text-subtle group-hover:text-fg">
               <Icon name={valueIcon(s.value)} className="h-4 w-4" />
             </span>
             <span className="flex-1">{s.label}</span>
-            <Icon
-              name="arrow"
-              className="h-4 w-4 text-subtle transition-colors group-hover:text-cyan"
-            />
           </button>
         ))}
       </div>

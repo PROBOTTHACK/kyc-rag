@@ -22,7 +22,7 @@ describe("the assistant's reply in the chat (recorded from the real API)", () =>
     await startConversation(user);
     await user.click(screen.getByRole("button", { name: /Current account/ }));
     const intro = await chat().findByText(/Here's what the HDFC Bank form asks for/);
-    const bubble = intro.closest("div.rounded-2xl")!;
+    const bubble = intro.closest("[data-reply]")!;
     for (const item of answer.checklist!.groups.documents) {
       expect(
         within(bubble as HTMLElement).getByText(new RegExp(item.title.slice(0, 20))),

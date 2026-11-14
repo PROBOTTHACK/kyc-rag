@@ -5,7 +5,7 @@ import { ConfirmCard, QuestionCard, ScenarioCard, SuggestionCard } from "./Answe
 import { ChecklistView } from "./ChecklistView";
 import { Composer } from "./Composer";
 import { TEXT } from "./labels";
-import { ProfilePanel, ProgressCompact, ProgressSteps } from "./ProfilePanel";
+import { ProfilePanel, ProgressSteps } from "./ProfilePanel";
 import { StatusNotice } from "./StatusNotice";
 import { Transcript } from "./Transcript";
 import { Icon } from "./ui";
@@ -77,6 +77,16 @@ export function choiceCount(answer: AssistantAnswer | null): number | null {
   return n > 0 ? n : null;
 }
 
+/** "Current account · A limited liability partnership (LLP)": the account being discussed,
+ * from the API's profile labels; a neutral title before anything is known. */
+export function subjectOf(answer: AssistantAnswer): string {
+  const labels = ["account_type", "customer_category"]
+    .map((slot) => answer.profile[slot])
+    .filter((p) => p?.status === "known" && p.label)
+    .map((p) => p!.label!);
+  return labels.length > 0 ? labels.join(" · ") : TEXT.newConversation;
+}
+
 function itemCount(answer: AssistantAnswer | null): number {
   const g = answer?.checklist?.groups;
   return g ? g.documents.length + g.information.length + g.not_confirmed.length : 0;
@@ -110,64 +120,50 @@ export function Workspace({ conversation }: { conversation: Conversation }) {
   }
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-4xl flex-col px-0 pb-0 pt-2 sm:px-6 sm:pb-4 sm:pt-4">
+    <div className="flex h-full w-full flex-col">
       <h1 className="sr-only">Your account opening conversation</h1>
       <p aria-live="polite" className="sr-only">
         {state.pending ? "" : announcement(state.latest)}
       </p>
 
-      {/* One quiet bar: progress, the view switch, your answers. */}
+      {/* One quiet line: the account being discussed, the checklist, your answers. */}
       {current !== null && (
-        <div
-          className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-2 px-3 sm:mb-3 sm:px-0"
-          data-print="hide"
-        >
-          <div className="min-w-0 flex-1 basis-48">
-            <ProgressCompact answer={current} />
-          </div>
-          {withChecklist !== null && (
-            <div
-              role="group"
-              aria-label="Show"
-              className="flex rounded-xl bg-surface p-1 ring-1 ring-line"
+        <div className="border-b border-line" data-print="hide">
+          <div className="mx-auto flex min-h-12 max-w-3xl items-center gap-2 px-4 sm:px-6">
+            <p className="min-w-0 flex-1 truncate text-sm text-muted">{subjectOf(current)}</p>
+            {withChecklist !== null && (
+              <button
+                type="button"
+                aria-pressed={view === "checklist"}
+                onClick={() => (view === "checklist" ? setView("conversation") : openChecklist())}
+                className={`inline-flex min-h-10 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors ${
+                  view === "checklist"
+                    ? "bg-raised text-fg"
+                    : "text-muted hover:bg-raised hover:text-fg"
+                }`}
+              >
+                {TEXT.checklistTab}{" "}
+                <span className="text-xs tabular-nums text-subtle">{itemCount(withChecklist)}</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              aria-haspopup="dialog"
+              aria-label={TEXT.answersButton}
+              className="inline-flex min-h-10 min-w-10 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium text-muted transition-colors hover:bg-raised hover:text-fg"
             >
-              {(["conversation", "checklist"] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  aria-pressed={view === v}
-                  onClick={() => (v === "checklist" ? openChecklist() : setView(v))}
-                  className={`flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors ${
-                    view === v ? "bg-raised text-fg" : "text-muted hover:text-fg"
-                  }`}
-                >
-                  {v === "checklist" ? TEXT.checklistTab : TEXT.conversationTab}
-                  {v === "checklist" && (
-                    <span className="font-code text-[0.7rem] text-cyan">
-                      {itemCount(withChecklist)}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={() => setDrawerOpen(true)}
-            aria-haspopup="dialog"
-            aria-label={TEXT.answersButton}
-            className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium text-muted ring-1 ring-line hover:bg-surface hover:text-fg"
-          >
-            <Icon name="user" className="h-4 w-4 text-cyan" />
-            <span className="hidden sm:inline">{TEXT.answersButton}</span>
-          </button>
+              <Icon name="user" className="h-4 w-4" />
+              <span className="hidden sm:inline">{TEXT.answersButton}</span>
+            </button>
+          </div>
         </div>
       )}
 
       {/* The conversation: the main element. */}
       <section
         aria-label="Conversation with the assistant"
-        className={`flex min-h-0 flex-1 flex-col overflow-hidden bg-surface/70 ring-line/70 sm:rounded-2xl sm:ring-1 ${
+        className={`flex min-h-0 flex-1 flex-col overflow-hidden ${
           view === "conversation" ? "" : "hidden"
         }`}
         data-print="hide"
@@ -182,13 +178,13 @@ export function Workspace({ conversation }: { conversation: Conversation }) {
           />
         </div>
         {choices !== null && (
-          <div className="flex justify-end border-t border-line/70 px-3 pt-1.5 sm:px-4">
+          <div className="mx-auto flex w-full max-w-3xl justify-end border-t border-line px-4 pt-1.5 sm:px-6">
             <button
               type="button"
               aria-expanded={!collapsed}
               aria-controls="answer-choices"
               onClick={() => setCollapsedAt(collapsed ? null : state.entries.length)}
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-muted hover:bg-raised hover:text-fg"
+              className="-mr-2 inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-subtle hover:text-fg"
             >
               <Icon
                 name="chevron"
@@ -201,8 +197,8 @@ export function Workspace({ conversation }: { conversation: Conversation }) {
         <div
           id="answer-choices"
           hidden={collapsed}
-          className={`oa-scroll grid max-h-[42%] gap-3 overflow-y-auto p-3 empty:hidden sm:p-4 ${
-            choices !== null ? "pt-1 sm:pt-1" : "border-t border-line/70"
+          className={`oa-scroll mx-auto grid max-h-[42%] w-full max-w-3xl gap-3 overflow-y-auto px-4 pb-3 empty:hidden sm:px-6 ${
+            choices !== null ? "pt-1" : "border-t border-line pt-3"
           }`}
         >
           {state.failure !== null && (
@@ -248,7 +244,9 @@ export function Workspace({ conversation }: { conversation: Conversation }) {
 
       {/* The checklist: its own view (printed on its own). */}
       {withChecklist?.checklist && (
-        <div className={`min-w-0 ${view === "checklist" ? "" : "hidden"} print:!block`}>
+        <div
+          className={`oa-scroll min-h-0 min-w-0 flex-1 overflow-y-auto ${view === "checklist" ? "" : "hidden"} print:!block print:overflow-visible`}
+        >
           <ChecklistView
             checklist={withChecklist.checklist}
             notice={withChecklist.notice}
@@ -307,7 +305,7 @@ export function OtherAccounts({
           <span className="font-medium text-fg">{answer.active_scenario}</span>
         </p>
       )}
-      <h3 id="other-accounts" className="text-xs font-medium uppercase tracking-wide text-subtle">
+      <h3 id="other-accounts" className="text-xs font-medium text-subtle">
         {TEXT.otherAccounts}
       </h3>
       <ul className="grid gap-2">
@@ -318,9 +316,9 @@ export function OtherAccounts({
               disabled={disabled}
               onClick={() => onSwitch(s.index)}
               aria-label={`${TEXT.goBackTo} ${s.label}`}
-              className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm ring-1 ring-line hover:bg-raised disabled:opacity-50"
+              className="flex min-h-11 w-full items-center gap-2 rounded-md border border-line px-3 py-2 text-left text-sm hover:bg-raised disabled:opacity-50"
             >
-              <Icon name="arrow" className="h-4 w-4 rotate-180 text-cyan" />
+              <Icon name="arrow" className="h-4 w-4 rotate-180 text-muted" />
               <span>{s.label}</span>
             </button>
           </li>
@@ -349,19 +347,15 @@ function AnswersDrawer({ onClose, children }: { onClose: () => void; children: R
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-40" data-print="hide">
-      <div
-        className="oa-fade absolute inset-0 bg-void/70 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+      <div className="oa-fade absolute inset-0 bg-void/80" onClick={onClose} aria-hidden="true" />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="answers-drawer-title"
-        className="oa-rise oa-scroll absolute inset-x-0 bottom-0 grid max-h-[85dvh] content-start gap-5 overflow-y-auto rounded-t-3xl border-t border-line bg-surface p-5 pb-8 lg:inset-y-0 lg:left-auto lg:right-0 lg:max-h-none lg:w-[24rem] lg:rounded-none lg:border-l lg:border-t-0"
+        className="oa-rise oa-scroll absolute inset-x-0 bottom-0 grid max-h-[85dvh] content-start gap-5 overflow-y-auto rounded-t-lg border-t border-line bg-surface p-5 pb-8 lg:inset-y-0 lg:left-auto lg:right-0 lg:max-h-none lg:w-[24rem] lg:rounded-none lg:border-l lg:border-t-0"
       >
         <div className="flex items-center justify-between">
-          <h2 id="answers-drawer-title" className="font-display text-lg font-semibold">
+          <h2 id="answers-drawer-title" className="text-base font-semibold tracking-tight">
             {TEXT.answersButton}
           </h2>
           <button
@@ -369,7 +363,7 @@ function AnswersDrawer({ onClose, children }: { onClose: () => void; children: R
             type="button"
             onClick={onClose}
             aria-label={TEXT.close}
-            className="grid h-11 w-11 place-items-center rounded-xl text-muted hover:bg-raised hover:text-fg"
+            className="-mr-2 grid h-11 w-11 place-items-center rounded-md text-muted hover:bg-raised hover:text-fg"
           >
             <Icon name="x" className="h-5 w-5" />
           </button>

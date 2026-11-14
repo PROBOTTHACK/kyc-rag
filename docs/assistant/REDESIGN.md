@@ -121,31 +121,30 @@ The checklist evidence features are unchanged: groups A/B/C, conditions, sources
 - **Final validation (Stage 6, 2026-11-15):** `make lint` and `make check-schema` clean; `make test` 2,072 passed with the known environment failures only (K7, plus `test_app_imports_without_the_groq_sdk_or_a_key`, which fails the same way: both read the Groq settings of the local demo `.env`); `make test-integration` 518 passed, 1 failed (K8, the Qdrant tied-score flake in `test_dense_golden`); frontend 192 tests, lint, build and `check:api` clean. The same browser flow was repeated after the cleanup, once without and once with the live LLM voice (the voice reworded the checklist summary; other turns used the deterministic reply); no console errors.
 
 ## 3. Design system (`frontend/src/index.css`, Tailwind 4 `@theme`)
-- **Colours:**
+**Revised 2026-11-15 (owner direction "Minimalist fintech, not a GPT clone").** The earlier dark futuristic look (cyan and violet accents, glows, a grid backdrop, sparkle avatars, rounded chat bubbles) was replaced by a restrained, typography-led identity. The conversation engine and API were not changed.
 
-  | Token | Value |
-  |---|---|
-  | `void` (background) | `#090D16` |
-  | `surface` | `#111827` |
-  | `raised` | `#172234` |
-  | `hover` | `#1D2A3F` |
-  | `line` | `#263449` |
-  | `line-strong` | `#344760` |
-  | `fg` | `#F3F7FC` |
-  | `muted` | `#A4B1C4` |
-  | `subtle` | `#7D8CA3` |
-  | `cyan` (primary accent) | `#54D6FF` |
-  | `violet` (secondary accent) | `#9275FF` |
-  | `ok` | `#4FD1A1` |
-  | `warn` | `#F0B95A` |
-  | `danger` | `#F07878` |
+- **Colours** (every text colour meets WCAG AA on every surface; checked by script):
 
-  Group accents: A is cyan, B violet, C amber.
-- **Type:** `font-display` (Space Grotesk) for headings, `font-ui` (Inter) for the interface, `font-code` (JetBrains Mono) for metadata, numbers and small labels. They load from Google Fonts (`index.html`, `display=swap`) with system fallbacks. **No npm dependency was added**; the font request goes to Google's servers.
-- **Surfaces:** layered graphite and navy surfaces with fine 1px borders. Light is used sparingly: one faint grid and two soft glows on the welcome screen, the primary button's halo, and a header glow on the checklist.
-- **Icons:** one inline SVG set (`assistant/ui.tsx`) with 1.6px strokes on a 24px grid. Choice icons are decoration only, and an unknown value gets a neutral icon.
-- **Motion:** 150–300 ms entrance, fade and accordion transitions, the "thinking" dots, and progress transitions. **All are off under `prefers-reduced-motion`.**
-- **Focus:** a 2px cyan outline on every keyboard focus. It sits in the base layer, so components can refine it; programmatic focus targets have none.
+  | Token | Value | Use |
+  |---|---|---|
+  | `void` | `#0B0D10` | page background |
+  | `surface` | `#14171C` | primary surface (drawer, composer field, passages) |
+  | `raised` | `#1B2027` | secondary surface (customer messages, hover) |
+  | `hover` | `#20262E` | hover |
+  | `line` / `line-strong` | `#252A31` / `#333A44` | hairline dividers and borders |
+  | `fg` | `#E8E9EC` | primary text |
+  | `muted` / `subtle` | `#939BA6` / `#828A95` | secondary text and metadata |
+  | `accent` / `accent-strong` | `#8CAFC0` / `#A9C5D2` | the one muted blue-grey accent: links, focus, "asked for on the form" |
+  | `ok`, `warn`, `danger` | `#86B89F`, `#D4B072`, `#E0908A` | only where they carry meaning (done steps, scanned-text and unconfirmed items, errors) |
+
+- **Type:** Inter for everything (restrained sizes, tight tracking on headings, tabular figures); JetBrains Mono only for the character counter. Space Grotesk was dropped. Fonts load from Google Fonts with system fallbacks; no npm dependency.
+- **Structure from whitespace and hairlines, not boxes:** assistant replies are plain editorial text (no avatar, no bubble, en-dash bullets); customer messages are small, quiet blocks on `raised`; notes, the fallback and warnings use a 2px left rule. The primary button is solid off-white; there are no gradients, glows, blurs or shadows.
+- **Layout:** the conversation owns the screen, centred at a reading width (`max-w-3xl`). One quiet top line names the account being discussed and holds two controls: **Checklist (n)**, shown once a checklist applies, and **Your answers** (the drawer with progress, answers and other accounts). The progress bar and the Conversation/Checklist switch were removed.
+- **Composer:** a slim field with a hairline border, solid surface, small send icon and a visible accent focus ring; it stays fixed at the bottom without covering messages.
+- **Checklist:** a document workspace: section headings with a quiet letter (A, B, C), rows separated by dividers, compact metadata tags, evidence indented under the item, citations as hairline disclosure rows. All evidence, condition, approximate-reading and scanned-text disclosures are unchanged.
+- **Motion:** a 180 ms fade on new content and colour transitions on hover; the pulsing "thinking" dots, drifting glows and progress animations were removed ("Checking the documents…" is plain text). Everything is off under `prefers-reduced-motion`.
+- **Focus:** a 2px accent outline on every keyboard focus.
+- **Print:** unchanged rules (white paper, checklist only, all details expanded), with the product name and disclaimer heading the page.
 - **The legacy screens keep Tailwind's default palette** and are unaffected.
 
 ## 4. Consolidation audit (frontend only; no backend, migration, document or test was deleted)

@@ -37,14 +37,13 @@ describe("the workspace on narrow screens", () => {
   it("switches between the conversation and the checklist once a checklist exists", async () => {
     const { user } = setup([recorded.llpChecklist()]);
     await startConversation(user);
-    expect(screen.queryByRole("group", { name: "Show" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Checklist \d+$/ })).toBeNull();
     await user.click(screen.getByRole("button", { name: /Current account/ }));
     await chat().findByText(/Here's what the HDFC Bank form asks for/);
-    const show = screen.getByRole("group", { name: "Show" });
-    const checklistTab = within(show).getByRole("button", { name: /Checklist/ });
-    const conversationTab = within(show).getByRole("button", { name: /Conversation/ });
+    const checklistTab = screen.getByRole("button", { name: /^Checklist \d+$/ });
     // The conversation stays in front: the chat shows the summary and an "Open checklist".
-    expect(conversationTab.getAttribute("aria-pressed")).toBe("true");
+    expect(checklistTab.getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByText(/Current account · A limited liability partnership/)).toBeTruthy();
     const g = recorded.llpChecklist().answer.checklist!.groups;
     expect(checklistTab.textContent).toContain(
       String(g.documents.length + g.information.length + g.not_confirmed.length),
@@ -54,7 +53,7 @@ describe("the workspace on narrow screens", () => {
     const section = screen.getByRole("region", { name: "Conversation with the assistant" });
     expect(section.classList.contains("hidden")).toBe(true);
     await user.click(screen.getByRole("button", { name: "Back to the conversation" }));
-    expect(conversationTab.getAttribute("aria-pressed")).toBe("true");
+    expect(checklistTab.getAttribute("aria-pressed")).toBe("false");
     expect(section.classList.contains("hidden")).toBe(false);
   });
 });

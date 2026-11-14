@@ -31,38 +31,40 @@ export function Composer({
   }
 
   return (
-    <form onSubmit={submit} className="border-t border-line bg-surface p-3 sm:px-4">
-      <label htmlFor="composer" className="sr-only">
-        {TEXT.composerLabel}
-      </label>
-      <div className="flex items-end gap-2 rounded-2xl border border-line-strong bg-void/60 p-1.5 pl-3 transition-colors focus-within:border-cyan/60 focus-within:shadow-[0_0_0_3px_rgba(84,214,255,0.12)]">
-        <textarea
-          id="composer"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={onKeyDown}
-          maxLength={MAX_MESSAGE}
-          rows={1}
-          placeholder={TEXT.composerLabel}
-          aria-describedby="composer-hint"
-          autoComplete="off"
-          spellCheck
-          className="max-h-32 min-h-10 flex-1 resize-none bg-transparent py-2 text-[0.94rem] text-fg placeholder:text-subtle focus:outline-none [field-sizing:content]"
-        />
-        <button
-          type="submit"
-          disabled={!canSend}
-          aria-label={TEXT.send}
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-b from-cyan to-cyan-deep text-void transition-[filter] hover:brightness-110 disabled:from-line disabled:to-line disabled:text-subtle"
-        >
-          <Icon name="send" className="h-4 w-4" strokeWidth={1.9} />
-        </button>
-      </div>
-      <div id="composer-hint" className="mt-2 flex items-center justify-between gap-3 px-1">
-        <RealDataWarning compact />
-        <span className="shrink-0 font-code text-[0.68rem] text-subtle" aria-live="polite">
-          {text.length > MAX_MESSAGE - 200 ? `${text.length} / ${MAX_MESSAGE}` : ""}
-        </span>
+    <form onSubmit={submit} className="border-t border-line bg-void px-4 pb-3 pt-3 sm:px-6">
+      <div className="mx-auto max-w-3xl">
+        <label htmlFor="composer" className="sr-only">
+          {TEXT.composerLabel}
+        </label>
+        <div className="flex items-end gap-2 rounded-md border border-line-strong bg-surface py-1 pl-3 pr-1 transition-colors focus-within:border-accent focus-within:ring-1 focus-within:ring-accent">
+          <textarea
+            id="composer"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={onKeyDown}
+            maxLength={MAX_MESSAGE}
+            rows={1}
+            placeholder={TEXT.composerLabel}
+            aria-describedby="composer-hint"
+            autoComplete="off"
+            spellCheck
+            className="max-h-32 min-h-9 flex-1 resize-none bg-transparent py-1.5 text-[0.94rem] text-fg placeholder:text-subtle focus:outline-none [field-sizing:content]"
+          />
+          <button
+            type="submit"
+            disabled={!canSend}
+            aria-label={TEXT.send}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded text-accent transition-colors hover:text-accent-strong disabled:text-line-strong"
+          >
+            <Icon name="send" className="h-4 w-4" />
+          </button>
+        </div>
+        <div id="composer-hint" className="mt-2 flex items-center justify-between gap-3 px-1">
+          <RealDataWarning compact />
+          <span className="shrink-0 font-code text-[0.68rem] text-subtle" aria-live="polite">
+            {text.length > MAX_MESSAGE - 200 ? `${text.length} / ${MAX_MESSAGE}` : ""}
+          </span>
+        </div>
       </div>
     </form>
   );

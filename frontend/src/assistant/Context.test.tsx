@@ -17,7 +17,8 @@ async function withCompanyChecklist(...more: AssistantTurnResult[]) {
   return harness;
 }
 
-const showGroup = () => screen.queryByRole("group", { name: "Show" });
+/** The top-line control that opens the checklist (present only while one applies). */
+const checklistButton = () => screen.queryByRole("button", { name: /^Checklist \d+$/ });
 
 describe("context-aware conversation (recorded from the real API)", () => {
   it("answers a greeting without repeating the checklist", async () => {
@@ -26,7 +27,7 @@ describe("context-aware conversation (recorded from the real API)", () => {
     const reply = await chat().findByText(/Hello again! We were looking at a current account/);
     expectText(reply.closest("li"), "What would you like to know?");
     expect(reply.closest("li")!.textContent).not.toContain("Here's what the HDFC Bank form");
-    expect(showGroup()).toBeTruthy(); // the checklist still applies
+    expect(checklistButton()).toBeTruthy(); // the checklist still applies
   });
 
   it("asks whether a child's account is separate, then keeps the company account aside", async () => {
@@ -38,7 +39,7 @@ describe("context-aware conversation (recorded from the real API)", () => {
     await user.type(screen.getByRole("textbox"), "What about my child?{Enter}");
     const offer = await screen.findByRole("group", { name: /a separate account, or do you want/ });
     // The company checklist is still one tap away while the customer decides.
-    expect(showGroup()).toBeTruthy();
+    expect(checklistButton()).toBeTruthy();
     await user.click(within(offer).getByRole("button", { name: "Ask about a separate account" }));
     expect(bodies.at(-1)).toEqual({ action: "new_scenario" });
     expect(await chat().findByText(/I'll keep a current account for a company/)).toBeTruthy();
@@ -69,7 +70,7 @@ describe("context-aware conversation (recorded from the real API)", () => {
     await user.click(await screen.findByRole("button", { name: "Yes, go back to it" }));
     expect(bodies.at(-1)).toEqual({ action: "switch_scenario", value: "0" });
     expect(await chat().findByText(/We're back to a current account for a company/)).toBeTruthy();
-    expect(showGroup()).toBeTruthy();
+    expect(checklistButton()).toBeTruthy();
   });
 
   it("a confirmed change of holder retires the old checklist", async () => {
@@ -84,7 +85,7 @@ describe("context-aware conversation (recorded from the real API)", () => {
       await chat().findByText(/I've updated your answer to: An individual living outside/),
     ).toBeTruthy();
     // The company checklist no longer applies to these answers.
-    expect(showGroup()).toBeNull();
+    expect(checklistButton()).toBeNull();
   });
 
   it("a follow-up gets a focused answer, not the whole checklist again", async () => {
@@ -95,13 +96,14 @@ describe("context-aware conversation (recorded from the real API)", () => {
 });
 
 describe("the simplified workspace", () => {
-  it("has one conversation, a compact progress line and no permanent side panels", async () => {
+  it("has one conversation and no permanent progress, checklist or side panels", async () => {
     const { user } = setup();
     await startConversation(user);
     expect(screen.getByRole("region", { name: "Conversation with the assistant" })).toBeTruthy();
     expect(screen.queryByRole("complementary", { name: "Progress and your answers" })).toBeNull();
     expect(screen.queryByRole("navigation", { name: "Progress" })).toBeNull(); // in the drawer
-    expect(screen.getByText("1/4")).toBeTruthy();
+    expect(checklistButton()).toBeNull(); // nothing to open yet
+    expect(screen.getByText("New conversation")).toBeTruthy();
   });
 
   it("folds the choices away to give the conversation room, and shows them again", async () => {
@@ -122,7 +124,7 @@ describe("the simplified workspace", () => {
     await startConversation(user);
     await user.click(screen.getByRole("button", { name: /Current account/ }));
     await chat().findByText(/Here's what the HDFC Bank form asks for/);
-    const checklistTab = within(showGroup()!).getByRole("button", { name: /Checklist/ });
+    const checklistTab = checklistButton()!;
     checklistTab.focus();
     await user.keyboard("{Enter}");
     expect(checklistTab.getAttribute("aria-pressed")).toBe("true");

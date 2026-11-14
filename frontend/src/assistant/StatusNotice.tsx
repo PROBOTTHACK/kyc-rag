@@ -18,7 +18,7 @@ export function StatusNotice({
   const text =
     failure.technicalMessage ?? (failure.error ? customerError(failure.error) : TEXT.tryAgain);
   return (
-    <div role="alert" className="oa-rise rounded-xl border border-danger/30 bg-danger/[0.08] p-3.5">
+    <div role="alert" className="oa-rise border-l-2 border-danger py-1 pl-4">
       <p className="flex gap-2 text-sm font-medium text-fg">
         <Icon name="alert" className="mt-0.5 h-4 w-4 text-danger" />
         <span>{text}</span>

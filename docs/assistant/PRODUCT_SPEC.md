@@ -297,8 +297,10 @@ There is no A8.
 - **`/` is the assistant;** the preserved compliance-engine screens are under `/legacy`.
 - **Welcome:** what the assistant does, the prototype disclaimer and the real-data warning; the conversation starts only when the customer agrees.
 - **Full-screen chat:** while a conversation is active the page is one screen tall and only the conversation scrolls (edge to edge on phones). The persistent disclaimer stays visible.
+- **Visual identity:** a restrained, typography-led fintech design (graphite palette, one muted blue-grey accent, hairline structure, no AI-chat decoration); details in `REDESIGN.md` §3.
 - **Choices:** the current question's chips, a confirmation, a scenario offer or covered suggestions appear as compact buttons below the conversation, with a Hide / Show options toggle. Free text is always available.
-- **Checklist view:** a separate view (Conversation / Checklist switch) with the three groups, each item expandable to its source, page and passage; OCR-uncertain text is shown as an approximate reading (§8.2 rule 3a). It prints on its own.
+- **Checklist view:** a separate, spacious view (opened from **Checklist (n)** or "Open checklist" in the chat; "Back to the conversation" returns) with the three groups, each item expandable to its source, page and passage; OCR-uncertain text is shown as an approximate reading (§8.2 rule 3a). It prints on its own.
+- **Top line:** the account being discussed, a **Checklist (n)** control once a checklist applies, and **Your answers**. There is no permanent progress or checklist navigation.
 - **Your answers:** a drawer (side panel on wide screens, bottom sheet on phones) with progress, each answer with a Change control, the account being discussed and the other accounts with a way back (R12), and the notice.
 - **Accessibility:** keyboard operable, focus managed between views, live-region announcements, 44 px touch targets, no horizontal scroll at 390 px.
 

@@ -47,9 +47,7 @@ export function ProgressSteps({ answer }: { answer: AssistantAnswer }) {
   const states = progressOf(answer);
   return (
     <nav aria-label={TEXT.progress}>
-      <p className="font-code text-[0.65rem] uppercase tracking-[0.18em] text-subtle">
-        {TEXT.progress}
-      </p>
+      <p className="text-xs font-medium text-subtle">{TEXT.progress}</p>
       <ol className="mt-3 grid">
         {PROGRESS_STEPS.map((label, i) => {
           const s = states[i]!;
@@ -63,19 +61,19 @@ export function ProgressSteps({ answer }: { answer: AssistantAnswer }) {
               {!last && (
                 <span
                   aria-hidden="true"
-                  className={`absolute left-[0.6875rem] top-6 h-[calc(100%-1.25rem)] w-px transition-colors duration-300 ${
+                  className={`absolute left-[0.6875rem] top-6 h-[calc(100%-1.25rem)] w-px ${
                     s === "done" ? "bg-ok/50" : "bg-line"
                   }`}
                 />
               )}
               <span
                 aria-hidden="true"
-                className={`relative grid h-[1.375rem] w-[1.375rem] shrink-0 place-items-center rounded-full font-code text-[0.65rem] transition-all duration-300 ${
+                className={`relative grid h-[1.375rem] w-[1.375rem] shrink-0 place-items-center rounded-full text-[0.65rem] tabular-nums ${
                   s === "done"
-                    ? "bg-ok/15 text-ok ring-1 ring-ok/50"
+                    ? "text-ok ring-1 ring-ok/60"
                     : s === "current"
-                      ? "bg-cyan/15 text-cyan ring-1 ring-cyan/60 shadow-[0_0_0_4px_rgba(84,214,255,0.08)]"
-                      : "bg-raised text-subtle ring-1 ring-line"
+                      ? "text-fg ring-1 ring-fg"
+                      : "text-subtle ring-1 ring-line-strong"
                 }`}
               >
                 {s === "done" ? (
@@ -108,42 +106,6 @@ export function ProgressSteps({ answer }: { answer: AssistantAnswer }) {
         })}
       </ol>
     </nav>
-  );
-}
-
-/** A one-line progress bar for narrow screens. */
-export function ProgressCompact({ answer }: { answer: AssistantAnswer }) {
-  const states = progressOf(answer);
-  const currentIndex = states.findIndex((s) => s === "current");
-  const index = Math.max(currentIndex === -1 ? states.lastIndexOf("done") : currentIndex, 0);
-  const unavailable = states.includes("unavailable");
-  return (
-    <div>
-      <p className="flex items-baseline gap-2 text-xs">
-        <span className="font-code text-subtle">
-          {index + 1}/{PROGRESS_STEPS.length}
-        </span>
-        <span className="truncate font-medium text-fg">
-          {unavailable ? "No checklist for these answers" : PROGRESS_STEPS[index]}
-        </span>
-      </p>
-      <div aria-hidden="true" className="mt-1.5 grid grid-cols-4 gap-1">
-        {states.map((s, i) => (
-          <span
-            key={i}
-            className={`h-1 rounded-full transition-colors duration-300 ${
-              s === "done"
-                ? "bg-ok/70"
-                : s === "current"
-                  ? "bg-cyan"
-                  : s === "unavailable"
-                    ? "bg-danger/40"
-                    : "bg-line"
-            }`}
-          />
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -239,7 +201,7 @@ function ProfileRow({
             aria-expanded={editing}
             aria-controls={editing ? listId : undefined}
             aria-label={`${editing ? TEXT.cancel : TEXT.change} ${name}`}
-            className="min-h-9 shrink-0 rounded-lg px-2.5 text-xs font-medium text-cyan hover:bg-raised disabled:opacity-50"
+            className="-mr-2 min-h-9 shrink-0 rounded-md px-2.5 text-xs font-medium text-accent hover:bg-raised disabled:opacity-50"
           >
             {editing ? TEXT.cancel : TEXT.change}
           </button>
@@ -261,14 +223,14 @@ function ProfileRow({
                 disabled={disabled || current}
                 aria-current={current ? "true" : undefined}
                 onClick={() => onChoose(c.value)}
-                className="flex min-h-11 items-center gap-2.5 rounded-lg border border-line bg-raised/50 px-2.5 py-2 text-left text-sm text-fg hover:border-cyan/50 hover:bg-hover disabled:cursor-default disabled:border-cyan/40 disabled:bg-cyan/10"
+                className="flex min-h-11 items-center gap-2.5 rounded-md border border-line px-2.5 py-2 text-left text-sm text-fg hover:border-line-strong hover:bg-raised disabled:cursor-default disabled:border-line-strong disabled:bg-raised"
               >
-                <Icon name={valueIcon(c.value)} className="h-3.5 w-3.5 text-muted" />
+                <Icon name={valueIcon(c.value)} className="h-3.5 w-3.5 text-subtle" />
                 <span className="flex-1">
                   {c.label}
                   {current && <span className="sr-only"> (current answer)</span>}
                 </span>
-                {current && <Icon name="check" className="h-3.5 w-3.5 text-cyan" />}
+                {current && <Icon name="check" className="h-3.5 w-3.5 text-fg" />}
               </button>
             );
           })}

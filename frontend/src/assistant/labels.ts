@@ -132,6 +132,7 @@ export const TEXT = {
   viewChecklist: "Open checklist",
   otherAccounts: "Other accounts in this conversation",
   showOptions: "Show options",
+  newConversation: "New conversation",
   hideOptions: "Hide options",
   otherAccountsHint: "Each account keeps its own answers and checklist.",
   nowDiscussing: "Now discussing",

@@ -35,31 +35,25 @@ export function Transcript({
     (e) => e.role === "assistant" && e.answer.kind === "checklist",
   );
   return (
-    <div className="flex flex-col gap-5 px-4 py-5 sm:px-6">
-      <ol aria-label="Conversation" className="flex flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
+      <ol aria-label="Conversation" className="flex flex-col gap-7">
         {entries.map((entry) =>
           entry.role === "customer" ? (
             <li key={entry.id} className="oa-rise flex justify-end">
               {entry.blocked ? (
-                <p className="max-w-[85%] rounded-2xl rounded-br-md border border-dashed border-line-strong px-4 py-2.5 text-sm italic text-subtle">
+                <p className="max-w-[80%] rounded-md border border-dashed border-line-strong px-3 py-2 text-sm italic text-subtle">
                   <span className="sr-only">You: </span>
                   {TEXT.messageNotSent}
                 </p>
               ) : (
-                <p className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-cyan/[0.13] px-4 py-2.5 text-[0.94rem] leading-relaxed text-fg ring-1 ring-cyan/20">
+                <p className="max-w-[80%] whitespace-pre-wrap rounded-md bg-raised px-3 py-2 text-[0.94rem] leading-relaxed text-fg">
                   <span className="sr-only">You: </span>
                   {entry.text}
                 </p>
               )}
             </li>
           ) : (
-            <li key={entry.id} className="oa-rise flex gap-3">
-              <span
-                aria-hidden="true"
-                className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-raised text-cyan ring-1 ring-line"
-              >
-                <Icon name="spark" className="h-3.5 w-3.5" />
-              </span>
+            <li key={entry.id} className="oa-rise">
               <AssistantBubble
                 answer={entry.answer}
                 latest={entry === lastAssistant}
@@ -71,18 +65,13 @@ export function Transcript({
           ),
         )}
         {pending && (
-          <li className="flex items-center gap-3" aria-hidden="true">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-raised text-cyan ring-1 ring-line">
-              <Icon name="spark" className="h-3.5 w-3.5" />
-            </span>
-            <span className="flex items-center gap-2 text-sm text-subtle">
-              <Thinking /> {TEXT.sending}
-            </span>
+          <li aria-hidden="true">
+            <Thinking />
           </li>
         )}
       </ol>
       {notice && (
-        <p className="border-t border-line/60 pt-4 text-xs leading-relaxed text-subtle">
+        <p className="border-t border-line pt-4 text-xs leading-relaxed text-subtle">
           <span className="font-medium text-muted">{TEXT.aboutAnswers}: </span>
           {notice}
         </p>
@@ -108,18 +97,17 @@ export function ReplyText({ text }: { text: string }) {
     }
   }
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-2.5">
       {blocks.map((b, i) =>
         b.kind === "p" ? (
           <p key={i}>{b.text}</p>
         ) : (
-          <ul key={i} className="grid gap-1 pl-1">
+          <ul key={i} className="grid gap-1">
             {b.items.map((item, j) => (
-              <li key={j} className="flex gap-2">
-                <span
-                  aria-hidden="true"
-                  className="mt-[0.6rem] h-1 w-1 shrink-0 rounded-full bg-cyan"
-                />
+              <li
+                key={j}
+                className="flex gap-2 before:shrink-0 before:text-subtle before:content-['–']"
+              >
                 <span>{item}</span>
               </li>
             ))}
@@ -153,55 +141,46 @@ function AssistantBubble({
     <button
       type="button"
       onClick={onViewChecklist}
-      className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-cyan/10 px-3 text-sm font-semibold text-cyan ring-1 ring-cyan/25 hover:bg-cyan/15"
+      className="-ml-2 inline-flex min-h-10 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-accent underline-offset-4 hover:text-accent-strong hover:underline"
     >
-      <Icon name="document" className="h-4 w-4" />
       {TEXT.viewChecklist}
+      <Icon name="arrow" className="h-3.5 w-3.5" />
     </button>
   );
   // A greeting or thanks changes nothing: the fixed texts already shown are not repeated.
   const social = messages.some((m) => m.code === "social");
   const fixed = !social && (answer.fallback || answer.explanation) && (
-    <div className={reply ? "mt-3 border-t border-line pt-3 text-sm" : ""}>
-      {answer.fallback && (
-        <p className="mb-2 flex gap-2 font-medium text-fg last:mb-0">
-          <Icon name="book" className="mt-1 h-4 w-4 text-violet" />
-          <span>{answer.fallback}</span>
-        </p>
-      )}
+    <div className={`border-l-2 border-line-strong pl-4 text-sm ${reply ? "mt-4" : ""}`}>
+      {answer.fallback && <p className="mb-2 font-medium text-fg last:mb-0">{answer.fallback}</p>}
       {answer.explanation && (
-        <p className="mb-2 pl-6 text-sm leading-relaxed text-muted last:mb-0">
-          {answer.explanation}
-        </p>
+        <p className="mb-2 text-sm leading-relaxed text-muted last:mb-0">{answer.explanation}</p>
       )}
     </div>
   );
   return (
-    <div className="flex min-w-0 max-w-[92%] flex-col gap-2 sm:max-w-[85%]">
+    <div className="flex min-w-0 flex-col gap-3">
       <span className="sr-only">Assistant: </span>
       {privacy.map((m, i) => (
         <p
           key={`p${i}`}
-          className="flex gap-2.5 rounded-2xl rounded-tl-md border border-warn/25 bg-warn/[0.07] px-4 py-3 text-sm leading-relaxed text-muted"
+          className="border-l-2 border-warn/70 pl-4 text-sm leading-relaxed text-muted"
         >
-          <Icon name="shield" className="mt-0.5 h-4 w-4 text-warn" />
-          <span>{m.text}</span>
+          {m.text}
         </p>
       ))}
       {blocked.map((m, i) => (
         <p
           key={`b${i}`}
-          className="flex gap-2.5 rounded-2xl rounded-tl-md border border-warn/30 bg-warn/[0.08] px-4 py-3 text-sm font-medium leading-relaxed text-warn"
+          className="border-l-2 border-warn pl-4 text-sm font-medium leading-relaxed text-warn"
         >
-          <Icon name="alert" className="mt-0.5 h-4 w-4" />
-          <span>{m.text}</span>
+          {m.text}
         </p>
       ))}
       {reply ? (
-        <div className="rounded-2xl rounded-tl-md border border-line bg-raised/60 px-4 py-3 text-[0.94rem] leading-relaxed text-fg">
+        <div data-reply className="text-[0.97rem] leading-[1.7] text-fg">
           <ReplyText text={reply} />
           {fixed}
-          {viewButton && <div className="mt-3 flex flex-wrap gap-2">{viewButton}</div>}
+          {viewButton && <div className="mt-3">{viewButton}</div>}
         </div>
       ) : (
         (plain.length > 0 ||
@@ -211,7 +190,7 @@ function AssistantBubble({
           answer.question ||
           answer.kind === "checklist") && (
           // An answer stored before replies existed: the earlier rendering.
-          <div className="rounded-2xl rounded-tl-md border border-line bg-raised/60 px-4 py-3 text-[0.94rem] leading-relaxed text-fg">
+          <div data-reply className="text-[0.97rem] leading-[1.7] text-fg">
             {plain.map((m, i) => (
               <p key={`m${i}`} className="mb-2 text-muted last:mb-0">
                 {m.text}
