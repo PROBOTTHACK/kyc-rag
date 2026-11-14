@@ -2,7 +2,7 @@
   "status": 200,
   "body": {
     "session_id": "0a5e5510-0000-4000-8000-000000000001",
-    "turn": 10,
+    "turn": 13,
     "answer": {
       "kind": "question",
       "reply": "I've updated your answer to: An individual living outside India (NRI / PIO / OCI).\nIs it an NRE or an NRO account?",
@@ -24,6 +24,7 @@
         "allow_explain": true
       },
       "confirmation": null,
+      "scenario_offer": null,
       "messages": [
         {
           "code": "corrected",
@@ -163,7 +164,14 @@
       "explanation": null,
       "suggestions": [],
       "technical_message": null,
-      "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
+      "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply.",
+      "active_scenario": "a current account for an individual living outside India (NRI / PIO / OCI)",
+      "scenarios": [
+        {
+          "index": 0,
+          "label": "an account for an individual living in India"
+        }
+      ]
     }
   }
 }

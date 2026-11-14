@@ -12,6 +12,7 @@
         "value": "SAVINGS",
         "text": "Earlier you said current account. Should I change it to savings account?"
       },
+      "scenario_offer": null,
       "messages": [
         {
           "code": "out_of_scope",
@@ -151,7 +152,9 @@
       "explanation": null,
       "suggestions": [],
       "technical_message": null,
-      "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
+      "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply.",
+      "active_scenario": null,
+      "scenarios": []
     }
   }
 }

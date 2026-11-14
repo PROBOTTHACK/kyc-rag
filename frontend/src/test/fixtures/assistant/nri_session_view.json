@@ -171,6 +171,7 @@
             "allow_explain": true
           },
           "confirmation": null,
+          "scenario_offer": null,
           "messages": [
             {
               "code": "privacy",
@@ -310,7 +311,9 @@
           "explanation": null,
           "suggestions": [],
           "technical_message": null,
-          "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
+          "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply.",
+          "active_scenario": null,
+          "scenarios": []
         }
       },
       {
@@ -326,6 +329,7 @@
             "value": "NRI_INDIVIDUAL",
             "text": "Just to check: is the account for an individual living outside India (NRI / PIO / OCI)?"
           },
+          "scenario_offer": null,
           "messages": [],
           "profile": {
             "account_type": {
@@ -459,7 +463,9 @@
           "explanation": null,
           "suggestions": [],
           "technical_message": null,
-          "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
+          "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply.",
+          "active_scenario": null,
+          "scenarios": []
         }
       },
       {
@@ -491,6 +497,7 @@
             "allow_explain": true
           },
           "confirmation": null,
+          "scenario_offer": null,
           "messages": [],
           "profile": {
             "account_type": {
@@ -624,7 +631,9 @@
           "explanation": null,
           "suggestions": [],
           "technical_message": null,
-          "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
+          "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply.",
+          "active_scenario": null,
+          "scenarios": []
         }
       },
       {
@@ -656,6 +665,7 @@
             "allow_explain": true
           },
           "confirmation": null,
+          "scenario_offer": null,
           "messages": [],
           "profile": {
             "account_type": {
@@ -789,7 +799,9 @@
           "explanation": null,
           "suggestions": [],
           "technical_message": null,
-          "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
+          "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply.",
+          "active_scenario": null,
+          "scenarios": []
         }
       },
       {
@@ -821,6 +833,7 @@
             "allow_explain": true
           },
           "confirmation": null,
+          "scenario_offer": null,
           "messages": [
             {
               "code": "not_sure",
@@ -960,7 +973,9 @@
           "explanation": null,
           "suggestions": [],
           "technical_message": null,
-          "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
+          "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply.",
+          "active_scenario": null,
+          "scenarios": []
         }
       },
       {
@@ -976,6 +991,7 @@
           "reply": "Here's what the HDFC Bank form asks for a savings account for an individual living outside India (NRI / PIO / OCI): 5 documents to bring and 15 details to fill in.\nThe documents:\n- Latest passport-size photograph of the first applicant\n- Latest passport-size photograph of the second applicant (Applies if the account is held jointly.)\n- Form 60, if you do not have a PAN\n- Proof of address, of the type you tick on the form\n- The relevant document, if you choose a mandate or power of attorney (POA)\nOpen any item in the checklist to see why it's there and the form page it comes from.",
           "question": null,
           "confirmation": null,
+          "scenario_offer": null,
           "messages": [],
           "profile": {
             "account_type": {
@@ -1968,7 +1984,9 @@
           "explanation": null,
           "suggestions": [],
           "technical_message": null,
-          "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
+          "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply.",
+          "active_scenario": null,
+          "scenarios": []
         }
       },
       {
@@ -1980,6 +1998,7 @@
           "reply": "Here's what the HDFC Bank form asks for a savings account for an individual living outside India (NRI / PIO / OCI): 5 documents to bring and 15 details to fill in.\nThe documents:\n- Latest passport-size photograph of the first applicant\n- Latest passport-size photograph of the second applicant (Applies if the account is held jointly.)\n- Form 60, if you do not have a PAN\n- Proof of address, of the type you tick on the form\n- The relevant document, if you choose a mandate or power of attorney (POA)\nOpen any item in the checklist to see why it's there and the form page it comes from.",
           "question": null,
           "confirmation": null,
+          "scenario_offer": null,
           "messages": [],
           "profile": {
             "account_type": {
@@ -2972,7 +2991,9 @@
           "explanation": null,
           "suggestions": [],
           "technical_message": null,
-          "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
+          "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply.",
+          "active_scenario": null,
+          "scenarios": []
         }
       },
       {
@@ -2984,6 +3005,7 @@
           "reply": "I can only help with the documents and information for opening an account. Your checklist is still here whenever you need it.",
           "question": null,
           "confirmation": null,
+          "scenario_offer": null,
           "messages": [],
           "profile": {
             "account_type": {
@@ -3976,7 +3998,9 @@
           "explanation": null,
           "suggestions": [],
           "technical_message": null,
-          "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
+          "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply.",
+          "active_scenario": null,
+          "scenarios": []
         }
       }
     ],
@@ -3985,6 +4009,7 @@
       "reply": "I can only help with the documents and information for opening an account. Your checklist is still here whenever you need it.",
       "question": null,
       "confirmation": null,
+      "scenario_offer": null,
       "messages": [],
       "profile": {
         "account_type": {
@@ -4977,7 +5002,9 @@
       "explanation": null,
       "suggestions": [],
       "technical_message": null,
-      "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
+      "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply.",
+      "active_scenario": null,
+      "scenarios": []
     }
   }
 }

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AssistantTurnResult } from "../api/types";
 
-import { chat, setup, startConversation } from "../test/assistantHarness";
+import { chat, expectText, setup, startConversation } from "../test/assistantHarness";
 import { recorded } from "../test/fixtures/assistant";
 
 /** A company current-account checklist (recorded), the starting point for the context tests. */
@@ -20,29 +20,56 @@ async function withCompanyChecklist(...more: AssistantTurnResult[]) {
 const showGroup = () => screen.queryByRole("group", { name: "Show" });
 
 describe("context-aware conversation (recorded from the real API)", () => {
-  it("clarifies a question about a child without dropping the current checklist", async () => {
-    const clarify = recorded.contextClarify().answer;
-    const { user } = await withCompanyChecklist(recorded.contextClarify());
-    await user.type(screen.getByRole("textbox"), "What about my child?{Enter}");
-    expect(await chat().findByText(/I don't want to mix the two applications/)).toBeTruthy();
-    // One question, individuals first; the company answer is still the profile.
-    const group = screen.getByRole("group", { name: /Who is the account for/ });
-    const labels = within(group)
-      .getAllByRole("button")
-      .map((b) => b.textContent);
-    expect(labels[0]).toContain("An individual living in India");
-    expect(clarify.profile.customer_category!.value).toBe("COMPANY");
-    // The checklist built for these same answers is still one tap away.
-    expect(showGroup()).toBeTruthy();
+  it("answers a greeting without repeating the checklist", async () => {
+    const { user } = await withCompanyChecklist(recorded.contextGreeting());
+    await user.type(screen.getByRole("textbox"), "Hello{Enter}");
+    const reply = await chat().findByText(/Hello again! We were looking at a current account/);
+    expectText(reply.closest("li"), "What would you like to know?");
+    expect(reply.closest("li")!.textContent).not.toContain("Here's what the HDFC Bank form");
+    expect(showGroup()).toBeTruthy(); // the checklist still applies
   });
 
-  it("a separate request keeps the checklist and offers a separate one", async () => {
-    const { user } = await withCompanyChecklist(recorded.contextSeparate());
-    await user.type(screen.getByRole("textbox"), "I also want an account for my child{Enter}");
-    const start = await chat().findByRole("button", { name: "Start a separate checklist" });
+  it("asks whether a child's account is separate, then keeps the company account aside", async () => {
+    const { user, bodies } = await withCompanyChecklist(
+      recorded.contextOffer(),
+      recorded.contextSeparate(),
+      recorded.contextDaughterIndia(),
+    );
+    await user.type(screen.getByRole("textbox"), "What about my child?{Enter}");
+    const offer = await screen.findByRole("group", { name: /a separate account, or do you want/ });
+    // The company checklist is still one tap away while the customer decides.
     expect(showGroup()).toBeTruthy();
-    await user.click(start);
-    expect(screen.getByRole("button", { name: /I understand — start/ })).toBeTruthy();
+    await user.click(within(offer).getByRole("button", { name: "Ask about a separate account" }));
+    expect(bodies.at(-1)).toEqual({ action: "new_scenario" });
+    expect(await chat().findByText(/I'll keep a current account for a company/)).toBeTruthy();
+    const who = screen.getByRole("group", { name: /Who is the account for/ });
+    expectText(within(who).getAllByRole("button")[0]!, "An individual living in India");
+    await user.type(screen.getByRole("textbox"), "No, we are in India.{Enter}");
+    await chat().findByText(/couldn't find this information/);
+    // The parked company account is listed in "Your answers", with a way back.
+    await user.click(screen.getByRole("button", { name: "Your answers" }));
+    const drawer = screen.getByRole("dialog");
+    expectText(drawer, "Other accounts in this conversation");
+    expect(
+      within(drawer).getByRole("button", { name: /Go back to a current account for a company/ }),
+    ).toBeTruthy();
+  });
+
+  it("offers to go back to an earlier account and sends the switch", async () => {
+    const { user, bodies } = await withCompanyChecklist(
+      recorded.contextOffer(),
+      recorded.contextSeparate(),
+      recorded.contextSwitchOffer(),
+      recorded.contextSwitched(),
+    );
+    await user.type(screen.getByRole("textbox"), "What about my child?{Enter}");
+    await user.click(await screen.findByRole("button", { name: "Ask about a separate account" }));
+    await chat().findByText(/I'll keep a current account for a company/);
+    await user.type(screen.getByRole("textbox"), "what about the company current account?{Enter}");
+    await user.click(await screen.findByRole("button", { name: "Yes, go back to it" }));
+    expect(bodies.at(-1)).toEqual({ action: "switch_scenario", value: "0" });
+    expect(await chat().findByText(/We're back to a current account for a company/)).toBeTruthy();
+    expect(showGroup()).toBeTruthy();
   });
 
   it("a confirmed change of holder retires the old checklist", async () => {

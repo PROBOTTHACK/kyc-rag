@@ -8,6 +8,7 @@
       "reply": "I've updated your answer to: Current account.\nHere's what the HDFC Bank form asks for a current account for a limited liability partnership (LLP): 1 document to bring and 4 details to fill in.\nThe documents:\n- Form 60/61, for existing customers\nOpen any item in the checklist to see why it's there and the form page it comes from.",
       "question": null,
       "confirmation": null,
+      "scenario_offer": null,
       "messages": [
         {
           "code": "corrected",
@@ -414,7 +415,9 @@
       "explanation": null,
       "suggestions": [],
       "technical_message": null,
-      "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
+      "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply.",
+      "active_scenario": null,
+      "scenarios": []
     }
   }
 }

@@ -20,6 +20,7 @@ check of a proposed value), `cannot_build` (an essential answer is still unknown
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -27,6 +28,7 @@ from app.assistant.checklist import AnswerKind, ChecklistAnswer, Classification
 from app.assistant.dialogue import Chip, DialogueResponse, StepKind
 from app.assistant.profile import DialogueState, Origin, Slot, SlotStatus
 from app.assistant.reply import compose_reply
+from app.assistant.scenarios import has_answers, scenario_label
 from app.assistant.taxonomy import CoverageState
 from app.assistant.wording import Wording
 
@@ -69,6 +71,30 @@ class AssistantSuggestion(_Frozen):
 
     slot: Slot
     value: str
+    label: str
+
+
+class AssistantScenarioOption(_Frozen):
+    """One choice of a scenario offer. The UI sends `action` back (with `value` when set)."""
+
+    action: str
+    label: str
+    value: str | None = None
+
+
+class AssistantScenarioOffer(_Frozen):
+    """A message that may be about another account: a separate account, a change to this
+    one, or going back to an earlier one. Nothing changes until the customer chooses."""
+
+    text: str
+    options: tuple[AssistantScenarioOption, ...]
+
+
+class AssistantScenario(_Frozen):
+    """Another account discussed in this conversation (parked; unchanged until resumed).
+    The UI sends `switch_scenario` with `index` as the value to return to it."""
+
+    index: int
     label: str
 
 
@@ -160,6 +186,7 @@ class AssistantAnswer(_Frozen):
     reply: str | None = None
     question: AssistantQuestion | None = None
     confirmation: AssistantConfirmation | None = None
+    scenario_offer: AssistantScenarioOffer | None = None
     messages: tuple[AssistantMessage, ...] = ()
     profile: dict[Slot, ProfileSlot]
     coverage_state: CoverageState | None = None
@@ -169,6 +196,9 @@ class AssistantAnswer(_Frozen):
     suggestions: tuple[AssistantSuggestion, ...] = ()  # combinations they do cover
     technical_message: str | None = None  # A1 §7, verbatim
     notice: str  # A1 §7 dated-document notice, verbatim, on every answer
+    # The account being discussed, and the other accounts parked in this conversation.
+    active_scenario: str | None = None
+    scenarios: tuple[AssistantScenario, ...] = ()
 
 
 # --- assembly ------------------------------------------------------------------------------------
@@ -184,6 +214,30 @@ def profile_view(state: DialogueState, words: Wording) -> dict[Slot, ProfileSlot
             status=e.status, value=e.value, label=label, origin=e.origin, choices=choices
         )
     return out
+
+
+def scenario_view(
+    state: DialogueState, response: DialogueResponse, words: Wording
+) -> dict[str, Any]:
+    offer = None
+    if response.scenario_offer is not None:
+        o = response.scenario_offer
+        offer = AssistantScenarioOffer(
+            text=o.text,
+            options=tuple(
+                AssistantScenarioOption(action=x.action.value, label=x.label, value=x.value)
+                for x in o.options
+            ),
+        )
+    active = scenario_label(state.slots, words) if has_answers(state) else None
+    return {
+        "scenario_offer": offer,
+        "active_scenario": active if state.scenarios else None,
+        "scenarios": tuple(
+            AssistantScenario(index=i, label=scenario_label(s.slots, words))
+            for i, s in enumerate(state.scenarios)
+        ),
+    }
 
 
 def _checklist_view(a: ChecklistAnswer) -> AssistantChecklist | None:
@@ -237,7 +291,7 @@ def build_answer(
         kind = AssistantAnswerKind.BLOCKED
     elif response.step is StepKind.CONFIRM:
         kind = AssistantAnswerKind.CONFIRM
-    elif response.step is StepKind.ASK:
+    elif response.step in (StepKind.ASK, StepKind.CHOOSE_SCENARIO):
         kind = AssistantAnswerKind.QUESTION
     elif response.step is StepKind.NOT_ESTABLISHED:
         kind = AssistantAnswerKind.FALLBACK
@@ -263,6 +317,7 @@ def build_answer(
         ),
         technical_message=technical,
         notice=notice,
+        **scenario_view(state, response, words),
     )
     return answer.model_copy(update={"reply": compose_reply(answer, response.unchanged, words)})
 

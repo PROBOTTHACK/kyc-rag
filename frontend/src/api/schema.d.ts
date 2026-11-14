@@ -233,6 +233,7 @@ export interface components {
             reply?: string | null;
             question?: components["schemas"]["AssistantQuestion"] | null;
             confirmation?: components["schemas"]["AssistantConfirmation"] | null;
+            scenario_offer?: components["schemas"]["AssistantScenarioOffer"] | null;
             /**
              * Messages
              * @default []
@@ -257,6 +258,13 @@ export interface components {
             technical_message?: string | null;
             /** Notice */
             notice: string;
+            /** Active Scenario */
+            active_scenario?: string | null;
+            /**
+             * Scenarios
+             * @default []
+             */
+            scenarios?: components["schemas"]["AssistantScenario"][];
         };
         /**
          * AssistantAnswerKind
@@ -381,6 +389,40 @@ export interface components {
             allow_skip: boolean;
             /** Allow Explain */
             allow_explain: boolean;
+        };
+        /**
+         * AssistantScenario
+         * @description Another account discussed in this conversation (parked; unchanged until resumed).
+         *     The UI sends `switch_scenario` with `index` as the value to return to it.
+         */
+        AssistantScenario: {
+            /** Index */
+            index: number;
+            /** Label */
+            label: string;
+        };
+        /**
+         * AssistantScenarioOffer
+         * @description A message that may be about another account: a separate account, a change to this
+         *     one, or going back to an earlier one. Nothing changes until the customer chooses.
+         */
+        AssistantScenarioOffer: {
+            /** Text */
+            text: string;
+            /** Options */
+            options: components["schemas"]["AssistantScenarioOption"][];
+        };
+        /**
+         * AssistantScenarioOption
+         * @description One choice of a scenario offer. The UI sends `action` back (with `value` when set).
+         */
+        AssistantScenarioOption: {
+            /** Action */
+            action: string;
+            /** Label */
+            label: string;
+            /** Value */
+            value?: string | null;
         };
         /** AssistantSessionStarted */
         AssistantSessionStarted: {
@@ -1985,7 +2027,7 @@ export interface operations {
                      * Action
                      * @enum {unknown}
                      */
-                    action?: "choose" | "correct" | "not_sure" | "skip" | "explain" | "confirm_yes" | "confirm_no" | null;
+                    action?: "choose" | "correct" | "not_sure" | "skip" | "explain" | "confirm_yes" | "confirm_no" | "new_scenario" | "change_application" | "switch_scenario" | null;
                     /**
                      * Slot
                      * @enum {unknown}

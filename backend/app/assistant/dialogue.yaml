@@ -148,16 +148,14 @@ replies:
 # Reading a message against the conversation so far. The profile only changes when the
 # customer chooses or confirms; these lines explain, they never decide.
 context:
-  conflict: "We've been looking at {subject}. Your message sounds like it's about an account for a person, such as a child, which uses a different form. I don't want to mix the two applications. Who should this be about? To keep your current checklist, choose {holder}."
   change: "OK, an account for a person rather than {holder}. Who will hold the account?"
   which_person: Is the account for someone living in India or outside India?
   follow_up: "Here's how that relates to {subject}."
-  separate: It sounds like you'd like a separate checklist for another account. I'll keep this one as it is, and you can start a separate checklist whenever you're ready.
   not_applicable: "That doesn't change anything for {subject}."
 
 # Greetings and small talk: answered naturally; they never change answers or the checklist.
 social:
-  greeting: "Hi! Welcome. I'm here to help you understand what you need to open an account. Is it for you, a family member or a business?"
+  greeting: "Hi, welcome! I can help you find out what the HDFC Bank account opening forms ask for."
   greeting_again: "Hello again! We were looking at {subject}. What would you like to know?"
   thanks: You're welcome! Let me know if there's anything else you'd like to check.
   goodbye: Goodbye! If you come back in this browser tab, your conversation will still be here.

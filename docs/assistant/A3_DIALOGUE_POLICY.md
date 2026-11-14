@@ -141,3 +141,18 @@ The **LLM voice** also receives the last three turns, as a delimited `<recent_co
 When a combination isn't covered, the suggestions offer only the same kind of holder: an individual is never offered an organisation category.
 
 Tests: `tests/unit/test_assistant_context.py` covers the 13 owner scenarios, including reload and PII. `test_assistant_voice.py` checks that recent turns are never treated as facts.
+
+### Superseded in part: greetings and account scenarios (master upgrade, Stages 2–3)
+Two rows of the table above changed; the rest stands.
+
+| Message | Resolution now | Profile |
+|---|---|---|
+| A person or child mentioned while the holder is an organisation (no correction cue) | a **scenario offer**: "a separate account, or change this application?" (`CHOOSE_SCENARIO`; answered by a button or in words). A separate account parks the current one unchanged and starts a fresh one; a correction cue still asks who instead (`context_change`) | unchanged until the customer chooses |
+| A separate request ("I also want an account for my child") | a separate account starts at once (`scenario_started`); the current one is parked | the new account starts empty |
+| A category of the other kind (a company while discussing a child's account) | the scenario offer, with the named values applied only if chosen | unchanged until the customer chooses |
+| A holder or account matching a parked account ("what about the LLP current account?") | an offer to go back (`switch_scenario`, or "no, stay") | unchanged until the customer chooses |
+| Hi, hello, yo, thanks, bye, ok | a `social` note answered naturally; a waiting confirmation is asked again; no fallback and no checklist summary | unchanged |
+
+**Who the account is for.** When the customer has said the account is for a person (a child, "for me") and the holder is still open, the category question is asked first with the which-person note, and a residency answer ("we are in India", "we live in Dubai") answers it directly instead of becoming a hint to confirm. For a child, the form's minor question is answered yes. The parked accounts' answers are never used for the new one.
+
+The `context_conflict` and `separate_request` notes, and their wording, were removed. Tests: `test_assistant_context.py` (the daughter flow, going back, greetings, reload), `test_assistant_voice.py` (situations `social`, `new_account`, `choose_account`).

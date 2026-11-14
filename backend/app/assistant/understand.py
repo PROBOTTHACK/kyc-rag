@@ -316,7 +316,8 @@ SOCIAL_PATTERNS: dict[Social, tuple[str, ...]] = {
         r"\b(?:thanks?|thank you|thankyou|thx|ty|cheers|appreciate(?: it| that)?)\b",
     ),
     Social.GOODBYE: (
-        r"\b(?:bye|goodbye|good bye|see (?:you|ya)|that'?s all|that is all|have a (?:nice|good) day)\b",
+        r"\b(?:bye|goodbye|good bye|see (?:you|ya)|that'?s all|that is all)\b",
+        r"\bhave a (?:nice|good) day\b",
     ),
     Social.SMALL_TALK: (
         r"\bhow are you\b", r"\bhow'?s it going\b", r"\bwhat'?s up\b", r"\bwhats up\b",

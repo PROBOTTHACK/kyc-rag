@@ -1023,6 +1023,9 @@
                       "explain",
                       "confirm_yes",
                       "confirm_no",
+                      "new_scenario",
+                      "change_application",
+                      "switch_scenario",
                       null
                     ],
                     "title": "Action"
@@ -1117,6 +1120,16 @@
               }
             ]
           },
+          "scenario_offer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssistantScenarioOffer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "messages": {
             "items": {
               "$ref": "#/components/schemas/AssistantMessage"
@@ -1199,6 +1212,25 @@
           "notice": {
             "type": "string",
             "title": "Notice"
+          },
+          "active_scenario": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Scenario"
+          },
+          "scenarios": {
+            "items": {
+              "$ref": "#/components/schemas/AssistantScenario"
+            },
+            "type": "array",
+            "title": "Scenarios",
+            "default": []
           }
         },
         "additionalProperties": false,
@@ -1590,6 +1622,80 @@
           "allow_explain"
         ],
         "title": "AssistantQuestion"
+      },
+      "AssistantScenario": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "index",
+          "label"
+        ],
+        "title": "AssistantScenario",
+        "description": "Another account discussed in this conversation (parked; unchanged until resumed).\nThe UI sends `switch_scenario` with `index` as the value to return to it."
+      },
+      "AssistantScenarioOffer": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/AssistantScenarioOption"
+            },
+            "type": "array",
+            "title": "Options"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text",
+          "options"
+        ],
+        "title": "AssistantScenarioOffer",
+        "description": "A message that may be about another account: a separate account, a change to this\none, or going back to an earlier one. Nothing changes until the customer chooses."
+      },
+      "AssistantScenarioOption": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action",
+          "label"
+        ],
+        "title": "AssistantScenarioOption",
+        "description": "One choice of a scenario offer. The UI sends `action` back (with `value` when set)."
       },
       "AssistantSessionStarted": {
         "properties": {

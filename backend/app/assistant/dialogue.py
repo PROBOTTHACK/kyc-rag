@@ -35,6 +35,7 @@ from app.assistant.profile import (
     Origin,
     Pending,
     PendingKind,
+    Scenario,
     Slot,
     SlotEntry,
     SlotEvent,
@@ -42,12 +43,14 @@ from app.assistant.profile import (
     slot_for_facet,
     valid_value,
 )
+from app.assistant.scenarios import scenario_label
 from app.assistant.taxonomy import AccountType, CoverageState, CustomerCategory, Intent
-from app.assistant.understand import Control, Person, Understanding, understand
+from app.assistant.understand import Control, Person, Social, Understanding, understand
 from app.assistant.wording import Wording, wording
 from app.llm.provider import LLMProvider
 from app.security.screen import ScreenResult, screen_text
 
+RESIDENCY_BASES = frozenset({"abroad", "in_india"})  # hints that answer "where do they live?"
 MAX_UNCLEAR = 1  # one reworded re-ask; the next unclear reply counts as "I'm not sure"
 ORGANISATIONS = (
     CustomerCategory.SOLE_PROPRIETORSHIP, CustomerCategory.PARTNERSHIP_FIRM, CustomerCategory.LLP,
@@ -138,6 +141,7 @@ class StepKind(StrEnum):
     CANNOT_BUILD = "cannot_build"
     FALLBACK = "fallback"
     BLOCKED = "blocked"
+    CHOOSE_SCENARIO = "choose_scenario"  # a separate account, a change, or going back
 
 
 class NoteCode(StrEnum):
@@ -154,11 +158,12 @@ class NoteCode(StrEnum):
     UNSUPPORTED_CUSTOMER = "unsupported_customer"
     OUT_OF_SCOPE = "out_of_scope"
     # Context-aware handling: the message is read against the conversation so far.
-    CONTEXT_CONFLICT = "context_conflict"  # it is about another kind of holder; ask first
     CONTEXT_CHANGE = "context_change"  # an explicit change of holder; ask who
     FOLLOW_UP = "follow_up"  # about the current checklist; nothing changes
-    SEPARATE_REQUEST = "separate_request"  # another account: keep this one, offer a new one
     NOT_APPLICABLE = "not_applicable"  # an answer that does not apply to this account
+    SOCIAL = "social"  # a greeting, thanks, goodbye or small talk: answered, nothing changes
+    SCENARIO_STARTED = "scenario_started"  # a separate account; the previous one is kept
+    SCENARIO_SWITCHED = "scenario_switched"  # back to an earlier account
 
 
 class Note(_Frozen):
@@ -209,6 +214,19 @@ class Suggestion(_Frozen):
     label: str
 
 
+class ScenarioOption(_Frozen):
+    action: Action
+    label: str
+    value: str | None = None
+
+
+class ScenarioOffer(_Frozen):
+    """'A separate account, or change this one?' / 'Go back to the earlier account?'"""
+
+    text: str
+    options: tuple[ScenarioOption, ...]
+
+
 class DialogueResponse(_Frozen):
     step: StepKind
     question: Question | None = None
@@ -222,6 +240,7 @@ class DialogueResponse(_Frozen):
     fallback: str | None = None  # A1 §7, verbatim
     notice: str | None = None  # A1 §7 dated-document notice, verbatim
     blocked: str | None = None  # fixed screening message
+    scenario_offer: ScenarioOffer | None = None
     llm_consulted: bool = False
 
 
@@ -247,12 +266,20 @@ class _Work:
     # customer chooses (owner: never silently merge incompatible contexts).
     clarify: Slot | None = None
     individuals_first: bool = False  # the message is about a person: list individuals first
+    offer: ScenarioOffer | None = None
+    social: bool = False
     organisation_hint: bool = field(init=False)
     intent: Intent | None = field(init=False)
     topics: list[str] = field(init=False)
+    scenarios: list[Scenario] = field(init=False)
+    person: str | None = field(init=False)
+    offer_values: dict[Slot, str] = field(init=False)
 
     def __post_init__(self) -> None:
         s = self.state
+        self.scenarios = list(s.scenarios)
+        self.person = s.person
+        self.offer_values = dict(s.offer_values)
         self.slots = dict(s.slots)
         self.history = list(s.history)
         self.pending = s.pending
@@ -405,6 +432,14 @@ def advance(
     pending_confirm = w.pending is not None and w.pending.kind is PendingKind.CONFIRM
     if response.step is not StepKind.CONFIRM and pending_confirm:
         w.pending = None
+    offer_pending = w.pending is not None and w.pending.kind in (
+        PendingKind.SCENARIO,
+        PendingKind.SWITCH,
+    )
+    if response.step is not StepKind.CHOOSE_SCENARIO:
+        w.offer_values = {}
+        if offer_pending:
+            w.pending = None
     new_state = state.model_copy(
         update={
             "slots": w.slots,
@@ -414,6 +449,9 @@ def advance(
             "organisation_hint": w.organisation_hint,
             "intent": w.intent,
             "open_topics": tuple(w.topics),
+            "scenarios": tuple(w.scenarios),
+            "person": w.person,
+            "offer_values": w.offer_values,
         }
     )
     unchanged = response.ready is not None and (
@@ -433,8 +471,132 @@ def _inline(label: str) -> str:
     return label
 
 
+# --- account scenarios ---------------------------------------------------------------------------
+
+
+def _has_answers(w: _Work) -> bool:
+    return any(e.status is not SlotStatus.UNKNOWN for e in w.slots.values())
+
+
+def _snapshot(w: _Work) -> Scenario:
+    return Scenario(
+        slots=dict(w.slots), intent=w.intent, open_topics=tuple(w.topics), history=tuple(w.history)
+    )
+
+
+def _load(w: _Work, s: Scenario | None) -> None:
+    w.slots = dict(s.slots) if s else {sl: SlotEntry() for sl in Slot}
+    w.history = list(s.history) if s else []
+    w.topics = list(s.open_topics) if s else []
+    w.intent = s.intent if s else None
+    w.pending, w.unclear, w.organisation_hint, w.person = None, {}, False, None
+
+
+def _start_scenario(w: _Work, person: str | None, values: dict[Slot, str]) -> None:
+    """A separate account: the current one is parked unchanged; a fresh one becomes active."""
+    parked = scenario_label(w.slots, w.words) if _has_answers(w) else None
+    if parked is not None:
+        w.scenarios.append(_snapshot(w))
+    _load(w, None)
+    w.person = person
+    w.offer_values = {}
+    for slot, value in values.items():
+        w.set_value(slot, value, Origin.STATED)
+    text = (
+        w.words.scenarios.started.format(subject=parked)
+        if parked
+        else w.words.scenarios.started_fresh
+    )
+    w.note(NoteCode.SCENARIO_STARTED, text)
+    if person is not None:
+        w.individuals_first = True
+        if not w.entry(Slot.CUSTOMER_CATEGORY).known:
+            w.force_ask = Slot.CUSTOMER_CATEGORY
+            w.note(NoteCode.CONTEXT_CHANGE, w.words.context.which_person, Slot.CUSTOMER_CATEGORY)
+
+
+def _switch(w: _Work, index: int) -> None:
+    """Back to an earlier account; the current one is parked unchanged."""
+    if not 0 <= index < len(w.scenarios):
+        return
+    target = w.scenarios.pop(index)
+    if _has_answers(w):
+        w.scenarios.append(_snapshot(w))
+    _load(w, target)
+    w.note(NoteCode.SCENARIO_SWITCHED,
+           w.words.scenarios.switched.format(subject=scenario_label(w.slots, w.words)))  # fmt: skip
+
+
+def _change_application(w: _Work, correction: bool = True) -> None:
+    """Change this account instead: named values are applied as corrections; otherwise the
+    holder is asked again (individuals first). Nothing changes until a choice is made."""
+    values, w.offer_values = w.offer_values, {}
+    if values:
+        for slot, value in values.items():
+            w.set_value(slot, value, Origin.CORRECTED)
+        return
+    w.individuals_first = True
+    w.clarify = Slot.CUSTOMER_CATEGORY
+    w.note(NoteCode.CONTEXT_CHANGE, w.words.context.change.format(holder=w.holder()),
+           Slot.CUSTOMER_CATEGORY)  # fmt: skip
+
+
+def _offer_scenario(w: _Work, person: str | None, values: dict[Slot, str]) -> None:
+    sw = w.words.scenarios
+    w.pending = Pending(kind=PendingKind.SCENARIO, slot=Slot.CUSTOMER_CATEGORY, value=person)
+    w.offer_values = dict(values)
+    w.offer = ScenarioOffer(
+        text=sw.offer.format(subject=w.subject()),
+        options=(
+            ScenarioOption(action=Action.NEW_SCENARIO, label=sw.separate_option),
+            ScenarioOption(action=Action.CHANGE_APPLICATION, label=sw.change_option),
+        ),
+    )
+
+
+def _offer_switch(w: _Work, index: int) -> None:
+    sw = w.words.scenarios
+    w.pending = Pending(kind=PendingKind.SWITCH, slot=Slot.CUSTOMER_CATEGORY, value=str(index))
+    w.offer = ScenarioOffer(
+        text=sw.switch_offer.format(subject=scenario_label(w.scenarios[index].slots, w.words)),
+        options=(
+            ScenarioOption(action=Action.SWITCH_SCENARIO, label=sw.switch_option, value=str(index)),
+            ScenarioOption(action=Action.CONFIRM_NO, label=sw.stay_option),
+        ),
+    )
+
+
+def _parked_match(w: _Work, named: dict[Slot, str]) -> int | None:
+    """The parked scenario these named answers point to, if exactly one does."""
+    hits = [
+        i
+        for i, s in enumerate(w.scenarios)
+        if all(s.slots.get(sl, SlotEntry()).value == v for sl, v in named.items())
+    ]
+    return hits[-1] if hits else None
+
+
 def _apply_action(w: _Work, turn: TurnInput) -> None:
     a, slot = turn.action, turn.slot
+    pending = w.pending
+    if a is Action.NEW_SCENARIO:
+        person = (
+            pending.value if pending is not None and pending.kind is PendingKind.SCENARIO else None
+        )
+        _start_scenario(w, person, w.offer_values)
+        return
+    if a is Action.CHANGE_APPLICATION:
+        w.pending = None
+        _change_application(w)
+        return
+    if a is Action.SWITCH_SCENARIO:
+        assert turn.value is not None  # noqa: S101 - guaranteed by TurnInput validation
+        w.pending = None
+        _switch(w, int(turn.value))
+        return
+    if a is Action.CONFIRM_NO and pending is not None and pending.kind is PendingKind.SWITCH:
+        w.pending = None  # stay with the current account
+        return
     if a is Action.CONFIRM_YES or a is Action.CONFIRM_NO:
         _resolve_confirm(w, a is Action.CONFIRM_YES)
         return
@@ -476,6 +638,17 @@ def _skip(w: _Work, slot: Slot) -> None:
     w.note(NoteCode.SKIPPED, w.words.skipped, slot)
 
 
+def _social(w: _Work, kind: Social) -> None:
+    """A greeting, thanks, goodbye or small talk: answered; the profile is unchanged."""
+    sw = w.words.social
+    if kind is Social.GREETING:
+        text = sw.greeting_again.format(subject=w.subject()) if w.ready_profile else sw.greeting
+    else:
+        text = getattr(sw, kind.value)
+    w.social = True
+    w.note(NoteCode.SOCIAL, text)
+
+
 def _explain(w: _Work, slot: Slot) -> None:
     w.note(NoteCode.EXPLANATION, w.words.slots[slot].explanation, slot)
     w.force_ask = slot
@@ -507,11 +680,64 @@ def _apply_understanding(
     if previous is not None and previous.kind is PendingKind.CONFIRM and w.pending == previous:
         w.pending = None  # anything but yes / no leaves the proposal unconfirmed (R7)
 
-    # 1b. Another account ("I also want one for my child"): this conversation's profile and
-    # checklist stay as they are; the customer is offered a separate checklist instead.
-    if u.separate_request and w.ready_profile and not explicit:
-        w.note(NoteCode.SEPARATE_REQUEST, w.words.context.separate)
+    # 1a. An open offer answered in words: "a separate account, or change this one?" /
+    # "go back to the earlier account?".
+    if not explicit and previous is not None and previous.kind is PendingKind.SCENARIO:
+        if u.correction_cue:
+            w.pending = None
+            _change_application(w)
+            return
+        if u.content or u.control is Control.YES:
+            person = previous.value or (u.person.value if u.person else None)
+            _start_scenario(w, person, w.offer_values)
+            # This message's details (e.g. "we live in India") apply to the new account.
+        else:
+            _offer_scenario(w, previous.value, w.offer_values)  # ask once more
+            return
+    if not explicit and previous is not None and previous.kind is PendingKind.SWITCH:
+        w.pending = None
+        if u.control is Control.YES:
+            _switch(w, int(previous.value or 0))
+            return
+        if u.control is Control.NO:
+            return
+
+    # 1b. Greetings, thanks, goodbyes and small talk: answered naturally; nothing changes,
+    # and a question or confirmation that was waiting is simply asked again.
+    acknowledgement = u.control is Control.YES and previous is None
+    if not explicit and not u.content and (u.social is not None or acknowledgement):
+        _social(w, u.social or Social.ACKNOWLEDGEMENT)
+        if previous is not None and previous.kind is PendingKind.CONFIRM:
+            w.pending, w.new_confirm = previous, True
         return
+
+    # 1c. Another account ("I also want one for my child"): the current one is parked
+    # unchanged and a separate account starts; this message's details apply to it.
+    if u.separate_request and w.ready_profile and not explicit:
+        _start_scenario(w, u.person.value if u.person else None, {})
+
+    # 1d. A holder or account named in a follow-up that points to another account: the
+    # parked one it matches (offer to go back), or a different kind of holder (offer a
+    # separate account or a change). Nothing is applied until the customer chooses.
+    named = {s: v for s, v in u.values.items() if s in ESSENTIAL}
+    if named and _has_answers(w) and not u.correction_cue and not explicit:
+        conflict = any(w.entry(s).known and w.entry(s).value != v for s, v in named.items())
+        index = _parked_match(w, named)
+        if index is not None and (conflict or len(named) == len(ESSENTIAL)):
+            _offer_switch(w, index)
+            return
+        new_cat = named.get(Slot.CUSTOMER_CATEGORY)
+        active_kind = (
+            w.category in ORGANISATIONS if w.category is not None
+            else False if w.person is not None else None
+        )  # fmt: skip
+        if (
+            new_cat is not None
+            and active_kind is not None
+            and (CustomerCategory(new_cat) in ORGANISATIONS) != active_kind
+        ):
+            _offer_scenario(w, None, named)
+            return
 
     # 2. Values stated in words. A value for a question that does not apply to the current
     # account (e.g. "for a minor" on an LLP current account) is never stored: it would merge
@@ -558,22 +784,20 @@ def _apply_understanding(
         cat = w.category
         if cat is None:
             w.individuals_first = True  # the category question lists individuals first
+            w.person = person.value  # remembered: "we live in India" then answers who it is for
         elif cat in ORGANISATIONS:
             # An account for a person (or a child) while the profile is an organisation's:
-            # explain, ask once, change nothing until the customer chooses.
-            w.individuals_first = True
-            w.clarify = Slot.CUSTOMER_CATEGORY
-            if previous is not None and previous.slot is Slot.CUSTOMER_CATEGORY:
-                w.note(NoteCode.CONTEXT_CHANGE, w.words.context.which_person,
-                       Slot.CUSTOMER_CATEGORY)  # fmt: skip
-            elif u.correction_cue:
+            # never merged. A change asked for in words asks who instead; otherwise the
+            # customer chooses between a separate account and changing this one.
+            if u.correction_cue:
+                w.individuals_first = True
+                w.clarify = Slot.CUSTOMER_CATEGORY
                 w.note(NoteCode.CONTEXT_CHANGE,
                        w.words.context.change.format(holder=w.holder()),
                        Slot.CUSTOMER_CATEGORY)  # fmt: skip
             else:
-                w.note(NoteCode.CONTEXT_CONFLICT,
-                       w.words.context.conflict.format(subject=w.subject(), holder=w.holder()),
-                       Slot.CUSTOMER_CATEGORY)  # fmt: skip
+                _offer_scenario(w, person.value, {})
+                return
         elif (
             person is Person.CHILD
             and Slot.MINOR not in u.values
@@ -598,7 +822,28 @@ def _apply_understanding(
         w.note(NoteCode.FOLLOW_UP, w.words.context.follow_up.format(subject=w.subject()))
 
     # 4. Hints and LLM proposals become confirmation questions, never values (R7).
-    proposals = [(h.slot, h.value, ConfirmReason.HINT) for h in u.hints]
+    # Except one: when the customer has said the account is for a person (e.g. their child)
+    # and was asked whether that person lives in India, "we are in India" is the answer.
+    asked_who = w.person is not None
+    hints = list(u.hints)
+    for h in u.hints:
+        if asked_who and h.basis in RESIDENCY_BASES and not w.entry(h.slot).known:
+            w.set_value(h.slot, h.value, Origin.STATED)
+            hints.remove(h)
+    if w.person == Person.CHILD.value and w.material(Slot.MINOR) and w.entry(Slot.MINOR).open:
+        w.set_value(Slot.MINOR, "YES", Origin.STATED)  # "my daughter, who is six"
+    proposals = [(h.slot, h.value, ConfirmReason.HINT) for h in hints]
+    if (
+        w.person is not None
+        and not w.entry(Slot.CUSTOMER_CATEGORY).known
+        and w.force_ask is None
+        and not any(n.code is NoteCode.CONTEXT_CHANGE for n in w.notes)
+    ):
+        # The account is for a person whose holder type is still open: ask where they live
+        # before anything else, so the answer is read in this account's context.
+        w.individuals_first = True
+        w.force_ask = Slot.CUSTOMER_CATEGORY
+        w.note(NoteCode.CONTEXT_CHANGE, w.words.context.which_person, Slot.CUSTOMER_CATEGORY)
     proposals += [(h.slot, h.value, ConfirmReason.LLM) for h in llm_hints]
     for slot, value, reason in proposals:
         if not w.entry(slot).known and w.material(slot):
@@ -629,6 +874,8 @@ def _apply_understanding(
 
 
 def _decide(w: _Work) -> DialogueResponse:
+    if w.offer is not None:
+        return DialogueResponse(step=StepKind.CHOOSE_SCENARIO, scenario_offer=w.offer)
     if w.pending is not None and w.pending.kind is PendingKind.CONFIRM and w.new_confirm:
         return _confirmation(w)
     if w.clarify is not None:

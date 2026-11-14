@@ -16,7 +16,6 @@ export function Transcript({
   notice,
   hasChecklist = true,
   onViewChecklist,
-  onStartSeparate,
 }: {
   entries: Entry[];
   pending: boolean;
@@ -25,8 +24,6 @@ export function Transcript({
   /** A checklist applies to the current answers (the latest reply can open it). */
   hasChecklist?: boolean;
   onViewChecklist: () => void;
-  /** Start a separate checklist (another account), when the assistant offered one. */
-  onStartSeparate?: () => void;
 }) {
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -69,7 +66,6 @@ export function Transcript({
                 updated={entry !== firstChecklist}
                 hasChecklist={hasChecklist}
                 onViewChecklist={onViewChecklist}
-                onStartSeparate={onStartSeparate}
               />
             </li>
           ),
@@ -140,17 +136,14 @@ function AssistantBubble({
   updated,
   hasChecklist,
   onViewChecklist,
-  onStartSeparate,
 }: {
   answer: AssistantAnswer;
   latest: boolean;
   updated: boolean;
   hasChecklist: boolean;
   onViewChecklist: () => void;
-  onStartSeparate?: (() => void) | undefined;
 }) {
   const messages = answer.messages ?? [];
-  const separate = messages.some((m) => m.code === "separate_request");
   const privacy = messages.filter((m) => m.code === "privacy");
   const other = messages.filter((m) => m.code !== "privacy");
   const blocked = other.filter((m) => m.code === "blocked");
@@ -164,16 +157,6 @@ function AssistantBubble({
     >
       <Icon name="document" className="h-4 w-4" />
       {TEXT.viewChecklist}
-    </button>
-  );
-  const separateButton = separate && latest && onStartSeparate && (
-    <button
-      type="button"
-      onClick={onStartSeparate}
-      className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-fg ring-1 ring-line-strong hover:bg-raised"
-    >
-      <Icon name="refresh" className="h-4 w-4" />
-      {TEXT.startSeparate}
     </button>
   );
   const fixed = (answer.fallback || answer.explanation) && (
@@ -216,17 +199,13 @@ function AssistantBubble({
         <div className="rounded-2xl rounded-tl-md border border-line bg-raised/60 px-4 py-3 text-[0.94rem] leading-relaxed text-fg">
           <ReplyText text={reply} />
           {fixed}
-          {(viewButton || separateButton) && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {viewButton}
-              {separateButton}
-            </div>
-          )}
+          {viewButton && <div className="mt-3 flex flex-wrap gap-2">{viewButton}</div>}
         </div>
       ) : (
         (plain.length > 0 ||
           answer.fallback ||
           answer.confirmation ||
+          answer.scenario_offer ||
           answer.question ||
           answer.kind === "checklist") && (
           // An answer stored before replies existed: the earlier rendering.
@@ -238,6 +217,7 @@ function AssistantBubble({
             ))}
             {fixed}
             {answer.confirmation && <p className="font-medium">{answer.confirmation.text}</p>}
+            {answer.scenario_offer && <p className="font-medium">{answer.scenario_offer.text}</p>}
             {answer.question && <p className="font-medium">{answer.question.text}</p>}
             {answer.kind === "checklist" && (
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">

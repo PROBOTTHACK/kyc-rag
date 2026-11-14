@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import type { AssistantAnswer, AssistantTurnRequest } from "../api/types";
-import { ConfirmCard, QuestionCard, SuggestionCard } from "./AnswerPanel";
+import { ConfirmCard, QuestionCard, ScenarioCard, SuggestionCard } from "./AnswerPanel";
 import { ChecklistView } from "./ChecklistView";
 import { Composer } from "./Composer";
 import { TEXT } from "./labels";
@@ -61,6 +61,7 @@ export function announcement(answer: AssistantAnswer | null): string {
   const parts = (answer.messages ?? []).map((m) => m.text);
   if (answer.fallback) parts.push(answer.fallback);
   if (answer.confirmation) parts.push(answer.confirmation.text);
+  if (answer.scenario_offer) parts.push(answer.scenario_offer.text);
   if (answer.question) parts.push(answer.question.text);
   if (answer.kind === "checklist") parts.push(TEXT.checklistHeading);
   return parts.join(" ");
@@ -72,7 +73,7 @@ function itemCount(answer: AssistantAnswer | null): number {
 }
 
 export function Workspace({ conversation }: { conversation: Conversation }) {
-  const { state, send, retryLast, dismiss, restart } = conversation;
+  const { state, send, retryLast, dismiss } = conversation;
   const checklistHeading = useRef<HTMLHeadingElement>(null);
   const current = currentAnswer(state.entries);
   const withChecklist = applicableChecklist(state.entries);
@@ -160,7 +161,6 @@ export function Workspace({ conversation }: { conversation: Conversation }) {
             notice={current?.notice}
             hasChecklist={withChecklist !== null}
             onViewChecklist={openChecklist}
-            onStartSeparate={restart}
           />
         </div>
         <div className="oa-scroll grid max-h-[46%] gap-3 overflow-y-auto border-t border-line/70 p-3 empty:hidden sm:p-4">
@@ -172,7 +172,14 @@ export function Workspace({ conversation }: { conversation: Conversation }) {
               onDismiss={dismiss}
             />
           )}
-          {current?.confirmation ? (
+          {current?.scenario_offer ? (
+            <ScenarioCard
+              key={`o${state.entries.length}`}
+              offer={current.scenario_offer}
+              disabled={busy}
+              onSend={sendBody}
+            />
+          ) : current?.confirmation ? (
             <ConfirmCard
               key={`c${state.entries.length}`}
               confirmation={current.confirmation}
@@ -212,6 +219,15 @@ export function Workspace({ conversation }: { conversation: Conversation }) {
 
       {drawerOpen && current !== null && (
         <AnswersDrawer onClose={() => setDrawerOpen(false)}>
+          <OtherAccounts
+            answer={current}
+            disabled={busy}
+            onSwitch={(index) => {
+              setDrawerOpen(false);
+              setView("conversation");
+              sendBody({ action: "switch_scenario", value: String(index) } as AssistantTurnRequest);
+            }}
+          />
           <ProgressSteps answer={current} />
           <ProfilePanel
             answer={current}
@@ -226,6 +242,51 @@ export function Workspace({ conversation }: { conversation: Conversation }) {
         </AnswersDrawer>
       )}
     </div>
+  );
+}
+
+/** The other accounts discussed in this conversation (parked by the API, each with its own
+ * answers). Going back to one is an ordinary `switch_scenario` turn. */
+export function OtherAccounts({
+  answer,
+  disabled,
+  onSwitch,
+}: {
+  answer: AssistantAnswer;
+  disabled: boolean;
+  onSwitch: (index: number) => void;
+}) {
+  const others = answer.scenarios ?? [];
+  if (others.length === 0) return null;
+  return (
+    <section aria-labelledby="other-accounts" className="grid gap-2">
+      {answer.active_scenario && (
+        <p className="text-sm text-muted">
+          {TEXT.nowDiscussing}:{" "}
+          <span className="font-medium text-fg">{answer.active_scenario}</span>
+        </p>
+      )}
+      <h3 id="other-accounts" className="text-xs font-medium uppercase tracking-wide text-subtle">
+        {TEXT.otherAccounts}
+      </h3>
+      <ul className="grid gap-2">
+        {others.map((s) => (
+          <li key={s.index}>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => onSwitch(s.index)}
+              aria-label={`${TEXT.goBackTo} ${s.label}`}
+              className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm ring-1 ring-line hover:bg-raised disabled:opacity-50"
+            >
+              <Icon name="arrow" className="h-4 w-4 rotate-180 text-cyan" />
+              <span>{s.label}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <p className="text-xs text-subtle">{TEXT.otherAccountsHint}</p>
+    </section>
   );
 }
 

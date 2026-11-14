@@ -11,6 +11,7 @@ Stage A5 of the HDFC Bank Account Opening Assistant (independent portfolio proto
 
 - **A turn body** matches the A3 `TurnInput`: a free-text `message`, a choice (`action` with `slot` and `value`), or both.
   - The actions are `choose`, `correct`, `not_sure`, `skip`, `explain`, `confirm_yes` and `confirm_no`.
+  - Account scenarios (Stage 3 of the master upgrade) add `new_scenario` (a separate account; the current one is kept), `change_application` (change this account's holder instead) and `switch_scenario` (go back to an earlier account; `value` is its `index` from `scenarios`, no `slot`).
   - `value` must be one of the slot's chip values.
 - **Errors** use the existing codes-only envelope `{error: {code, message}}` and never echo the request:
 
@@ -46,6 +47,8 @@ Stage A5 of the HDFC Bank Account Opening Assistant (independent portfolio proto
     - **`explanation`:** why, in plain language. It comes from the coverage map's customer wording (`coverage.yaml`'s `explanation` / `default_explanation`, checked on load for internal wording). The internal `reason` is still never sent.
     - **`suggestions`:** the combinations the coverage map does cover, each as `{slot, value, label}`. The UI sends a chosen one back as a `correct` turn, which the server validates. Added after the A6 browser test; additive.
   - **`notice`**: the dated-document notice, verbatim, on every answer.
+  - **`scenario_offer`** (on a `question` answer, instead of `question`): `{text, options[{action, label, value}]}` when a message may be about another account. The options send `new_scenario` / `change_application`, or `switch_scenario` / `confirm_no` to go back or stay. Nothing changes until the customer chooses.
+  - **`scenarios`** and **`active_scenario`**: the other accounts parked in this conversation (`{index, label}`) and, when there are any, a label for the account being discussed. Each keeps its own answers; they are never merged.
 - **Seven kinds (accepted at the A5 close-out):** A1 §8.1 originally listed four. A5 adds `confirm`, `cannot_build` and `blocked`, which are dialogue outcomes A3 already had. A1 §8.1 now lists all seven with when each is used.
 - **The opening answer** (turn 0) starts with a `privacy` message: "This is an independent prototype, not an HDFC Bank service. Please don't enter real personal or banking information, …" (wording in `dialogue.yaml`).
 - **Never sent** (tested):

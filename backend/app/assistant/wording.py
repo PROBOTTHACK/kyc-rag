@@ -73,17 +73,14 @@ class ContextWording(_Model):
     """What the assistant says when a message must be read against the conversation so far
     (owner request: context-aware follow-ups). {subject} / {holder} come from the profile."""
 
-    conflict: str = Field(min_length=1)  # {subject} {holder}
     change: str = Field(min_length=1)  # {holder}
     which_person: str = Field(min_length=1)
     follow_up: str = Field(min_length=1)  # {subject}
-    separate: str = Field(min_length=1)
     not_applicable: str = Field(min_length=1)  # {subject}
 
     @model_validator(mode="after")
     def _placeholders(self) -> ContextWording:
         for name, needed in [
-            ("conflict", ("{subject}", "{holder}")),
             ("change", ("{holder}",)),
             ("follow_up", ("{subject}",)),
             ("not_applicable", ("{subject}",)),

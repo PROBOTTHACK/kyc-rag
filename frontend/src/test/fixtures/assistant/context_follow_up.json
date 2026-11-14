@@ -2,16 +2,17 @@
   "status": 200,
   "body": {
     "session_id": "0a5e5510-0000-4000-8000-000000000001",
-    "turn": 7,
+    "turn": 11,
     "answer": {
       "kind": "checklist",
-      "reply": "Here's how that relates to a current account for a limited liability partnership (LLP).\nFor a current account for a limited liability partnership (LLP), the form asks you to bring:\n- Form 60/61, for existing customers\nYou asked about something the documents don't confirm:\n- A copy of the organisation's PAN card\nOpen any item in the checklist to see why it's there and the form page it comes from.",
+      "reply": "Here's how that relates to a current account for a company (private or public limited).\nFor a current account for a company (private or public limited), the form asks you to bring:\n- Form 60/61, for existing customers\nYou asked about something the documents don't confirm:\n- A copy of the organisation's PAN card\nOpen any item in the checklist to see why it's there and the form page it comes from.",
       "question": null,
       "confirmation": null,
+      "scenario_offer": null,
       "messages": [
         {
           "code": "follow_up",
-          "text": "Here's how that relates to a current account for a limited liability partnership (LLP).",
+          "text": "Here's how that relates to a current account for a company (private or public limited).",
           "slot": null
         }
       ],
@@ -50,8 +51,8 @@
         },
         "customer_category": {
           "status": "known",
-          "value": "LLP",
-          "label": "A limited liability partnership (LLP)",
+          "value": "COMPANY",
+          "label": "A company (private or public limited)",
           "origin": "corrected",
           "choices": [
             {
@@ -463,7 +464,14 @@
       "explanation": null,
       "suggestions": [],
       "technical_message": null,
-      "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply."
+      "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply.",
+      "active_scenario": "a current account for a company (private or public limited)",
+      "scenarios": [
+        {
+          "index": 0,
+          "label": "an account for an individual living in India"
+        }
+      ]
     }
   }
 }

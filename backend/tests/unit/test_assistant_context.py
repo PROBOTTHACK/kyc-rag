@@ -59,32 +59,90 @@ def assert_llp(state: Any) -> None:
 
 def test_the_reported_conversation_never_merges_the_llp_and_the_child() -> None:
     # "being opened for a minor" does not apply to an LLP current account: never stored.
+    # The customer is asked whether it is a separate account or a change; nothing changes.
     state, r = run(*LLP_CURRENT, say("it is being opened for a minor"))
     assert state.entry(Slot.MINOR).status.value == "unknown"
     assert_llp(state)
-    assert r.step is StepKind.ASK and r.question.slot is Slot.CUSTOMER_CATEGORY
-    assert "context_conflict" in codes(r)
-    # The child question: still clarified, still no change, no LLP checklist.
-    state, r = respond_deterministic(
-        state, TurnInput(message="How do I open an account for my six-year-old child?")
-    )
-    assert r.step is StepKind.ASK and r.ready is None
+    assert r.step is StepKind.CHOOSE_SCENARIO and r.ready is None
+    assert [o.action.value for o in r.scenario_offer.options] == [
+        "new_scenario", "change_application",
+    ]  # fmt: skip
+    assert "current account for a limited liability partnership (LLP)" in r.scenario_offer.text
+
+
+def test_the_daughter_flow_keeps_the_llp_and_reads_india_for_the_daughter() -> None:
+    # The owner's flow: Current -> LLP -> a child's account -> separate or change? -> "my
+    # daughter's account" -> where does she live? -> "No, we are in India."
+    state, r = run(*LLP_CURRENT, say("How can I open an account for my daughter who is six?"))
+    assert r.step is StepKind.CHOOSE_SCENARIO
     assert_llp(state)
-    # "For a person.": asks whether the person lives in India; still no change.
-    state, r = respond_deterministic(state, TurnInput(message="For a person."))
+    state, r = respond_deterministic(
+        state, TurnInput(message="I wanna ask about my daughter account.")
+    )
+    assert "scenario_started" in codes(r)
     assert r.step is StepKind.ASK and r.question.slot is Slot.CUSTOMER_CATEGORY
     assert wording().context.which_person in [n.text for n in r.notes]
+    assert [c.value for c in r.question.chips][:2] == ["RESIDENT_INDIVIDUAL", "NRI_INDIVIDUAL"]
+    assert state.value(Slot.CUSTOMER_CATEGORY) is None  # the daughter's account, fresh
+    assert len(state.scenarios) == 1  # the LLP current account, parked unchanged
+    assert state.scenarios[0].slots[Slot.CUSTOMER_CATEGORY].value == "LLP"
+    state, r = respond_deterministic(state, TurnInput(message="No, we are in India."))
+    assert state.value(Slot.CUSTOMER_CATEGORY) == "RESIDENT_INDIVIDUAL"
+    assert state.value(Slot.ACCOUNT_TYPE) is None  # never carried over from the LLP
+    assert r.ready is None and r.step is not StepKind.CONFIRM
+    assert state.scenarios[0].slots[Slot.ACCOUNT_TYPE].value == "CURRENT"
+
+
+def test_the_customer_can_go_back_to_the_earlier_account() -> None:
+    state, r = run(
+        *LLP_CURRENT,
+        say("I also want to open an account for my child."),
+        say("we live in Dubai"),
+    )
+    assert state.value(Slot.CUSTOMER_CATEGORY) == "NRI_INDIVIDUAL"
+    state, r = respond_deterministic(
+        state, TurnInput(message="what about the LLP current account?")
+    )
+    assert r.step is StepKind.CHOOSE_SCENARIO
+    assert r.scenario_offer.options[0].action.value == "switch_scenario"
+    assert state.value(Slot.CUSTOMER_CATEGORY) == "NRI_INDIVIDUAL"  # nothing changed yet
+    state, r = respond_deterministic(state, TurnInput(message="yes"))
+    assert "scenario_switched" in codes(r) and r.step is StepKind.READY
     assert_llp(state)
+    assert state.scenarios[0].slots[Slot.CUSTOMER_CATEGORY].value == "NRI_INDIVIDUAL"
+    # The button does the same: back to the child's account.
+    state, r = respond_deterministic(state, TurnInput(action="switch_scenario", value="0"))
+    assert state.value(Slot.CUSTOMER_CATEGORY) == "NRI_INDIVIDUAL"
 
 
-def test_the_clarification_lists_individuals_first_and_offers_to_keep_the_llp() -> None:
-    _, r = run(*LLP_CURRENT, say("What about my child?"))
+def test_change_this_application_asks_who_and_lists_individuals_first() -> None:
+    state, r = run(*LLP_CURRENT, say("What about my child?"), {"action": "change_application"})
+    assert r.step is StepKind.ASK and r.question.slot is Slot.CUSTOMER_CATEGORY
     chips = [c.value for c in r.question.chips]
     assert chips[:3] == ["RESIDENT_INDIVIDUAL", "NRI_INDIVIDUAL", "LLP"]
     assert len(chips) == len(set(chips)) == 9  # every option stays available
-    text = next(n.text for n in r.notes if n.code.value == "context_conflict")
-    assert "current account for a limited liability partnership (LLP)" in text
-    assert "don't want to mix" in text
+    assert_llp(state)
+    assert not state.scenarios
+
+
+def test_greetings_and_thanks_are_answered_and_change_nothing() -> None:
+    w = wording()
+    _, r = run(say("Yoooo"))
+    assert "social" in codes(r) and r.question.slot is Slot.ACCOUNT_TYPE
+    assert w.social.greeting in [n.text for n in r.notes]
+    state, r = run(*LLP_CURRENT, say("Hello"))
+    assert r.step is StepKind.READY and r.unchanged and "social" in codes(r)
+    for message in ("Thanks!", "bye", "ok"):
+        after, r = respond_deterministic(state, TurnInput(message=message))
+        assert "social" in codes(r) and r.step is StepKind.READY, message
+        assert after.slots == state.slots
+
+
+def test_a_greeting_keeps_a_pending_confirmation() -> None:
+    state, r = run(say("I live in Dubai"))
+    assert r.step is StepKind.CONFIRM
+    state, r = respond_deterministic(state, TurnInput(message="hi"))
+    assert r.step is StepKind.CONFIRM and "social" in codes(r)
 
 
 def test_keeping_the_llp_returns_the_same_checklist_unchanged() -> None:
@@ -155,10 +213,12 @@ def test_the_understanding_cues() -> None:
 # --- 8. a separate request ---------------------------------------------------------------------
 
 
-def test_a_separate_request_keeps_the_current_profile() -> None:
+def test_a_separate_request_starts_a_new_account_and_keeps_the_current_one() -> None:
     state, r = run(*LLP_CURRENT, say("I also want to open an account for my child."))
-    assert r.step is StepKind.READY and "separate_request" in codes(r)
-    assert_llp(state) and state.entry(Slot.MINOR).status.value == "unknown"
+    assert "scenario_started" in codes(r) and r.ready is None
+    assert r.question.slot is Slot.CUSTOMER_CATEGORY
+    assert state.value(Slot.CUSTOMER_CATEGORY) is None
+    assert state.scenarios[0].slots[Slot.CUSTOMER_CATEGORY].value == "LLP"
 
 
 # --- 9-12. through the service: checklist continuity, regeneration, reload ---------------------
@@ -193,14 +253,19 @@ async def test_a_follow_up_preserves_the_checklist_and_answers_briefly() -> None
     assert "details to fill in" not in follow["reply"]  # not the whole checklist again
 
 
-async def test_a_separate_request_keeps_the_checklist_and_does_not_repeat_it() -> None:
+async def test_a_separate_request_parks_the_checklist_and_lists_it() -> None:
     svc, sid = await service()
     for body in LLP_CURRENT:
-        first = await send(svc, sid, body)
+        await send(svc, sid, body)
     out = await send(svc, sid, say("I also want to open an account for my child."))
-    assert out["kind"] == "checklist" and item_ids(out) == item_ids(first)
-    assert out["reply"] == wording().context.separate
-    assert any(m["code"] == "separate_request" for m in out["messages"])
+    assert out["kind"] == "question" and out["checklist"] is None
+    assert [s["label"] for s in out["scenarios"]] == [
+        "a current account for a limited liability partnership (LLP)"
+    ]
+    assert out["reply"].startswith("OK, let's look at that account separately.")
+    back = await send(svc, sid, {"action": "switch_scenario", "value": "0"})
+    assert back["kind"] == "checklist"
+    assert back["profile"]["customer_category"]["value"] == "LLP"
 
 
 async def test_a_confirmed_correction_regenerates_the_checklist_from_the_new_profile() -> None:
@@ -239,10 +304,15 @@ async def test_a_reloaded_conversation_keeps_the_context() -> None:
     await send(svc, sid, say("What about my child?"))
     view = await svc.get_session(sid)
     assert view["profile"]["customer_category"]["value"] == "LLP"  # unchanged by the question
-    assert view["answer"]["question"]["slot"] == "customer_category"  # the clarification
-    # The next message continues the clarification after the reload.
+    assert view["answer"]["scenario_offer"] is not None  # the open offer survives a reload
+    # The next message answers the offer after the reload: a separate account for her.
     out = await send(svc, sid, say("for my daughter"))
-    assert any(m["code"] == "context_change" for m in out["messages"])
+    assert any(m["code"] == "scenario_started" for m in out["messages"])
+    out = await send(svc, sid, say("we are in India"))
+    assert out["profile"]["customer_category"]["value"] == "RESIDENT_INDIVIDUAL"
+    assert [s["label"] for s in out["scenarios"]] == [
+        "a current account for a limited liability partnership (LLP)"
+    ]
 
 
 # --- 13. privacy -------------------------------------------------------------------------------
@@ -259,10 +329,9 @@ async def test_identifiers_in_a_follow_up_are_still_refused_and_never_stored() -
     assert view["profile"]["customer_category"]["value"] == "LLP"
 
 
-def test_a_clarification_reply_asks_once() -> None:
+def test_an_offer_reply_asks_once() -> None:
     from app.assistant.answer import build_answer
 
     state, r = run(*LLP_CURRENT, say("What about my child?"))
     reply = build_answer(state, r, wording()).reply or ""
-    assert "don't want to mix" in reply
-    assert r.question.text not in reply  # the note itself asks; no second question
+    assert reply.count(r.scenario_offer.text) == 1

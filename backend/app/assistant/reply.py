@@ -109,11 +109,13 @@ def compose_reply(answer: AssistantAnswer, unchanged: bool, words: Wording) -> s
     lines = [m.text for m in answer.messages if m.code not in FIXED_MESSAGE_CODES]
     r = words.replies
     codes = {m.code for m in answer.messages}
-    if answer.kind == "checklist" and answer.checklist is not None:
+    if answer.scenario_offer is not None:
+        lines.append(answer.scenario_offer.text)  # the options are buttons
+    elif "social" in codes and answer.question is None and answer.confirmation is None:
+        pass  # a greeting or thanks: answered; the checklist or answer stands, not repeated
+    elif answer.kind == "checklist" and answer.checklist is not None:
         if answer.fallback:  # out of scope while the checklist stands
             lines.append(r.off_topic)
-        elif "separate_request" in codes:
-            pass  # the note says it all; the current checklist is kept, not repeated
         elif "follow_up" in codes or unchanged:
             # A follow-up about the same checklist: answer it briefly, don't repeat it all.
             if unchanged and "follow_up" not in codes:
@@ -124,7 +126,7 @@ def compose_reply(answer: AssistantAnswer, unchanged: bool, words: Wording) -> s
     elif answer.confirmation is not None:
         lines.append(answer.confirmation.text)
     elif answer.question is not None:
-        if not codes & {"context_conflict", "context_change"}:
+        if "context_change" not in codes:
             lines.append(answer.question.text)  # a context note already asks the question
     elif answer.suggestions:
         lines.append(r.suggestions_lead)

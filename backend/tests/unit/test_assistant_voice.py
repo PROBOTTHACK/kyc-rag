@@ -268,6 +268,6 @@ def test_the_voice_is_told_the_situation_of_the_turn() -> None:
         {"action": "choose", "slot": "customer_category", "value": "LLP"},
         {"message": "What about my child?"},
     )
-    assert facts(clarify)["situation"] == "clarify"
+    assert facts(clarify)["situation"] == "choose_account"
     separate = answer_after(*NRI_SAVINGS, {"message": "I also want to open an account for my wife"})
-    assert facts(separate)["situation"] == "separate_request"
+    assert facts(separate)["situation"] == "new_account"

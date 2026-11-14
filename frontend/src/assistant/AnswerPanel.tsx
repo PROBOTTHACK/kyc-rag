@@ -3,6 +3,7 @@ import { useRef } from "react";
 import type {
   AssistantConfirmation,
   AssistantQuestion,
+  AssistantScenarioOffer,
   AssistantSuggestion,
   AssistantTurnRequest,
 } from "../api/types";
@@ -159,6 +160,55 @@ export function ConfirmCard({
           </span>
           {ACTION_LABELS.confirm_no}
         </button>
+      </div>
+    </section>
+  );
+}
+
+/** A message that may be about another account: a separate account, a change to this one,
+ * or going back to an earlier one. Each option sends the API's own action; nothing changes
+ * until the customer chooses. */
+export function ScenarioCard({
+  offer,
+  disabled,
+  onSend,
+}: {
+  offer: AssistantScenarioOffer;
+  disabled: boolean;
+  onSend: Send;
+}) {
+  return (
+    <section aria-labelledby="scenario-heading" className="oa-rise">
+      <Eyebrow id="scenario-heading" sr={offer.text} label="" />
+      <div
+        role="group"
+        aria-labelledby="scenario-heading"
+        className="mt-3 grid gap-2 sm:grid-cols-2"
+      >
+        {offer.options.map((o, i) => (
+          <button
+            key={o.action}
+            type="button"
+            disabled={disabled}
+            className={cardClass}
+            onClick={() =>
+              onSend(
+                (o.value != null
+                  ? { action: o.action, value: o.value }
+                  : { action: o.action }) as AssistantTurnRequest,
+              )
+            }
+          >
+            <span
+              className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ring-1 ${
+                i === 0 ? "bg-cyan/10 text-cyan ring-cyan/30" : "bg-surface text-muted ring-line"
+              }`}
+            >
+              <Icon name={i === 0 ? "arrow" : "x"} className="h-4 w-4" />
+            </span>
+            <span className="flex-1">{o.label}</span>
+          </button>
+        ))}
       </div>
     </section>
   );

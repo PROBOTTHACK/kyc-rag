@@ -138,6 +138,12 @@ class DialogueState(_Frozen):
     history: tuple[SlotEvent, ...] = ()
     # Other account scenarios in this conversation (the active one is the fields above).
     scenarios: tuple[Scenario, ...] = ()
+    # Who the active scenario is about when the customer said so ("child", "individual"):
+    # context only; it lets "we live in India" answer who the account is for.
+    person: str | None = None
+    # Values named in a message that may belong to another account: applied only if the
+    # customer chooses (a separate account, or changing this one).
+    offer_values: dict[Slot, str] = Field(default_factory=dict)
 
     def entry(self, slot: Slot) -> SlotEntry:
         return self.slots.get(slot, SlotEntry())
