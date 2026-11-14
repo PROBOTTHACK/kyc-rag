@@ -44,9 +44,7 @@ describe("the Account Opening Assistant is the application", () => {
   it("shows its own not-found page for an unknown address", () => {
     renderAt("/no/such/page");
     expect(screen.getByRole("heading", { level: 1, name: "Page not found" })).toBeTruthy();
-    expect(
-      screen.getByRole("link", { name: /Account Opening Assistant/ }).getAttribute("href"),
-    ).toBe("/");
+    expect(screen.getByRole("link", { name: /KYC Rag/ }).getAttribute("href")).toBe("/");
   });
 });
 

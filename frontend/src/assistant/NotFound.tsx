@@ -18,7 +18,7 @@ export function NotFound() {
           to="/"
           className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-md border border-line-strong px-4 text-sm font-medium text-fg hover:bg-hover"
         >
-          Go to the {PRODUCT_NAME}
+          Go to {PRODUCT_NAME}
           <Icon name="arrow" />
         </Link>
       </section>

@@ -156,7 +156,7 @@ export function Mark({ className = "h-8 w-8" }: { className?: string }) {
       aria-hidden="true"
       className={`grid place-items-center rounded-md border border-line-strong font-display text-[0.8rem] font-semibold tracking-tight text-fg ${className}`}
     >
-      AO
+      KR
     </span>
   );
 }
