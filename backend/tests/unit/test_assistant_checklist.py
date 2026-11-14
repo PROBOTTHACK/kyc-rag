@@ -830,7 +830,7 @@ def test_visibility_does_not_change_the_rulings_or_the_catalogue() -> None:
         "org_signatory_pan_number": "evidenced",
         "org_form_60_61": "evidenced",
     }
-    assert cov.version == "a2-2" and catalogue().version == "a4-1"
+    assert cov.version == "a2-2" and catalogue().version == "a4-2"
     assert len(catalogue().items) == 47 and len(catalogue().not_confirmed) == 4
 
 
@@ -930,9 +930,6 @@ def test_the_nri_name_title_keeps_the_id_proof_meaning_without_a_copy() -> None:
         ("nri_deposit_payout_instruction", A.FIXED_DEPOSIT, "For Payout details",
          "This is for the payout details of the deposit "
          "(how the interest or maturity amount is to be paid)."),
-        ("nri_fcnr_option", A.FCNR_RFC, "only face to face",
-         "The form marks the FCNR deposit option as available "
-         "only face to face (in person)."),
     ],
 )  # fmt: skip
 def test_conditions_keep_the_verbatim_text_and_gain_a_plain_note(
@@ -943,6 +940,17 @@ def test_conditions_keep_the_verbatim_text_and_gain_a_plain_note(
     assert any(condition in c.passage for c in item.citations)  # still verbatim source text
     caveat = next(c for c in item.caveats if c.code is CaveatCode.CONDITIONAL)
     assert caveat.text == note
+
+
+def test_the_fcnr_option_carries_no_condition_printed_for_the_rfc_deposit() -> None:
+    """A7 finding: on the NRI form (p3) "(only face to face)" is printed under "Deposit for
+    Returning NRIs (RFC)". The flattened stored text puts it after "*FCNR", so the quote
+    validator alone could not catch the misattribution (checked against the page image)."""
+    item = by_id(build(profile(C.NRI_INDIVIDUAL, A.FCNR_RFC)), "nri_fcnr_option")
+    assert item.condition is None and item.condition_note is None
+    assert not any(c.code is CaveatCode.CONDITIONAL for c in item.caveats)
+    assert "face to face" not in item.model_dump_json()
+    assert item.source_wording == "*FCNR"
 
 
 def test_conditions_without_a_note_keep_the_verbatim_caveat() -> None:

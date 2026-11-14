@@ -20,7 +20,7 @@
 #   exactly (kind, categories, condition, cited chunks); every ruling appears here once;
 # - `not_confirmed` entries never carry evidence of their own.
 
-version: a4-1
+version: a4-2
 basis: coverage.yaml a2-2 and A1 §3-§8 (owner-approved)
 
 # --- documents, declarations and information (Groups A and B) ----------------------------------
@@ -254,10 +254,12 @@ items:
     scope: opening
     categories: [NRI_INDIVIDUAL]
     accounts: [FCNR_RFC]
-    condition: only face to face
-    condition_note: The form marks the FCNR deposit option as available only face to face (in person).
+    # A7 correction (a4-2): "(only face to face)" is printed under "Deposit for Returning NRIs
+    # (RFC)" on page 3, not under FCNR; the stored text joins it to "*FCNR" only because the
+    # columns were flattened. The condition was removed rather than moved: no stored text
+    # quotes the RFC option and its condition together.
     evidence:
-      - {chunk_id: 905c3f50-d152-5512-91fd-32e96f63ab2f, document_key: hdfc_nri_account_opening, page: 3, quote: "FCNR (only face to face)"}
+      - {chunk_id: 905c3f50-d152-5512-91fd-32e96f63ab2f, document_key: hdfc_nri_account_opening, page: 3, quote: "*FCNR"}
 
   # Organisations: scanned opening form (every quote is OCR-uncertain stored text) ---------------
   - id: org_form_60_61

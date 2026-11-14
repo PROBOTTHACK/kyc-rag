@@ -2,7 +2,7 @@
 
 > **Historical stage record.** The authoritative product specification is now [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) (2026-11-14). This document records what was decided and verified at its stage; where it differs from `PRODUCT_SPEC.md`, the specification applies.
 
-Generated from `backend/app/assistant/checklist.yaml` (catalogue `a4-1`) and `coverage.yaml` (`a2-2`) by `python -m app.assistant.catalogue_report`. Do not edit by hand: a unit test checks that this file matches the data.
+Generated from `backend/app/assistant/checklist.yaml` (catalogue `a4-2`) and `coverage.yaml` (`a2-2`) by `python -m app.assistant.catalogue_report`. Do not edit by hand: a unit test checks that this file matches the data.
 
 **47 items** (Groups A and B) and **4 could-not-be-confirmed entries** (Group C).
 
@@ -43,7 +43,7 @@ Generated from `backend/app/assistant/checklist.yaml` (catalogue `a4-1`) and `co
 | `nri_nro_account_choice` | Your choice of NRO Savings or NRO Current | — | NRI_INDIVIDUAL | SAVINGS, CURRENT | nri_scheme = NRO (shown with an “applies if” note when unknown) | B (information) | `form_indicated` | `hdfc_nri_account_opening` p3 | p3: “NRO Savings NRO Current” | — | — | — | — | — |
 | `nri_recurring_deposit_details` | Recurring deposit amount and tenor | — | NRI_INDIVIDUAL | RECURRING_DEPOSIT | always | B (information) | `form_indicated` | `hdfc_nri_account_opening` p3 | p3: “Deposit Amount Tenor Months” | — | — | — | — | — |
 | `nri_term_deposit_type` | The type of term deposit (NRE FD or NRO FD) | — | NRI_INDIVIDUAL | FIXED_DEPOSIT | always | B (information) | `form_indicated` | `hdfc_nri_account_opening` p3 | p3: “NRE FD NRO FD” | — | — | — | — | — |
-| `nri_fcnr_option` | The FCNR deposit option on the form | — | NRI_INDIVIDUAL | FCNR_RFC | always | B (information) | `form_indicated` | `hdfc_nri_account_opening` p3 | p3: “FCNR (only face to face)” | — | — | only face to face | The form marks the FCNR deposit option as available only face to face (in person). | — |
+| `nri_fcnr_option` | The FCNR deposit option on the form | — | NRI_INDIVIDUAL | FCNR_RFC | always | B (information) | `form_indicated` | `hdfc_nri_account_opening` p3 | p3: “*FCNR” | — | — | — | — | — |
 
 ## Organisations: `hdfc_non_individual_account_opening` (scanned, OCR-uncertain): 9 items
 
