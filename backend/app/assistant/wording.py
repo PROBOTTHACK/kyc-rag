@@ -37,6 +37,37 @@ class BlockedWording(_Model):
     other: str
 
 
+class ReplyWording(_Model):
+    """The assistant's own conversational lines (the deterministic reply; the LLM voice may
+    rephrase them from the same facts). Placeholders are filled from the API answer only."""
+
+    checklist_intro: str = Field(min_length=1)  # {subject} {documents} {details}
+    subject: str = Field(min_length=1)  # {account} {holder}
+    conversion_subject: str = Field(min_length=1)
+    documents_one: str = Field(min_length=1)
+    documents_many: str = Field(min_length=1)  # {n}
+    details_one: str = Field(min_length=1)
+    details_many: str = Field(min_length=1)  # {n}
+    documents_lead: str = Field(min_length=1)
+    asked_lead: str = Field(min_length=1)
+    checklist_outro: str = Field(min_length=1)
+    unchanged: str = Field(min_length=1)
+    off_topic: str = Field(min_length=1)
+    suggestions_lead: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _placeholders(self) -> ReplyWording:
+        for name, needed in [
+            ("checklist_intro", ("{subject}", "{documents}", "{details}")),
+            ("subject", ("{account}", "{holder}")),
+            ("documents_many", ("{n}",)),
+            ("details_many", ("{n}",)),
+        ]:
+            if not all(p in getattr(self, name) for p in needed):
+                raise ValueError(f"reply wording {name} lost a placeholder")
+        return self
+
+
 class Wording(_Model):
     version: str
     slots: dict[Slot, SlotWording]
@@ -54,6 +85,7 @@ class Wording(_Model):
     cannot_build: dict[Slot, str]
     blocked: BlockedWording
     privacy: str
+    replies: ReplyWording
     fallback: str
     notice: str
 

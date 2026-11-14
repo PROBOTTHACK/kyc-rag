@@ -5,6 +5,7 @@
     "turn": 0,
     "answer": {
       "kind": "question",
+      "reply": "Which account would you like to open?",
       "question": {
         "slot": "account_type",
         "text": "Which account would you like to open?",

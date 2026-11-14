@@ -221,7 +221,7 @@ describe("in the conversation", () => {
     const { user } = setup([recorded.llpChecklist()]);
     await startConversation(user);
     await user.click(screen.getByRole("button", { name: /Current account/ }));
-    expect(await chat().findByText("Your checklist is ready.")).toBeTruthy();
+    expect(await chat().findByText(/Here's what the HDFC Bank form asks for/)).toBeTruthy();
     const heading = screen.getByRole("heading", { name: "Your checklist", level: 2 });
     await user.click(chat().getByRole("button", { name: "View your checklist" }));
     await waitFor(() => expect(document.activeElement).toBe(heading));
@@ -231,11 +231,12 @@ describe("in the conversation", () => {
     const { user } = setup([recorded.llpChecklist(), recorded.llpChecklistPanCopy()]);
     await startConversation(user);
     await user.click(screen.getByRole("button", { name: /Current account/ }));
-    await chat().findByText("Your checklist is ready.");
+    await chat().findByText(/Here's what the HDFC Bank form asks for/);
     expect(screen.queryByRole("region", { name: /Could not be confirmed/ })).toBeNull();
     await user.type(screen.getByRole("textbox"), "Do I need a copy of the PAN card?{Enter}");
     expect(await screen.findByRole("region", { name: /Could not be confirmed/ })).toBeTruthy();
-    expect(chat().getAllByText("Your checklist is ready.")).toHaveLength(1);
-    expect(chat().getByText("Your checklist has been updated.")).toBeTruthy();
+    // Each checklist answer is summarised in the chat; the second lists the asked-about item.
+    expect(chat().getAllByText(/Here's what the HDFC Bank form asks for/)).toHaveLength(2);
+    expect(chat().getByText(/You asked about something the documents don't confirm/)).toBeTruthy();
   });
 });

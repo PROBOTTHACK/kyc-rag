@@ -39,7 +39,7 @@ describe("the workspace on narrow screens", () => {
     await startConversation(user);
     expect(screen.queryByRole("group", { name: "Show" })).toBeNull();
     await user.click(screen.getByRole("button", { name: /Current account/ }));
-    await chat().findByText("Your checklist is ready.");
+    await chat().findByText(/Here's what the HDFC Bank form asks for/);
     const show = screen.getByRole("group", { name: "Show" });
     const checklistTab = within(show).getByRole("button", { name: /Checklist/ });
     const conversationTab = within(show).getByRole("button", { name: /Conversation/ });

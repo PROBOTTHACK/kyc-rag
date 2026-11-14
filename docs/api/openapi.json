@@ -1086,6 +1086,17 @@
           "kind": {
             "$ref": "#/components/schemas/AssistantAnswerKind"
           },
+          "reply": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reply"
+          },
           "question": {
             "anyOf": [
               {

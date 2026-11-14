@@ -5,6 +5,7 @@
     "turn": 1,
     "answer": {
       "kind": "fallback",
+      "reply": "I can only help with the documents and information needed to open an HDFC Bank account.\nWhich account would you like to open?",
       "question": {
         "slot": "account_type",
         "text": "Which account would you like to open?",

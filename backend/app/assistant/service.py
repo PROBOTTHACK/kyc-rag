@@ -37,6 +37,7 @@ from app.assistant.catalogue import catalogue
 from app.assistant.checklist import AnswerKind, ChecklistAnswer, ChecklistService
 from app.assistant.dialogue import ReadyProfile, TurnInput, opening, respond
 from app.assistant.store import AssistantStore, TurnRecord
+from app.assistant.voice import voice_reply
 from app.assistant.wording import Wording, wording
 from app.config import Settings
 from app.llm.provider import LLMProvider
@@ -211,6 +212,14 @@ class AssistantService:
                     }
             built: AssistantAnswer = build_answer(state, response, self.words, checklist)
             message, categories = _stored_message(turn)
+            # The optional LLM voice rephrases the reply from the answer's own facts; it only
+            # ever sees screened text (None for a refused message) and falls back on failure.
+            # A plain chip click on a question needs no rewording (fast and deterministic); the
+            # voice speaks for free text, checklists, fallbacks and confirmations.
+            chip_question = turn.message is None and built.kind == "question"
+            if self.llm is not None and built.kind != "blocked" and not chip_question:
+                reply = await voice_reply(self.llm, built, message)
+                built = built.model_copy(update={"reply": reply})
             record = TurnRecord(
                 turn_no=state.turn,
                 message=message,

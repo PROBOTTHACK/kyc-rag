@@ -88,6 +88,44 @@ export function Transcript({
   );
 }
 
+/** The assistant's reply: paragraphs, with "- " lines rendered as a list. */
+export function ReplyText({ text }: { text: string }) {
+  const blocks: Array<{ kind: "p"; text: string } | { kind: "ul"; items: string[] }> = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    const bullet = /^[-•*]\s+(.*)$/.exec(line);
+    const last = blocks[blocks.length - 1];
+    if (bullet) {
+      if (last?.kind === "ul") last.items.push(bullet[1]!);
+      else blocks.push({ kind: "ul", items: [bullet[1]!] });
+    } else {
+      blocks.push({ kind: "p", text: line });
+    }
+  }
+  return (
+    <div className="grid gap-2">
+      {blocks.map((b, i) =>
+        b.kind === "p" ? (
+          <p key={i}>{b.text}</p>
+        ) : (
+          <ul key={i} className="grid gap-1 pl-1">
+            {b.items.map((item, j) => (
+              <li key={j} className="flex gap-2">
+                <span
+                  aria-hidden="true"
+                  className="mt-[0.6rem] h-1 w-1 shrink-0 rounded-full bg-cyan"
+                />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        ),
+      )}
+    </div>
+  );
+}
+
 function AssistantBubble({
   answer,
   latest,
@@ -104,6 +142,32 @@ function AssistantBubble({
   const other = messages.filter((m) => m.code !== "privacy");
   const blocked = other.filter((m) => m.code === "blocked");
   const plain = other.filter((m) => m.code !== "blocked");
+  const reply = answer.reply ?? null;
+  const viewButton = answer.kind === "checklist" && latest && (
+    <button
+      type="button"
+      onClick={onViewChecklist}
+      className="inline-flex min-h-9 items-center gap-1 rounded-md text-sm font-semibold text-cyan hover:underline"
+    >
+      {TEXT.viewChecklist}
+      <Icon name="arrow" className="h-3.5 w-3.5" />
+    </button>
+  );
+  const fixed = (answer.fallback || answer.explanation) && (
+    <div className={reply ? "mt-3 border-t border-line pt-3 text-sm" : ""}>
+      {answer.fallback && (
+        <p className="mb-2 flex gap-2 font-medium text-fg last:mb-0">
+          <Icon name="book" className="mt-1 h-4 w-4 text-violet" />
+          <span>{answer.fallback}</span>
+        </p>
+      )}
+      {answer.explanation && (
+        <p className="mb-2 pl-6 text-sm leading-relaxed text-muted last:mb-0">
+          {answer.explanation}
+        </p>
+      )}
+    </div>
+  );
   return (
     <div className="flex min-w-0 max-w-[92%] flex-col gap-2 sm:max-w-[85%]">
       <span className="sr-only">Assistant: </span>
@@ -125,49 +189,39 @@ function AssistantBubble({
           <span>{m.text}</span>
         </p>
       ))}
-      {(plain.length > 0 ||
-        answer.fallback ||
-        answer.confirmation ||
-        answer.question ||
-        answer.kind === "checklist") && (
+      {reply ? (
         <div className="rounded-2xl rounded-tl-md border border-line bg-raised/60 px-4 py-3 text-[0.94rem] leading-relaxed text-fg">
-          {plain.map((m, i) => (
-            <p key={`m${i}`} className="mb-2 text-muted last:mb-0">
-              {m.text}
-            </p>
-          ))}
-          {answer.fallback && (
-            <p className="mb-2 flex gap-2 font-medium text-fg last:mb-0">
-              <Icon name="book" className="mt-1 h-4 w-4 text-violet" />
-              <span>{answer.fallback}</span>
-            </p>
-          )}
-          {answer.explanation && (
-            <p className="mb-2 pl-6 text-sm leading-relaxed text-muted last:mb-0">
-              {answer.explanation}
-            </p>
-          )}
-          {answer.confirmation && <p className="font-medium">{answer.confirmation.text}</p>}
-          {answer.question && <p className="font-medium">{answer.question.text}</p>}
-          {answer.kind === "checklist" && (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <p className="flex items-center gap-2 font-medium">
-                <Icon name="check" className="h-4 w-4 text-ok" />
-                {updated ? TEXT.checklistUpdated : TEXT.checklistReady}
-              </p>
-              {latest && (
-                <button
-                  type="button"
-                  onClick={onViewChecklist}
-                  className="inline-flex min-h-9 items-center gap-1 rounded-md text-sm font-semibold text-cyan hover:underline"
-                >
-                  {TEXT.viewChecklist}
-                  <Icon name="arrow" className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-          )}
+          <ReplyText text={reply} />
+          {fixed}
+          {viewButton && <div className="mt-2">{viewButton}</div>}
         </div>
+      ) : (
+        (plain.length > 0 ||
+          answer.fallback ||
+          answer.confirmation ||
+          answer.question ||
+          answer.kind === "checklist") && (
+          // An answer stored before replies existed: the earlier rendering.
+          <div className="rounded-2xl rounded-tl-md border border-line bg-raised/60 px-4 py-3 text-[0.94rem] leading-relaxed text-fg">
+            {plain.map((m, i) => (
+              <p key={`m${i}`} className="mb-2 text-muted last:mb-0">
+                {m.text}
+              </p>
+            ))}
+            {fixed}
+            {answer.confirmation && <p className="font-medium">{answer.confirmation.text}</p>}
+            {answer.question && <p className="font-medium">{answer.question.text}</p>}
+            {answer.kind === "checklist" && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <p className="flex items-center gap-2 font-medium">
+                  <Icon name="check" className="h-4 w-4 text-ok" />
+                  {updated ? TEXT.checklistUpdated : TEXT.checklistReady}
+                </p>
+                {viewButton}
+              </div>
+            )}
+          </div>
+        )
       )}
     </div>
   );

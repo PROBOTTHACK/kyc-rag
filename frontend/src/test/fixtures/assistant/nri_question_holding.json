@@ -5,6 +5,7 @@
     "turn": 3,
     "answer": {
       "kind": "question",
+      "reply": "Will the account be held by one person or jointly?",
       "question": {
         "slot": "holding",
         "text": "Will the account be held by one person or jointly?",

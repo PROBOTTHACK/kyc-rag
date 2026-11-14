@@ -37,6 +37,11 @@ Stage A5 of the HDFC Bank Account Opening Assistant (independent portfolio proto
   - `profile`: each slot's status, value, chip label and origin, plus `choices`: the slot's valid values with their labels, for a "Change" control (added at A6, option A; additive; the server still validates every correction);
   - `messages`: dialogue notes, the blocked text, or why a checklist can't be built yet;
   - `coverage_state` when it is known;
+  - **`reply`:** what the assistant says in the chat for this answer:
+    - its notes and the question or confirmation, or a short checklist summary (item titles from the answer);
+    - polite redirects for messages it can't use.
+
+    It is composed deterministically (`reply.py`) and, when the live LLM is enabled, reworded by the validated voice (`voice.py`). It falls back to the deterministic reply on any failure, and is stored with the answer, so replays are identical. Whether an LLM wrote it is never exposed. There is no reply for `blocked` or `technical_error`;
   - on a `fallback` for a combination the documents don't cover:
     - **`explanation`:** why, in plain language. It comes from the coverage map's customer wording (`coverage.yaml`'s `explanation` / `default_explanation`, checked on load for internal wording). The internal `reason` is still never sent.
     - **`suggestions`:** the combinations the coverage map does cover, each as `{slot, value, label}`. The UI sends a chosen one back as a `correct` turn, which the server validates. Added after the A6 browser test; additive.

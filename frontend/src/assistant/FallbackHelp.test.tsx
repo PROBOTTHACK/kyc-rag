@@ -31,7 +31,7 @@ describe("a fallback that explains and suggests (recorded from the real API)", (
     const group = await screen.findByRole("group", { name: /Covered by the documents/ });
     await user.click(within(group).getByRole("button", { name: /Current account/ }));
     expect(bodies.at(-1)).toEqual({ action: "correct", slot: "account_type", value: "CURRENT" });
-    expect(await chat().findByText(/Your checklist/)).toBeTruthy();
+    expect(await chat().findByText(/Here's what the HDFC Bank form asks for/)).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Your checklist", level: 2 })).toBeTruthy();
     expect(screen.queryByRole("group", { name: /Covered by the documents/ })).toBeNull();
   });

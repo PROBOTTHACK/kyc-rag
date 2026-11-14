@@ -245,7 +245,22 @@ Item
 7. **Group ordering:** within Group 1, `policy_supported` before `form_indicated`. Items keep the form's own order where known; otherwise they are ordered alphabetically by title. Duplicate items from near-identical forms are merged, with all citations kept.
 
 ### 8.3 Role of the LLM (optional, D-D)
-- **Allowed:** extracting slot values from free text (enum values only, validated); rephrasing an item's `title` or a short explanation **from the cited text only**.
+- **Allowed:**
+  - extracting slot values from free text (enum values only, validated);
+  - rephrasing an item's `title` or a short explanation **from the cited text only**;
+  - **the assistant's voice** (owner decision, 2026-11-14): rewording the chat reply (questions, the checklist summary, polite redirects) **from the facts of the API answer only**. The voice:
+    - receives the answer's question and choices, notes, item titles, applies-if notes and conditions, counts, the not-covered explanation and the covered options, plus the screened customer message as untrusted data;
+    - never receives blocked messages.
+
+    Every reply passes a deterministic check, and on any failure the deterministic reply (`reply.py`) is used. The check rejects:
+    - over-length text;
+    - internal wording;
+    - links or code;
+    - obligation or approval wording;
+    - claims about what the documents "only" cover;
+    - any number or document term not in the facts.
+
+    The fixed texts (§7 fallback, notice, explanation, blocked and technical messages) are always shown verbatim alongside the reply.
 - **Not allowed:** choosing items, classifications, citations, pages, coverage states or the fallback; adding any fact not in the cited text.
 - **Validation:** LLM output is checked with Pydantic, then the deterministic validator runs. On any failure the deterministic wording is used; one retry at most (CLAUDE.md bounded loops).
 

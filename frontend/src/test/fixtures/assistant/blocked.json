@@ -5,6 +5,7 @@
     "turn": 4,
     "answer": {
       "kind": "blocked",
+      "reply": null,
       "question": null,
       "confirmation": null,
       "messages": [

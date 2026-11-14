@@ -5,6 +5,7 @@
     "turn": 2,
     "answer": {
       "kind": "fallback",
+      "reply": "The documents do cover these options:",
       "question": null,
       "confirmation": null,
       "messages": [],

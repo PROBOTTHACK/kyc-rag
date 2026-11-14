@@ -5,6 +5,7 @@
     "turn": 4,
     "answer": {
       "kind": "question",
+      "reply": "That's fine. I'll leave it open, so the checklist won't include or leave out the parts of the form for joint applicants.\nIs the account being opened for a minor?",
       "question": {
         "slot": "minor",
         "text": "Is the account being opened for a minor?",

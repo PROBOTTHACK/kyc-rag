@@ -72,6 +72,19 @@ The phase (welcome, then the workspace) is state, not part of the URL, so the se
 
 Coverage decisions are unchanged, and the internal reason is still never shown. Verified in the browser by replaying the reported conversation: LLP + Savings shows the explanation and three cards, and choosing "Current account" builds the LLP checklist (screenshot `17_fallback_explain_suggest.png`).
 
+## 2b. A conversational voice (owner decision after the second browser test)
+**The problem:** after a checklist existed, every unreadable message ("bleeh", a prompt-injection attempt) got "Your checklist has been updated." with nothing changed, and questions got canned lines.
+
+**The fixes:**
+- **Deterministic:**
+  - an unreadable message after the checklist is out of scope: the prescribed fallback plus a polite redirect;
+  - every answer has a `reply`: its notes and question, or a checklist summary ("Here's what the HDFC Bank form asks for …: 4 documents to bring and 14 details to fill in", followed by the documents as bullets, then a pointer to the sources). The wording comes from `dialogue.yaml`; titles, labels and numbers come from the answer.
+- **The LLM voice:** with Groq enabled, the reply is reworded warmly from the answer's facts only. It is checked deterministically (numbers and document terms must be in the facts; no obligation or approval wording; no "only covers" claims; no internal wording, links or code). The deterministic reply is used on any failure.
+  - **Calls:** chip clicks on questions don't call the LLM (fast); free text, confirmations, checklists and fallbacks do.
+- **Live check (2026-11-14):** the owner's conversation was replayed at a human pace with `openai/gpt-oss-120b`.
+  - **Replies:** natural questions, a friendly checklist summary, polite redirects for the injection and "bleeh". The validator rejected a reply that tried to mention a passport "copy", and the safe reply was used.
+  - **Limits:** a few calls timed out because of the free-tier token budget the app enforces (`RATE_LIMIT_GROQ_TPM=6000`); those turns used the deterministic reply.
+
 ## 3. Design system (`frontend/src/index.css`, Tailwind 4 `@theme`)
 - **Colours:**
 

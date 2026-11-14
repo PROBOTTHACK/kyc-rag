@@ -203,6 +203,7 @@ class DialogueResponse(_Frozen):
     reason: str | None = None  # not-established reason (internal) or cannot-build explanation
     explanation: str | None = None  # not-established: why, in the customer's words
     suggestions: tuple[Suggestion, ...] = ()  # not-established: covered alternatives
+    unchanged: bool = False  # a profile is ready and this turn changed no answer or topic
     fallback: str | None = None  # A1 §7, verbatim
     notice: str | None = None  # A1 §7 dated-document notice, verbatim
     blocked: str | None = None  # fixed screening message
@@ -352,6 +353,16 @@ def advance(
     response = _decide(w)
     if u is not None and u.out_of_scope:
         w.fallback = True  # A1 §7 case 4; the next question still rides along
+    if (
+        response.step is StepKind.READY
+        and turn.action is None
+        and u is not None
+        and not u.substantive
+        and u.control is None
+    ):
+        # Nothing in the message was understood ("bleeh", an instruction to the assistant):
+        # nothing changes and there is nothing to answer, so it is out of scope (A1 §7).
+        w.fallback = True
     if w.fallback and response.step in (StepKind.ASK, StepKind.READY, StepKind.CANNOT_BUILD):
         response = response.model_copy(
             update={"step": StepKind.FALLBACK, "fallback": words.fallback, "notice": words.notice}
@@ -370,7 +381,10 @@ def advance(
             "open_topics": tuple(w.topics),
         }
     )
-    return new_state, response.model_copy(update={"notes": tuple(w.notes)})
+    unchanged = response.ready is not None and (
+        dict(w.slots) == dict(state.slots) and tuple(w.topics) == state.open_topics
+    )
+    return new_state, response.model_copy(update={"notes": tuple(w.notes), "unchanged": unchanged})
 
 
 def _inline(label: str) -> str:

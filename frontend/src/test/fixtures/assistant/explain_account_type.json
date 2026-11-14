@@ -5,6 +5,7 @@
     "turn": 1,
     "answer": {
       "kind": "question",
+      "reply": "This is the kind of account you want, for example a savings account, a current account or a deposit. It decides which HDFC Bank form, and which part of it, your checklist comes from.\nWhich account would you like to open?",
       "question": {
         "slot": "account_type",
         "text": "Which account would you like to open?",

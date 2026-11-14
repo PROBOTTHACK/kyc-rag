@@ -16,6 +16,7 @@ import type {
   AssistantSessionView,
   AssistantTurnResult,
 } from "../../api/types";
+import afterChecklistBleeh from "./assistant/after_checklist_bleeh.json";
 import blocked from "./assistant/blocked.json";
 import cannotBuild from "./assistant/cannot_build.json";
 import errorIdempotencyMismatch from "./assistant/error_idempotency_mismatch.json";
@@ -59,6 +60,7 @@ export const recorded = {
   nriQuestionMinor: () => turn(nriQuestionMinor),
   nriChecklist: () => turn(nriChecklist),
   nriChecklistPhoto: () => turn(nriChecklistPhoto),
+  afterChecklistBleeh: () => turn(afterChecklistBleeh),
   nriSessionView: () => as<AssistantSessionView>(nriSessionView),
   llpChecklist: () => turn(llpChecklist),
   llpChecklistPanCopy: () => turn(llpChecklistPanCopy),

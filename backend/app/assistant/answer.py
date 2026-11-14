@@ -26,6 +26,7 @@ from pydantic import BaseModel, ConfigDict
 from app.assistant.checklist import AnswerKind, ChecklistAnswer, Classification
 from app.assistant.dialogue import Chip, DialogueResponse, StepKind
 from app.assistant.profile import DialogueState, Origin, Slot, SlotStatus
+from app.assistant.reply import compose_reply
 from app.assistant.taxonomy import CoverageState
 from app.assistant.wording import Wording
 
@@ -153,6 +154,10 @@ class AssistantChecklist(_Frozen):
 
 class AssistantAnswer(_Frozen):
     kind: AssistantAnswerKind
+    # What the assistant says in the chat: its notes and question, or a checklist summary.
+    # Composed from this answer's own facts (deterministic, `reply.py`) and optionally
+    # rephrased by the validated LLM voice (`voice.py`). Fixed texts are not part of it.
+    reply: str | None = None
     question: AssistantQuestion | None = None
     confirmation: AssistantConfirmation | None = None
     messages: tuple[AssistantMessage, ...] = ()
@@ -242,7 +247,7 @@ def build_answer(
     else:  # FALLBACK: an out-of-scope question; the next question may ride along
         kind = AssistantAnswerKind.FALLBACK
 
-    return AssistantAnswer(
+    answer = AssistantAnswer(
         kind=kind,
         question=question,
         confirmation=confirmation,
@@ -259,6 +264,7 @@ def build_answer(
         technical_message=technical,
         notice=notice,
     )
+    return answer.model_copy(update={"reply": compose_reply(answer, response.unchanged, words)})
 
 
 def opening_answer(

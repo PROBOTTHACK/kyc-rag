@@ -5,6 +5,7 @@
     "turn": 1,
     "answer": {
       "kind": "confirm",
+      "reply": "Just to check: is the account for an individual living outside India (NRI / PIO / OCI)?",
       "question": null,
       "confirmation": {
         "slot": "customer_category",

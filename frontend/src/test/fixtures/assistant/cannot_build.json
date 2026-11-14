@@ -5,6 +5,7 @@
     "turn": 3,
     "answer": {
       "kind": "cannot_build",
+      "reply": "That's fine. Without knowing who the account is for I can't tell which form applies, so I can't build a reliable checklist yet. You can choose it at any time.\nI can't build a reliable checklist without knowing who the account is for, because individuals and organisations use different HDFC Bank forms. Choose an option whenever you're ready.",
       "question": null,
       "confirmation": null,
       "messages": [

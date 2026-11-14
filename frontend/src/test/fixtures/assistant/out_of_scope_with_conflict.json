@@ -5,6 +5,7 @@
     "turn": 5,
     "answer": {
       "kind": "confirm",
+      "reply": "I can only help with the documents and information needed to open an HDFC Bank account.\nEarlier you said current account. Should I change it to savings account?",
       "question": null,
       "confirmation": {
         "slot": "account_type",

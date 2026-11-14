@@ -5,6 +5,7 @@
     "turn": 6,
     "answer": {
       "kind": "checklist",
+      "reply": "Here's what the HDFC Bank form asks for a savings account for an individual living outside India (NRI / PIO / OCI): 5 documents to bring and 15 details to fill in.\nThe documents:\n- Latest passport-size photograph of the first applicant\n- Latest passport-size photograph of the second applicant (Applies if the account is held jointly.)\n- Form 60, if you do not have a PAN\n- Proof of address, of the type you tick on the form\n- The relevant document, if you choose a mandate or power of attorney (POA)\nOpen any item in the checklist to see why it's there and the form page it comes from.",
       "question": null,
       "confirmation": null,
       "messages": [],

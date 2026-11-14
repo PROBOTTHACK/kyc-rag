@@ -5,6 +5,7 @@
     "turn": 2,
     "answer": {
       "kind": "question",
+      "reply": "Is it an NRE or an NRO account?",
       "question": {
         "slot": "nri_scheme",
         "text": "Is it an NRE or an NRO account?",

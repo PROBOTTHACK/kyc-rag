@@ -229,6 +229,8 @@ export interface components {
         /** AssistantAnswer */
         AssistantAnswer: {
             kind: components["schemas"]["AssistantAnswerKind"];
+            /** Reply */
+            reply?: string | null;
             question?: components["schemas"]["AssistantQuestion"] | null;
             confirmation?: components["schemas"]["AssistantConfirmation"] | null;
             /**
