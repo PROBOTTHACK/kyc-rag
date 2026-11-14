@@ -22,6 +22,12 @@ import cannotBuild from "./assistant/cannot_build.json";
 import errorIdempotencyMismatch from "./assistant/error_idempotency_mismatch.json";
 import errorNotFound from "./assistant/error_not_found.json";
 import errorValidation from "./assistant/error_validation.json";
+import contextChange from "./assistant/context_change.json";
+import contextChangedToNri from "./assistant/context_changed_to_nri.json";
+import contextClarify from "./assistant/context_clarify.json";
+import contextFollowUp from "./assistant/context_follow_up.json";
+import contextKeepLlp from "./assistant/context_keep_llp.json";
+import contextSeparate from "./assistant/context_separate.json";
 import explainAccountType from "./assistant/explain_account_type.json";
 import llpChecklist from "./assistant/llp_checklist.json";
 import llpChecklistPanCopy from "./assistant/llp_checklist_pan_copy.json";
@@ -65,6 +71,12 @@ export const recorded = {
   llpChecklist: () => turn(llpChecklist),
   llpChecklistPanCopy: () => turn(llpChecklistPanCopy),
   llpCorrected: () => turn(llpCorrected),
+  contextClarify: () => turn(contextClarify),
+  contextKeepLlp: () => turn(contextKeepLlp),
+  contextFollowUp: () => turn(contextFollowUp),
+  contextSeparate: () => turn(contextSeparate),
+  contextChange: () => turn(contextChange),
+  contextChangedToNri: () => turn(contextChangedToNri),
   llpSavingsFallback: () => turn(llpSavingsFallback),
   llpSavingsTakeSuggestion: () => turn(llpSavingsTakeSuggestion),
   residentFallback: () => turn(residentFallback),

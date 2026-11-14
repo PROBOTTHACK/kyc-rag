@@ -163,11 +163,8 @@ export function ProfilePanel({
   const headingId = useId();
   const rows = Object.entries(answer.profile).filter(([, p]) => p.status !== "unknown");
   return (
-    <section aria-labelledby={headingId} className="rounded-2xl border border-line bg-surface p-4">
-      <h2
-        id={headingId}
-        className="font-code text-[0.65rem] uppercase tracking-[0.18em] text-subtle"
-      >
+    <section aria-labelledby={headingId}>
+      <h2 id={headingId} className="sr-only">
         {TEXT.yourAnswers}
       </h2>
       {rows.length === 0 ? (

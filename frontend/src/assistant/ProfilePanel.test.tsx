@@ -1,4 +1,5 @@
 import { screen, within } from "@testing-library/react";
+import type userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { recorded } from "../test/fixtures/assistant";
@@ -31,7 +32,7 @@ describe("progress (derived from the API answer only)", () => {
   it("marks the current step for assistive technology", async () => {
     const { user } = setup();
     await startConversation(user);
-    const nav = screen.getByRole("navigation", { name: "Progress" });
+    const nav = within(await openAnswers(user)).getByRole("navigation", { name: "Progress" });
     const current = within(nav)
       .getAllByRole("listitem")
       .find((li) => li.getAttribute("aria-current") === "step");
@@ -39,13 +40,19 @@ describe("progress (derived from the API answer only)", () => {
   });
 });
 
+/** Progress and your answers live in a drawer (a side panel or a bottom sheet). */
+async function openAnswers(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "Your answers" }));
+  return screen.getByRole("dialog", { name: "Your answers" });
+}
+
 describe("progress on a fallback", () => {
   it("says the last steps are not available for these answers", async () => {
     const { user } = setup([recorded.residentFallback()]);
     await startConversation(user);
     await user.click(screen.getByRole("button", { name: /Savings account/ }));
     await chat().findByText(/I couldn't find this information/);
-    const nav = screen.getByRole("navigation", { name: "Progress" });
+    const nav = within(await openAnswers(user)).getByRole("navigation", { name: "Progress" });
     expect(within(nav).getAllByText("Not available for these answers")).toHaveLength(2);
   });
 });
@@ -54,15 +61,17 @@ describe("your answers and corrections", () => {
   it("lists the answers with how they were given", async () => {
     const { user } = setup([recorded.nriConfirm(), recorded.nriQuestionScheme()]);
     await startConversation(user);
-    const panel = () => screen.getByRole("region", { name: "Your answers" });
-    expect(panel().textContent).toContain("Your answers will appear here.");
+    const panel = async () =>
+      within(await openAnswers(user)).getByRole("region", { name: "Your answers" });
+    expect((await panel()).textContent).toContain("Your answers will appear here.");
+    await user.keyboard("{Escape}");
     await user.type(
       screen.getByRole("textbox"),
       "I live in Singapore and want a savings account{Enter}",
     );
     await user.click(await screen.findByRole("button", { name: "Yes" }));
     await screen.findByRole("group", { name: /NRE or an NRO/ });
-    const text = panel().textContent ?? "";
+    const text = (await panel()).textContent ?? "";
     expect(text).toContain("Savings account");
     expect(text).toContain("From your message");
     expect(text).toContain("An individual living outside India (NRI / PIO / OCI)");
@@ -73,8 +82,11 @@ describe("your answers and corrections", () => {
     const { bodies, user } = setup([recorded.llpChecklist(), recorded.llpCorrected()]);
     await startConversation(user);
     await user.click(screen.getByRole("button", { name: /Current account/ }));
+    await chat().findByText(/Here's what the HDFC Bank form asks for/);
     // The LLP checklist answer: both essential answers are known.
-    const change = await screen.findByRole("button", { name: "Change Account holder" });
+    const change = within(await openAnswers(user)).getByRole("button", {
+      name: "Change Account holder",
+    });
     expect(change.getAttribute("aria-expanded")).toBe("false");
     await user.click(change);
     const group = screen.getByRole("group", { name: "Change: Account holder" });
@@ -92,17 +104,20 @@ describe("your answers and corrections", () => {
       slot: "customer_category",
       value: "COMPANY",
     });
+    // The drawer closes on a change; the conversation shows the result.
+    expect(screen.queryByRole("dialog")).toBeNull();
     expect(await chat().findByText(/I've updated your answer/)).toBeTruthy();
-    expect(screen.getByRole("region", { name: "Your answers" }).textContent).toContain(
-      "You changed this",
-    );
+    const region = within(await openAnswers(user)).getByRole("region", { name: "Your answers" });
+    expect(region.textContent).toContain("You changed this");
   });
 
   it("can cancel a change without sending anything", async () => {
     const { bodies, user } = setup([recorded.residentFallback()]);
     await startConversation(user);
     await user.click(screen.getByRole("button", { name: /Savings account/ }));
-    await user.click(await screen.findByRole("button", { name: "Change Account type" }));
+    await chat().findByText(/I couldn't find this information/);
+    const drawer = await openAnswers(user);
+    await user.click(within(drawer).getByRole("button", { name: "Change Account type" }));
     await user.click(screen.getByRole("button", { name: "Cancel Account type" }));
     expect(screen.queryByRole("group", { name: "Change: Account type" })).toBeNull();
     expect(bodies).toHaveLength(1);

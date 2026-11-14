@@ -85,6 +85,31 @@ Coverage decisions are unchanged, and the internal reason is still never shown. 
   - **Replies:** natural questions, a friendly checklist summary, polite redirects for the injection and "bleeh". The validator rejected a reply that tried to mention a passport "copy", and the safe reply was used.
   - **Limits:** a few calls timed out because of the free-tier token budget the app enforces (`RATE_LIMIT_GROQ_TPM=6000`); those turns used the deterministic reply.
 
+## 2c. Context awareness and a simpler workspace (owner request, before A7)
+**Context.** Each message is read against the conversation (A3 addendum, `A3_DIALOGUE_POLICY.md`):
+- a child or person mentioned against an organisation profile is explained and clarified once, with nothing changed until the customer chooses;
+- a follow-up keeps the profile and gets a brief answer;
+- a separate request keeps the checklist and offers a separate one;
+- an answer that doesn't apply to the account is never stored.
+
+The LLM voice reads the last three turns only to resolve references, and is told the turn's situation (follow-up, clarify, separate request, off-topic, not covered).
+
+**Workspace.** It is built around one conversation column on every screen size:
+- a compact progress line;
+- a **Conversation / Checklist** switch once a checklist applies (it no longer opens by itself: the chat shows the summary and **Open checklist**);
+- **Your answers** in a drawer: a right-hand panel on desktop, a bottom sheet on mobile. It holds the progress steps, the answers with Change, and the notice.
+
+The checklist built for the current answers stays available during follow-ups and clarifications, and disappears once an answer changes.
+
+**Less noise:** no permanent side rail, no stat tiles, glow or decorative eyebrow labels in the checklist; plain small labels; compact cards for long choice lists; and the notice at the foot of the conversation.
+
+The checklist evidence features are unchanged: groups A/B/C, conditions, sources with pages, OCR warnings, expand/collapse, print.
+
+**Screenshots:**
+- `18_context_clarify.png`
+- `19_mobile_simplified.png`
+- `20_mobile_checklist_view.png`
+
 ## 3. Design system (`frontend/src/index.css`, Tailwind 4 `@theme`)
 - **Colours:**
 

@@ -125,8 +125,9 @@ describe("the conversation", () => {
   it("shows the notice from the latest answer", async () => {
     const { user } = setup();
     await startConversation(user);
+    // The dated-document notice sits at the foot of the conversation (every screen size).
     expectText(
-      screen.getByRole("complementary", { name: "About these answers" }),
+      screen.getByRole("region", { name: "Conversation with the assistant" }),
       recorded.started().answer.notice,
     );
   });

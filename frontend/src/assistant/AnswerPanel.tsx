@@ -35,10 +35,7 @@ function Eyebrow({
     <div className="flex flex-wrap items-baseline justify-between gap-2">
       <h2 id={id} ref={heading} tabIndex={-1} className="focus:outline-none">
         <span className="sr-only">{sr} </span>
-        <span
-          aria-hidden="true"
-          className="font-code text-[0.68rem] uppercase tracking-[0.18em] text-cyan"
-        >
+        <span aria-hidden="true" className="text-xs font-medium text-muted">
           {label}
         </span>
       </h2>
@@ -62,18 +59,18 @@ export function QuestionCard({
   const many = question.chips.length > 4;
   return (
     <section aria-labelledby={headingId} className="oa-rise">
-      <Eyebrow id={headingId} sr={question.text} label={TEXT.chooseOne} hint={TEXT.orType} />
+      <Eyebrow id={headingId} sr={question.text} label={TEXT.orType} />
       <div
         role="group"
         aria-labelledby={headingId}
-        className={`mt-3 grid gap-2 ${many ? "sm:grid-cols-2 2xl:grid-cols-3" : "sm:grid-cols-2"}`}
+        className={`mt-2 grid gap-2 ${many ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "sm:grid-cols-2"}`}
       >
         {question.chips.map((chip) => (
           <button
             key={chip.value}
             type="button"
             disabled={disabled}
-            className={cardClass}
+            className={`${cardClass} ${many ? "min-h-12 py-2 text-[0.88rem]" : ""}`}
             onClick={() => onSend({ action: "choose", slot: question.slot, value: chip.value })}
           >
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors group-hover:text-cyan group-hover:ring-cyan/40">
@@ -138,7 +135,7 @@ export function ConfirmCard({
 }) {
   return (
     <section aria-labelledby="confirm-heading" className="oa-rise">
-      <Eyebrow id="confirm-heading" sr={confirmation.text} label="Please confirm" />
+      <Eyebrow id="confirm-heading" sr={confirmation.text} label="" />
       <div role="group" aria-labelledby="confirm-heading" className="mt-3 grid grid-cols-2 gap-2">
         <button
           type="button"

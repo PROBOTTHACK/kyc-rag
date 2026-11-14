@@ -5,7 +5,7 @@
     "turn": 2,
     "answer": {
       "kind": "fallback",
-      "reply": "The documents do cover these options:",
+      "reply": "The documents do cover the options below. Choose one to change your answer.",
       "question": null,
       "confirmation": null,
       "messages": [],

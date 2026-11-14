@@ -223,7 +223,7 @@ describe("in the conversation", () => {
     await user.click(screen.getByRole("button", { name: /Current account/ }));
     expect(await chat().findByText(/Here's what the HDFC Bank form asks for/)).toBeTruthy();
     const heading = screen.getByRole("heading", { name: "Your checklist", level: 2 });
-    await user.click(chat().getByRole("button", { name: "View your checklist" }));
+    await user.click(chat().getByRole("button", { name: "Open checklist" }));
     await waitFor(() => expect(document.activeElement).toBe(heading));
   });
 

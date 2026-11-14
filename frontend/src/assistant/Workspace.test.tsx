@@ -43,14 +43,18 @@ describe("the workspace on narrow screens", () => {
     const show = screen.getByRole("group", { name: "Show" });
     const checklistTab = within(show).getByRole("button", { name: /Checklist/ });
     const conversationTab = within(show).getByRole("button", { name: /Conversation/ });
-    // The first checklist takes the stage; the count comes from the API's groups.
-    expect(checklistTab.getAttribute("aria-pressed")).toBe("true");
+    // The conversation stays in front: the chat shows the summary and an "Open checklist".
+    expect(conversationTab.getAttribute("aria-pressed")).toBe("true");
     const g = recorded.llpChecklist().answer.checklist!.groups;
     expect(checklistTab.textContent).toContain(
       String(g.documents.length + g.information.length + g.not_confirmed.length),
     );
-    await user.click(conversationTab);
+    await user.click(checklistTab);
+    expect(checklistTab.getAttribute("aria-pressed")).toBe("true");
+    const section = screen.getByRole("region", { name: "Conversation with the assistant" });
+    expect(section.classList.contains("hidden")).toBe(true);
+    await user.click(screen.getByRole("button", { name: "Back to the conversation" }));
     expect(conversationTab.getAttribute("aria-pressed")).toBe("true");
-    expect(checklistTab.getAttribute("aria-pressed")).toBe("false");
+    expect(section.classList.contains("hidden")).toBe(false);
   });
 });

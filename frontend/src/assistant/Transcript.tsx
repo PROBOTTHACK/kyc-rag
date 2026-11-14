@@ -14,13 +14,19 @@ export function Transcript({
   entries,
   pending,
   notice,
+  hasChecklist = true,
   onViewChecklist,
+  onStartSeparate,
 }: {
   entries: Entry[];
   pending: boolean;
-  /** The dated-document notice, shown at the foot on narrow screens. */
+  /** The dated-document notice, shown at the foot of the conversation. */
   notice?: string | undefined;
+  /** A checklist applies to the current answers (the latest reply can open it). */
+  hasChecklist?: boolean;
   onViewChecklist: () => void;
+  /** Start a separate checklist (another account), when the assistant offered one. */
+  onStartSeparate?: () => void;
 }) {
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -43,7 +49,7 @@ export function Transcript({
                   {TEXT.messageNotSent}
                 </p>
               ) : (
-                <p className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-gradient-to-br from-cyan/20 to-violet/15 px-4 py-2.5 text-[0.94rem] leading-relaxed text-fg ring-1 ring-cyan/25">
+                <p className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-cyan/[0.13] px-4 py-2.5 text-[0.94rem] leading-relaxed text-fg ring-1 ring-cyan/20">
                   <span className="sr-only">You: </span>
                   {entry.text}
                 </p>
@@ -61,7 +67,9 @@ export function Transcript({
                 answer={entry.answer}
                 latest={entry === lastAssistant}
                 updated={entry !== firstChecklist}
+                hasChecklist={hasChecklist}
                 onViewChecklist={onViewChecklist}
+                onStartSeparate={onStartSeparate}
               />
             </li>
           ),
@@ -78,8 +86,8 @@ export function Transcript({
         )}
       </ol>
       {notice && (
-        <p className="border-t border-line pt-4 text-xs leading-relaxed text-subtle lg:hidden">
-          <span className="font-code uppercase tracking-[0.14em]">{TEXT.aboutAnswers}: </span>
+        <p className="border-t border-line/60 pt-4 text-xs leading-relaxed text-subtle">
+          <span className="font-medium text-muted">{TEXT.aboutAnswers}: </span>
           {notice}
         </p>
       )}
@@ -130,27 +138,42 @@ function AssistantBubble({
   answer,
   latest,
   updated,
+  hasChecklist,
   onViewChecklist,
+  onStartSeparate,
 }: {
   answer: AssistantAnswer;
   latest: boolean;
   updated: boolean;
+  hasChecklist: boolean;
   onViewChecklist: () => void;
+  onStartSeparate?: (() => void) | undefined;
 }) {
   const messages = answer.messages ?? [];
+  const separate = messages.some((m) => m.code === "separate_request");
   const privacy = messages.filter((m) => m.code === "privacy");
   const other = messages.filter((m) => m.code !== "privacy");
   const blocked = other.filter((m) => m.code === "blocked");
   const plain = other.filter((m) => m.code !== "blocked");
   const reply = answer.reply ?? null;
-  const viewButton = answer.kind === "checklist" && latest && (
+  const viewButton = answer.kind === "checklist" && latest && hasChecklist && (
     <button
       type="button"
       onClick={onViewChecklist}
-      className="inline-flex min-h-9 items-center gap-1 rounded-md text-sm font-semibold text-cyan hover:underline"
+      className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-cyan/10 px-3 text-sm font-semibold text-cyan ring-1 ring-cyan/25 hover:bg-cyan/15"
     >
+      <Icon name="document" className="h-4 w-4" />
       {TEXT.viewChecklist}
-      <Icon name="arrow" className="h-3.5 w-3.5" />
+    </button>
+  );
+  const separateButton = separate && latest && onStartSeparate && (
+    <button
+      type="button"
+      onClick={onStartSeparate}
+      className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-fg ring-1 ring-line-strong hover:bg-raised"
+    >
+      <Icon name="refresh" className="h-4 w-4" />
+      {TEXT.startSeparate}
     </button>
   );
   const fixed = (answer.fallback || answer.explanation) && (
@@ -193,7 +216,12 @@ function AssistantBubble({
         <div className="rounded-2xl rounded-tl-md border border-line bg-raised/60 px-4 py-3 text-[0.94rem] leading-relaxed text-fg">
           <ReplyText text={reply} />
           {fixed}
-          {viewButton && <div className="mt-2">{viewButton}</div>}
+          {(viewButton || separateButton) && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {viewButton}
+              {separateButton}
+            </div>
+          )}
         </div>
       ) : (
         (plain.length > 0 ||

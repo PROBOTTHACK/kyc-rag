@@ -33,10 +33,12 @@ export function ChecklistView({
   checklist,
   notice,
   headingRef,
+  onBack,
 }: {
   checklist: AssistantChecklist;
   notice: string;
   headingRef: RefObject<HTMLHeadingElement | null>;
+  onBack?: () => void;
 }) {
   useFocusWhenLost(headingRef); // a choice card that produced the checklist has gone
   const groups = (["documents", "information", "not_confirmed"] as const).filter(
@@ -56,7 +58,7 @@ export function ChecklistView({
   return (
     <section
       aria-labelledby="checklist-heading"
-      className="oa-rise overflow-hidden rounded-2xl border border-line bg-surface"
+      className="oa-rise overflow-hidden rounded-2xl bg-surface/70 ring-1 ring-line/70"
       data-print="expand"
     >
       {/* Print-only heading: product and disclaimer on paper. */}
@@ -67,57 +69,46 @@ export function ChecklistView({
         </p>
       </div>
 
-      <header className="relative border-b border-line p-5 sm:p-6">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 -top-24 h-40 bg-gradient-to-b from-cyan/10 to-transparent blur-2xl"
-          data-print="hide"
-        />
-        <div className="relative flex flex-wrap items-start justify-between gap-4">
+      <header className="border-b border-line/70 p-5 sm:p-6">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="-ml-2 mb-3 inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-sm text-muted hover:text-fg"
+            data-print="hide"
+          >
+            <Icon name="chevron" className="h-4 w-4 rotate-180" />
+            {TEXT.backToConversation}
+          </button>
+        )}
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="font-code text-[0.65rem] uppercase tracking-[0.2em] text-cyan">
-              Personalised checklist
-            </p>
             <h2
               id="checklist-heading"
               ref={headingRef}
               tabIndex={-1}
-              className="mt-1.5 font-display text-2xl font-semibold tracking-tight text-fg focus:outline-none"
+              className="font-display text-xl font-semibold tracking-tight text-fg focus:outline-none"
             >
               {TEXT.checklistHeading}
             </h2>
+            <p className="mt-1 text-sm text-muted">
+              {(["documents", "information", "not_confirmed"] as const)
+                .filter((g) => checklist.groups[g].length > 0)
+                .map((g) => `${GROUPS[g].heading}: ${checklist.groups[g].length}`)
+                .join(" · ")}
+            </p>
           </div>
-          <div className="flex gap-2" data-print="hide">
+          <div className="flex gap-1" data-print="hide">
             <Button variant="ghost" onClick={() => setOpen(allOpen ? new Set() : new Set(allIds))}>
               <Icon name={allOpen ? "collapse" : "expand"} />
               {allOpen ? TEXT.collapseAll : TEXT.expandAll}
             </Button>
-            <Button variant="secondary" onClick={() => window.print()}>
+            <Button variant="ghost" onClick={() => window.print()}>
               <Icon name="printer" />
               {TEXT.print}
             </Button>
           </div>
         </div>
-        <ul className="relative mt-5 grid grid-cols-3 gap-2">
-          {(["documents", "information", "not_confirmed"] as const).map((g) => {
-            const n = checklist.groups[g].length;
-            if (g === "not_confirmed" && n === 0) return null;
-            return (
-              <li key={g} className="rounded-xl border border-line bg-raised/50 px-3 py-2.5">
-                <p
-                  aria-hidden="true"
-                  className={`font-code text-xl font-medium ${GROUP_STYLE[g].tone}`}
-                >
-                  {n}
-                </p>
-                <p className="text-[0.72rem] leading-tight text-muted">
-                  {GROUPS[g].heading}
-                  <span className="sr-only">: {n}</span>
-                </p>
-              </li>
-            );
-          })}
-        </ul>
       </header>
 
       {checklist.coverage_note && (
@@ -140,7 +131,7 @@ export function ChecklistView({
               <div className="min-w-0">
                 <h3
                   id={`group-${g}`}
-                  className="font-display text-lg font-semibold leading-7 text-fg"
+                  className="font-display text-base font-semibold leading-7 text-fg"
                 >
                   {GROUPS[g].heading}
                 </h3>
