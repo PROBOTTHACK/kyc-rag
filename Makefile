@@ -29,6 +29,8 @@ DOC ?=
 DOCS = $(foreach d,$(DOC),--document $(d))
 
 .DEFAULT_GOAL := help
+PHONY_A7 := a7-profiles a7-eval
+.PHONY: $(PHONY_A7)
 .PHONY: help venv install install-locked lock up down migrate check-schema ingest ingest-dry
 .PHONY: persist index retry reconcile repair runs forms search check-corpus eval eval-compare eval-select eval-heldout check-dense-golden
 .PHONY: api test test-integration lint fmt openapi
@@ -173,6 +175,14 @@ eval-select:
 # to run again once data/eval/m2_heldout_results.json exists.
 eval-heldout:
 	$(CLI) evaluate --final-heldout --report data/processed/m2_heldout_report.md --record data/eval/m2_heldout_results.json
+
+# A7 final evaluation (docs/assistant/A7_PLAN.md). Conversations in a throwaway database,
+# evidence read-only from the development corpus, no live LLM. SUITE=all or a suite name.
+a7-profiles:
+	cd $(BACKEND) && $(PY) -m app.assistant.a7.generate_profiles
+
+a7-eval:
+	cd $(BACKEND) && $(PY) -m app.assistant.a7.runner $(if $(SUITE),$(SUITE),all)
 
 # A2 assistant: HDFC-only retrieval evaluation (data/eval/assistant_retrieval.jsonl). Read-only.
 # MODE=dense (default) | bm25 | hybrid | all; `all` also rewrites the committed per-case record.
