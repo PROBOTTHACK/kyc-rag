@@ -160,6 +160,11 @@ def render(cat: Catalogue | None = None, cov: Coverage | None = None) -> str:
     out = [
         "# A4 Catalogue Review: Checklist Items",
         "",
+        "> **Historical stage record.** The authoritative product specification is now "
+        "[`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) (2026-11-14). This document records what was "
+        "decided and verified at its stage; where it differs from `PRODUCT_SPEC.md`, the "
+        "specification applies.",
+        "",
         "Generated from `backend/app/assistant/checklist.yaml` (catalogue "
         f"`{cat.version}`) and `coverage.yaml` (`{cov.version}`) by "
         "`python -m app.assistant.catalogue_report`. Do not edit by hand: a unit test checks "
