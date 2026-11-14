@@ -114,7 +114,7 @@ items:
     scope: opening
     categories: [NRI_INDIVIDUAL]
     topics: [passport]
-    note: The form has a field for the passport number. A number field does not establish that a copy of the passport has to be submitted.
+    note: The form has a field for the passport number.
     evidence:
       - {chunk_id: a37c01f2-8338-5a70-aae0-0a808d075e6e, document_key: hdfc_nri_account_opening, page: 1, quote: "Passport No."}
   - id: nri_nationality

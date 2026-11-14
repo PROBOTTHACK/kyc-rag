@@ -824,3 +824,25 @@ def test_visibility_does_not_change_the_rulings_or_the_catalogue() -> None:
     }
     assert cov.version == "a2-2" and catalogue().version == "a4-1"
     assert len(catalogue().items) == 47 and len(catalogue().not_confirmed) == 4
+
+
+@pytest.mark.parametrize(
+    "p",
+    [profile(C.NRI_INDIVIDUAL, a) for a in (A.SAVINGS, A.CURRENT, A.FIXED_DEPOSIT)]
+    + [profile(None, None)],
+    ids=lambda p: f"{p.customer_category}-{p.account_type}",
+)
+def test_a_passport_number_field_never_becomes_a_passport_copy(p: ReadyProfile) -> None:
+    """Owner decision at the A4 content review (same distinction as PAN): the passport-number
+    field is information; nothing in a checklist mentions a passport copy."""
+    for topics in ((), ("passport",)):
+        a = build(p.model_copy(update={"topics": topics}))
+        text = a.model_dump_json().lower()
+        assert "copy of the passport" not in text and "passport cop" not in text
+        passport = [i for i in items(a) if i.id.endswith("passport_number")]
+        assert len(passport) == 1 and passport[0].kind == "information"
+        assert passport[0].classification is Classification.FORM_INDICATED
+        assert passport[0].source_wording == "Passport No."
+        assert passport[0].asked is bool(topics)
+    nri_note = catalogue().item("nri_passport_number").note  # type: ignore[union-attr]
+    assert nri_note == "The form has a field for the passport number."
