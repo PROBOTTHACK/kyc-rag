@@ -85,6 +85,7 @@ The NRI and conversion PAN-card-copy assumptions follow the same pattern (A1 §4
 - **Rule:** the four could-not-be-confirmed entries appear in Group C **only when the customer explicitly asks** about one of their topics. They are never shown proactively. The entries are `org_signatory_photograph` and `org_entity_pan_card_copy` (A2 rulings), and `nri_pan_card_copy` and `conv_pan_card_copy` (A1 §4 rule 1).
 - **Topics:** asking about photographs (`photograph`) shows the signatory-photograph entry. Asking about a PAN card copy (`pan_card_copy`) shows the card-copy entry. Asking about PAN in general (`pan`) shows only the PAN-number field as asked; it never brings up a card copy.
 - **What does not change:** this is presentation only. The rulings (`coverage.yaml` a2-2), the catalogue (`a4-1`, 47 items and 4 entries), the classes, citations and all validation are unchanged.
+- **PAN-number notes (owner, A4 content review):** the NRI, organisation and conversion PAN-number items no longer say anything about a PAN card copy. Their notes now read only "The form has a field for the PAN number." / "The form has PAN number fields for signatories and partners." A card copy is discussed only in Group C, when asked. No general checklist for any covered combination mentions a PAN card (tested).
 - **Review copy:** the full catalogue is exported for review in `A4_CATALOGUE_REVIEW.md`. It is generated from the data by `python -m app.assistant.catalogue_report`, and a unit test keeps it current.
 
 ## 4. Example output (real database; Company × Current, the customer asked about photographs and a PAN card copy)
@@ -126,7 +127,7 @@ A guard check during development: removing the quote check or the permitted-sour
 ## 7. For owner review
 1. **The item catalogue is new, evidence-level content.**
    - Its 47 items were chosen from the forms' stored text and checked verbatim against Postgres.
-   - Titles are plain-language descriptions; notes say what a field does not establish.
+   - Titles are plain-language descriptions; notes give context on what a form field shows.
    - It changes no coverage cell, but it is what customers will read, so it needs your review like the coverage map.
 2. **Resolved at the A4 review:** Group C could-not-be-confirmed entries are now shown only when asked (§3a). Originally they were shown proactively for the categories they apply to.
 3. **Re-KYC context is not shown at all.** A1 permits it as Group C `unconfirmed` context; A4 omits it, following this stage's instruction never to use re-KYC material for account opening.

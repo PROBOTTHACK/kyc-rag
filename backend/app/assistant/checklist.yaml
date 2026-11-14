@@ -105,7 +105,7 @@ items:
     scope: opening
     categories: [NRI_INDIVIDUAL]
     topics: [pan]
-    note: The form has a field for the PAN number. A number field does not establish that a copy of the PAN card has to be submitted.
+    note: The form has a field for the PAN number.
     evidence:
       - {chunk_id: a37c01f2-8338-5a70-aae0-0a808d075e6e, document_key: hdfc_nri_account_opening, page: 1, quote: "PAN No."}
   - id: nri_passport_number
@@ -310,7 +310,7 @@ items:
     scope: opening
     categories: [SOLE_PROPRIETORSHIP, PARTNERSHIP_FIRM, LLP, COMPANY, TRUST, HUF, OTHER_ORGANISATION]
     topics: [pan]
-    note: The form has PAN number fields for signatories and partners. A number field does not establish that a copy of any PAN card has to be submitted.
+    note: The form has PAN number fields for signatories and partners.
     evidence:
       - {chunk_id: f51508ae-d9ec-5594-bd70-c0cada97e60a, document_key: hdfc_non_individual_account_opening, page: 2, quote: "PAN No."}
       - {chunk_id: 600f4dd7-c142-5dc8-9b38-fd2d6fb00f61, document_key: hdfc_non_individual_account_opening, page: 2, quote: "PAN No"}
@@ -376,7 +376,7 @@ items:
     kind: information
     scope: conversion
     topics: [pan]
-    note: The form has a field for the PAN number. A number field does not establish that a copy of the PAN card has to be submitted.
+    note: The form has a field for the PAN number.
     evidence:
       - {chunk_id: 0bed9f1f-a1a9-56a6-ba92-dcb32ee1e4d7, document_key: hdfc_resident_to_nro_conversion, page: 1, quote: "PAN No."}
   - id: conv_passport_number

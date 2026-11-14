@@ -719,11 +719,38 @@ def test_a_general_company_checklist_never_mentions_photographs_or_pan_card_copi
     assert all_not_confirmed(a) == []
     titles = [i.title.lower() for i in items(a)]
     assert not any("photograph" in t or "card" in t for t in titles)
-    assert "photograph" not in a.model_dump_json().lower()
-    # The only "PAN card" wording left is the PAN-number item's own note, which says the
-    # field does NOT establish a card copy (catalogue text, unchanged at this stage).
-    notes = [i.note or "" for i in items(a) if "pan card" in (i.note or "").lower()]
-    assert notes == [by_id(a, "org_signatory_pan_number").note]
+    text = a.model_dump_json().lower()
+    assert "photograph" not in text and "pan card" not in text and "card copy" not in text
+
+
+@pytest.mark.parametrize(
+    "p", covered_profiles(), ids=lambda p: f"{p.customer_category}-{p.account_type}"
+)
+def test_no_general_checklist_mentions_a_pan_card(p: ReadyProfile) -> None:
+    """Owner decision at the A4 content review: the PAN-number items say only what the form
+    asks for; a card copy is discussed only in Group C, and only when asked."""
+    for topics in ((), ("documents",), ("pan",)):
+        a = build(p.model_copy(update={"topics": topics}))
+        assert "pan card" not in a.model_dump_json().lower(), topics
+    pan = [i for i in items(build(p)) if i.id.endswith("pan_number")]
+    assert len(pan) == 1 and pan[0].kind == "information"
+    assert pan[0].note in (
+        "The form has a field for the PAN number.",
+        "The form has PAN number fields for signatories and partners.",
+    )
+
+
+def test_asking_about_a_card_copy_still_explains_it_is_not_established() -> None:
+    for p, entry in (
+        (profile(C.NRI_INDIVIDUAL, A.SAVINGS, topics=("pan_card_copy",)), "nri_pan_card_copy"),
+        (profile(C.COMPANY, A.CURRENT, topics=("pan_card_copy",)), "org_entity_pan_card_copy"),
+        (profile(None, None, topics=("pan_card_copy",)), "conv_pan_card_copy"),
+    ):
+        item = by_id(build(p), entry)
+        assert item.classification is Classification.UNCONFIRMED and item.citations == ()
+        assert "does not establish" in item.does_not_establish or "No applicable" in (
+            item.does_not_establish
+        )
 
 
 def test_asking_about_signatory_photographs_shows_the_unconfirmed_result() -> None:
