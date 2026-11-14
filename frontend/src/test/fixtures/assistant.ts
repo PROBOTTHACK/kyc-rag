@@ -31,6 +31,7 @@ import contextOffer from "./assistant/context_offer.json";
 import contextSeparate from "./assistant/context_separate.json";
 import contextSwitchOffer from "./assistant/context_switch_offer.json";
 import contextSwitched from "./assistant/context_switched.json";
+import contextThanksFallback from "./assistant/context_thanks_fallback.json";
 import explainAccountType from "./assistant/explain_account_type.json";
 import llpChecklist from "./assistant/llp_checklist.json";
 import llpChecklistPanCopy from "./assistant/llp_checklist_pan_copy.json";
@@ -79,6 +80,7 @@ export const recorded = {
   contextDaughterIndia: () => turn(contextDaughterIndia),
   contextSwitchOffer: () => turn(contextSwitchOffer),
   contextSwitched: () => turn(contextSwitched),
+  contextThanksFallback: () => turn(contextThanksFallback),
   contextFollowUp: () => turn(contextFollowUp),
   contextSeparate: () => turn(contextSeparate),
   contextChange: () => turn(contextChange),

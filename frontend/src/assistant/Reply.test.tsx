@@ -55,4 +55,17 @@ describe("the assistant's reply in the chat (recorded from the real API)", () =>
     expect(chat().getAllByText(answer.fallback!).length).toBeGreaterThan(0);
     expect(chat().queryByText(/has been updated/)).toBeNull();
   });
+
+  it("answers thanks without repeating the fixed fallback already shown", async () => {
+    const answer = recorded.contextThanksFallback().answer;
+    expect(answer.fallback).toBeTruthy(); // the answer still carries it
+    const { user } = setup([recorded.residentFallback(), recorded.contextThanksFallback()]);
+    await startConversation(user);
+    await user.click(screen.getByRole("button", { name: /Savings account/ }));
+    await chat().findAllByText(answer.fallback!);
+    const before = chat().getAllByText(answer.fallback!).length;
+    await user.type(screen.getByRole("textbox"), "thanks{Enter}");
+    expect(await chat().findByText(/You're welcome!/)).toBeTruthy();
+    expect(chat().getAllByText(answer.fallback!)).toHaveLength(before);
+  });
 });

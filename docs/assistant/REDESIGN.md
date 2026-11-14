@@ -110,6 +110,13 @@ The checklist evidence features are unchanged: groups A/B/C, conditions, sources
 - `19_mobile_simplified.png`
 - `20_mobile_checklist_view.png`
 
+## 2d. Full-screen chat, compact choices and accounts (master upgrade, Stages 3-4)
+- **Full screen:** while a conversation is active the page is exactly one screen tall; only the conversation scrolls. On phones the chat runs edge to edge. The prototype disclaimer stays visible at every width.
+- **Compact choices:** choice buttons are smaller (still at least 44 px tall). A "Hide options" / "Show options (n)" toggle (`aria-expanded`) folds them away to give the conversation room; the next answer shows its choices again.
+- **Accounts:** a message that may be about another account shows the API's scenario offer as buttons ("Ask about a separate account" / "Change this application", or "Yes, go back to it" / "No, stay with this one"). "Your answers" lists the account being discussed and the other accounts in the conversation, each with a way back. The old "Start a separate checklist" button (which restarted the conversation) is gone.
+- **Greetings:** a greeting or thanks is answered in the chat; fixed texts already shown (such as the fallback) are not repeated under it.
+- **Browser check (2026-11-14, real API on :8001, no live LLM):** the daughter flow (LLP current account -> daughter -> separate account -> "No, we are in India." -> thanks -> back to the LLP) at 1440, 1024, 768 and 390 px: no horizontal overflow, no page scroll, no console errors.
+
 ## 3. Design system (`frontend/src/index.css`, Tailwind 4 `@theme`)
 - **Colours:**
 

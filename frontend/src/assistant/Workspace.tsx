@@ -67,6 +67,16 @@ export function announcement(answer: AssistantAnswer | null): string {
   return parts.join(" ");
 }
 
+/** How many choices the current answer offers as buttons, or null when it offers none. */
+export function choiceCount(answer: AssistantAnswer | null): number | null {
+  if (answer === null) return null;
+  if (answer.scenario_offer) return answer.scenario_offer.options.length;
+  if (answer.confirmation) return 2;
+  if (answer.question) return answer.question.chips.length;
+  const n = (answer.suggestions ?? []).length;
+  return n > 0 ? n : null;
+}
+
 function itemCount(answer: AssistantAnswer | null): number {
   const g = answer?.checklist?.groups;
   return g ? g.documents.length + g.information.length + g.not_confirmed.length : 0;
@@ -81,6 +91,11 @@ export function Workspace({ conversation }: { conversation: Conversation }) {
   const [view, setView] = useState<View>("conversation");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const sendBody = (b: AssistantTurnRequest) => void send(b);
+  // The choices for the current answer can be folded away to give the conversation room;
+  // a new answer shows its choices again.
+  const [collapsedAt, setCollapsedAt] = useState<number | null>(null);
+  const collapsed = collapsedAt === state.entries.length && state.failure === null;
+  const choices = choiceCount(current);
 
   // A checklist that no longer applies takes its view with it.
   const [hadChecklist, setHadChecklist] = useState(withChecklist !== null);
@@ -95,7 +110,7 @@ export function Workspace({ conversation }: { conversation: Conversation }) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col px-3 pb-4 pt-3 sm:px-6 sm:pt-5">
+    <div className="mx-auto flex h-full w-full max-w-4xl flex-col px-0 pb-0 pt-2 sm:px-6 sm:pb-4 sm:pt-4">
       <h1 className="sr-only">Your account opening conversation</h1>
       <p aria-live="polite" className="sr-only">
         {state.pending ? "" : announcement(state.latest)}
@@ -103,7 +118,10 @@ export function Workspace({ conversation }: { conversation: Conversation }) {
 
       {/* One quiet bar: progress, the view switch, your answers. */}
       {current !== null && (
-        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2" data-print="hide">
+        <div
+          className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-2 px-3 sm:mb-3 sm:px-0"
+          data-print="hide"
+        >
           <div className="min-w-0 flex-1 basis-48">
             <ProgressCompact answer={current} />
           </div>
@@ -149,7 +167,7 @@ export function Workspace({ conversation }: { conversation: Conversation }) {
       {/* The conversation: the main element. */}
       <section
         aria-label="Conversation with the assistant"
-        className={`flex h-[calc(100dvh-14rem)] min-h-[28rem] flex-col overflow-hidden rounded-2xl bg-surface/70 ring-1 ring-line/70 ${
+        className={`flex min-h-0 flex-1 flex-col overflow-hidden bg-surface/70 ring-line/70 sm:rounded-2xl sm:ring-1 ${
           view === "conversation" ? "" : "hidden"
         }`}
         data-print="hide"
@@ -163,7 +181,30 @@ export function Workspace({ conversation }: { conversation: Conversation }) {
             onViewChecklist={openChecklist}
           />
         </div>
-        <div className="oa-scroll grid max-h-[46%] gap-3 overflow-y-auto border-t border-line/70 p-3 empty:hidden sm:p-4">
+        {choices !== null && (
+          <div className="flex justify-end border-t border-line/70 px-3 pt-1.5 sm:px-4">
+            <button
+              type="button"
+              aria-expanded={!collapsed}
+              aria-controls="answer-choices"
+              onClick={() => setCollapsedAt(collapsed ? null : state.entries.length)}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-muted hover:bg-raised hover:text-fg"
+            >
+              <Icon
+                name="chevron"
+                className={`h-3.5 w-3.5 transition-transform ${collapsed ? "-rotate-90" : "rotate-90"}`}
+              />
+              {collapsed ? `${TEXT.showOptions} (${choices})` : TEXT.hideOptions}
+            </button>
+          </div>
+        )}
+        <div
+          id="answer-choices"
+          hidden={collapsed}
+          className={`oa-scroll grid max-h-[42%] gap-3 overflow-y-auto p-3 empty:hidden sm:p-4 ${
+            choices !== null ? "pt-1 sm:pt-1" : "border-t border-line/70"
+          }`}
+        >
           {state.failure !== null && (
             <StatusNotice
               failure={state.failure}

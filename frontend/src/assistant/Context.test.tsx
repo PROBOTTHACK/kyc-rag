@@ -104,6 +104,19 @@ describe("the simplified workspace", () => {
     expect(screen.getByText("1/4")).toBeTruthy();
   });
 
+  it("folds the choices away to give the conversation room, and shows them again", async () => {
+    const { user } = setup();
+    await startConversation(user);
+    const hide = screen.getByRole("button", { name: "Hide options" });
+    expect(hide.getAttribute("aria-expanded")).toBe("true");
+    await user.click(hide);
+    expect(screen.queryByRole("group", { name: /Which account would you like/ })).toBeNull();
+    const show = screen.getByRole("button", { name: /^Show options \(\d+\)$/ });
+    expect(show.getAttribute("aria-expanded")).toBe("false");
+    await user.click(show);
+    expect(screen.getByRole("group", { name: /Which account would you like/ })).toBeTruthy();
+  });
+
   it("switches views from the keyboard and keeps the checklist out of the conversation", async () => {
     const { user } = setup([recorded.llpChecklist()]);
     await startConversation(user);

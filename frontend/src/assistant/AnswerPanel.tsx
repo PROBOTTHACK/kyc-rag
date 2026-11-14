@@ -15,7 +15,7 @@ type Send = (body: AssistantTurnRequest) => void;
 
 /** Large selection cards. Choosing a card sends it at once (one question at a time). */
 const cardClass =
-  "group relative flex min-h-14 w-full items-center gap-3 rounded-xl border border-line bg-raised/60 px-3.5 py-3 text-left text-[0.92rem] font-medium text-fg transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px hover:border-cyan/50 hover:bg-hover active:translate-y-0 disabled:pointer-events-none disabled:opacity-50 motion-reduce:hover:translate-y-0";
+  "group relative flex min-h-11 w-full items-center gap-2.5 rounded-xl border border-line bg-raised/60 px-3 py-2 text-left text-sm font-medium text-fg transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px hover:border-cyan/50 hover:bg-hover active:translate-y-0 disabled:pointer-events-none disabled:opacity-50 motion-reduce:hover:translate-y-0";
 const linkClass =
   "inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2.5 text-sm text-muted hover:bg-raised hover:text-fg disabled:opacity-50";
 
@@ -64,18 +64,18 @@ export function QuestionCard({
       <div
         role="group"
         aria-labelledby={headingId}
-        className={`mt-2 grid gap-2 ${many ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "sm:grid-cols-2"}`}
+        className={`mt-2 grid gap-1.5 ${many ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "sm:grid-cols-2"}`}
       >
         {question.chips.map((chip) => (
           <button
             key={chip.value}
             type="button"
             disabled={disabled}
-            className={`${cardClass} ${many ? "min-h-12 py-2 text-[0.88rem]" : ""}`}
+            className={`${cardClass} ${many ? "text-[0.85rem]" : ""}`}
             onClick={() => onSend({ action: "choose", slot: question.slot, value: chip.value })}
           >
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors group-hover:text-cyan group-hover:ring-cyan/40">
-              <Icon name={valueIcon(chip.value)} className="h-4 w-4" />
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-surface text-muted ring-1 ring-line transition-colors group-hover:text-cyan group-hover:ring-cyan/40">
+              <Icon name={valueIcon(chip.value)} className="h-3.5 w-3.5" />
             </span>
             <span className="flex-1">{chip.label}</span>
             <Icon

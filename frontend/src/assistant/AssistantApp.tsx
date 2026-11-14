@@ -15,7 +15,7 @@ export function AssistantApp() {
   const { state, restart } = conversation;
   const active = state.phase === "active";
   return (
-    <div className="oa flex min-h-dvh flex-col">
+    <div className={`oa flex flex-col ${active ? "h-dvh overflow-hidden" : "min-h-dvh"}`}>
       <a
         href="#assistant-main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-raised focus:px-3 focus:py-2 focus:outline-2 focus:outline-cyan"
@@ -60,7 +60,11 @@ export function AssistantApp() {
           </span>
         </p>
       </aside>
-      <main id="assistant-main" tabIndex={-1} className="relative flex-1 focus:outline-none">
+      <main
+        id="assistant-main"
+        tabIndex={-1}
+        className="relative min-h-0 flex-1 focus:outline-none"
+      >
         <ErrorBoundary resetKey={state.phase}>
           <div
             key={active ? "active" : state.phase === "ended" ? "ended" : "welcome"}

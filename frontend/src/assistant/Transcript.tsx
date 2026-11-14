@@ -159,7 +159,9 @@ function AssistantBubble({
       {TEXT.viewChecklist}
     </button>
   );
-  const fixed = (answer.fallback || answer.explanation) && (
+  // A greeting or thanks changes nothing: the fixed texts already shown are not repeated.
+  const social = messages.some((m) => m.code === "social");
+  const fixed = !social && (answer.fallback || answer.explanation) && (
     <div className={reply ? "mt-3 border-t border-line pt-3 text-sm" : ""}>
       {answer.fallback && (
         <p className="mb-2 flex gap-2 font-medium text-fg last:mb-0">
