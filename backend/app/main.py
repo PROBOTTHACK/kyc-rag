@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.api import errors
 from app.api.v1.router import api_router
 from app.api.v1.schemas import add_extra_schemas
+from app.api.v2.assistant import router as assistant_router
 from app.config import Settings, get_settings
 from app.core.health import postgres_check, qdrant_check, redis_check
 from app.core.logging import configure_logging
@@ -63,6 +64,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         factory = build_runtime
     workflow = WorkflowService(await factory(settings, app.state.sessionmaker))
     app.state.workflow = workflow
+    # A5: the account opening assistant (tests may pre-set a fake service).
+    checklist = None
+    if not hasattr(app.state, "assistant"):
+        from app.assistant.llm_extract import assistant_llm
+        from app.assistant.service import AssistantService, LazyChecklist
+        from app.assistant.store import PostgresAssistantStore
+
+        checklist = LazyChecklist(settings)
+        app.state.assistant = AssistantService(
+            PostgresAssistantStore(app.state.sessionmaker), checklist, assistant_llm(settings)
+        )
     try:
         await workflow.log_stale_leases()
     except Exception as exc:  # noqa: BLE001 - startup must not fail on a reporting query
@@ -71,6 +83,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         await workflow.shutdown()
+        if checklist is not None:
+            checklist.close()
         await qdrant.close()
         await redis.aclose()
         await engine.dispose()
@@ -94,6 +108,7 @@ def create_app(
         allow_headers=["*"],
     )
     app.include_router(api_router, prefix="/api/v1")
+    app.include_router(assistant_router, prefix="/api/v2")
     _publish_extra_schemas(app)
     return app
 

@@ -623,6 +623,17 @@ def _blocked(res: ScreenResult, words: Wording) -> DialogueResponse:
 # --- entry points --------------------------------------------------------------------------------
 
 
+def opening(
+    *, cov: Coverage | None = None, words: Wording | None = None
+) -> tuple[DialogueState, DialogueResponse]:
+    """The first question of a new conversation (A5: session creation). Nothing has been said
+    yet, so the turn counter stays at 0; the question is pending so that a free-text reply
+    to it is read as its answer."""
+    w = _Work(DialogueState(), cov or coverage(), words or wording())
+    response = _decide(w)
+    return DialogueState().model_copy(update={"pending": w.pending}), response
+
+
 def respond_deterministic(
     state: DialogueState, turn: TurnInput
 ) -> tuple[DialogueState, DialogueResponse]:

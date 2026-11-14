@@ -764,6 +764,308 @@
           }
         }
       }
+    },
+    "/api/v2/assistant/sessions": {
+      "post": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Create Session",
+        "operationId": "create_session_api_v2_assistant_sessions_post",
+        "responses": {
+          "201": {
+            "description": "Started.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantSessionStarted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/assistant/sessions/{session_id}": {
+      "get": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Get Session",
+        "operationId": "get_session_api_v2_assistant_sessions__session_id__get",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The conversation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantSessionView"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/assistant/sessions/{session_id}/turns": {
+      "post": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Post Turn",
+        "operationId": "post_turn_api_v2_assistant_sessions__session_id__turns_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Required. Reuse the same key to retry the same request safely (at most 200 chars).",
+              "title": "Idempotency-Key"
+            },
+            "description": "Required. Reuse the same key to retry the same request safely (at most 200 chars)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The answer to this turn.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantTurnResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error (codes only).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "description": "One turn: a free-text message, a choice, or both. `value` is a chip value of `slot`\n(choose / correct only). The message is screened; identifiers are refused, never stored.",
+                "properties": {
+                  "message": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Free text (screened).",
+                    "title": "Message"
+                  },
+                  "action": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "enum": [
+                      "choose",
+                      "correct",
+                      "not_sure",
+                      "skip",
+                      "explain",
+                      "confirm_yes",
+                      "confirm_no",
+                      null
+                    ],
+                    "title": "Action"
+                  },
+                  "slot": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "enum": [
+                      "account_type",
+                      "customer_category",
+                      "nri_scheme",
+                      "holding",
+                      "minor",
+                      null
+                    ],
+                    "title": "Slot"
+                  },
+                  "value": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "A chip value of `slot`.",
+                    "title": "Value"
+                  }
+                },
+                "title": "AssistantTurnRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -778,6 +1080,654 @@
         ],
         "title": "Applicability",
         "description": "Status of a *requirement* (docs/03 `applicability`). Used from M3; never on chunks."
+      },
+      "AssistantAnswer": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/AssistantAnswerKind"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssistantQuestion"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confirmation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssistantConfirmation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/AssistantMessage"
+            },
+            "type": "array",
+            "title": "Messages",
+            "default": []
+          },
+          "profile": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ProfileSlot"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/Slot"
+            },
+            "type": "object",
+            "title": "Profile"
+          },
+          "coverage_state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoverageState"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "checklist": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssistantChecklist"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fallback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback"
+          },
+          "technical_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Technical Message"
+          },
+          "notice": {
+            "type": "string",
+            "title": "Notice"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "profile",
+          "notice"
+        ],
+        "title": "AssistantAnswer"
+      },
+      "AssistantAnswerKind": {
+        "type": "string",
+        "enum": [
+          "question",
+          "confirm",
+          "checklist",
+          "fallback",
+          "cannot_build",
+          "blocked",
+          "technical_error"
+        ],
+        "title": "AssistantAnswerKind"
+      },
+      "AssistantChecklist": {
+        "properties": {
+          "groups": {
+            "$ref": "#/components/schemas/AssistantGroups"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/AssistantSource"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "coverage_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverage Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "groups",
+          "sources"
+        ],
+        "title": "AssistantChecklist"
+      },
+      "AssistantChoice": {
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action"
+          },
+          "slot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slot"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action",
+          "slot",
+          "value"
+        ],
+        "title": "AssistantChoice"
+      },
+      "AssistantConfirmation": {
+        "properties": {
+          "slot": {
+            "$ref": "#/components/schemas/Slot"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "slot",
+          "value",
+          "text"
+        ],
+        "title": "AssistantConfirmation",
+        "description": "A yes/no check of a proposed value. Why it was proposed (a hint, a conflict or an LLM\nsuggestion) is internal and not sent."
+      },
+      "AssistantGroups": {
+        "properties": {
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/AssistantItem"
+            },
+            "type": "array",
+            "title": "Documents"
+          },
+          "information": {
+            "items": {
+              "$ref": "#/components/schemas/AssistantItem"
+            },
+            "type": "array",
+            "title": "Information"
+          },
+          "not_confirmed": {
+            "items": {
+              "$ref": "#/components/schemas/AssistantItem"
+            },
+            "type": "array",
+            "title": "Not Confirmed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "documents",
+          "information",
+          "not_confirmed"
+        ],
+        "title": "AssistantGroups"
+      },
+      "AssistantItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "classification": {
+            "$ref": "#/components/schemas/Classification"
+          },
+          "classification_label": {
+            "type": "string",
+            "title": "Classification Label"
+          },
+          "condition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condition"
+          },
+          "condition_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Condition Note"
+          },
+          "applies_if": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Applies If",
+            "default": []
+          },
+          "source_wording": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Wording"
+          },
+          "approximate_reading": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approximate Reading"
+          },
+          "uncertainty_warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uncertainty Warning"
+          },
+          "establishes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Establishes"
+          },
+          "does_not_establish": {
+            "type": "string",
+            "title": "Does Not Establish"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/SourceCitation"
+            },
+            "type": "array",
+            "title": "Citations",
+            "default": []
+          },
+          "related_citations": {
+            "items": {
+              "$ref": "#/components/schemas/SourceCitation"
+            },
+            "type": "array",
+            "title": "Related Citations",
+            "default": []
+          },
+          "caveats": {
+            "items": {
+              "$ref": "#/components/schemas/SourceCaveat"
+            },
+            "type": "array",
+            "title": "Caveats",
+            "default": []
+          },
+          "asked": {
+            "type": "boolean",
+            "title": "Asked",
+            "default": false
+          },
+          "fallback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "kind",
+          "classification",
+          "classification_label",
+          "does_not_establish"
+        ],
+        "title": "AssistantItem"
+      },
+      "AssistantMessage": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "slot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Slot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "text"
+        ],
+        "title": "AssistantMessage",
+        "description": "A short message shown with the answer (a dialogue note, the blocked text, or why a\nchecklist cannot be built yet)."
+      },
+      "AssistantQuestion": {
+        "properties": {
+          "slot": {
+            "$ref": "#/components/schemas/Slot"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "chips": {
+            "items": {
+              "$ref": "#/components/schemas/Chip"
+            },
+            "type": "array",
+            "title": "Chips"
+          },
+          "allow_not_sure": {
+            "type": "boolean",
+            "title": "Allow Not Sure"
+          },
+          "allow_skip": {
+            "type": "boolean",
+            "title": "Allow Skip"
+          },
+          "allow_explain": {
+            "type": "boolean",
+            "title": "Allow Explain"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "slot",
+          "text",
+          "chips",
+          "allow_not_sure",
+          "allow_skip",
+          "allow_explain"
+        ],
+        "title": "AssistantQuestion"
+      },
+      "AssistantSessionStarted": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "turn": {
+            "type": "integer",
+            "title": "Turn",
+            "description": "Always 0: the opening question."
+          },
+          "answer": {
+            "$ref": "#/components/schemas/AssistantAnswer"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "session_id",
+          "turn",
+          "answer"
+        ],
+        "title": "AssistantSessionStarted"
+      },
+      "AssistantSessionView": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "turn": {
+            "type": "integer",
+            "title": "Turn"
+          },
+          "profile": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ProfileSlot"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/Slot"
+            },
+            "type": "object",
+            "title": "Profile"
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/AssistantTurnView"
+            },
+            "type": "array",
+            "title": "Turns"
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssistantAnswer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "session_id",
+          "turn",
+          "profile",
+          "turns",
+          "answer"
+        ],
+        "title": "AssistantSessionView"
+      },
+      "AssistantSource": {
+        "properties": {
+          "document_key": {
+            "type": "string",
+            "title": "Document Key"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "date_basis": {
+            "type": "string",
+            "title": "Date Basis"
+          },
+          "scanned": {
+            "type": "boolean",
+            "title": "Scanned"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "document_key",
+          "title",
+          "date_basis",
+          "scanned"
+        ],
+        "title": "AssistantSource"
+      },
+      "AssistantTurnResult": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "turn": {
+            "type": "integer",
+            "title": "Turn",
+            "description": "The latest stored turn."
+          },
+          "answer": {
+            "$ref": "#/components/schemas/AssistantAnswer"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "session_id",
+          "turn",
+          "answer"
+        ],
+        "title": "AssistantTurnResult"
+      },
+      "AssistantTurnView": {
+        "properties": {
+          "turn": {
+            "type": "integer",
+            "title": "Turn"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message",
+            "description": "The screened message; null when refused or absent."
+          },
+          "choice": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssistantChoice"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "answer": {
+            "$ref": "#/components/schemas/AssistantAnswer"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "turn",
+          "message",
+          "choice",
+          "answer"
+        ],
+        "title": "AssistantTurnView"
       },
       "AtomicClaim": {
         "properties": {
@@ -877,6 +1827,25 @@
           "latency_ms"
         ],
         "title": "CheckResult"
+      },
+      "Chip": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "Chip"
       },
       "Citation": {
         "properties": {
@@ -1009,6 +1978,17 @@
           "verdict"
         ],
         "title": "ClaimVerdict"
+      },
+      "Classification": {
+        "type": "string",
+        "enum": [
+          "policy_supported",
+          "form_indicated",
+          "unconfirmed",
+          "legacy_reference",
+          "unknown"
+        ],
+        "title": "Classification"
       },
       "ComplianceReport": {
         "properties": {
@@ -1293,6 +2273,16 @@
         ],
         "title": "ConflictSide",
         "description": "One side of a source conflict: provenance and window offsets only (no text)."
+      },
+      "CoverageState": {
+        "type": "string",
+        "enum": [
+          "COVERED",
+          "COVERED_OCR",
+          "CONVERSION_ONLY",
+          "NOT_ESTABLISHED"
+        ],
+        "title": "CoverageState"
       },
       "Degradation": {
         "properties": {
@@ -1695,6 +2685,16 @@
         ],
         "title": "NodeEvent"
       },
+      "Origin": {
+        "type": "string",
+        "enum": [
+          "chosen",
+          "stated",
+          "corrected"
+        ],
+        "title": "Origin",
+        "description": "A1 §6: how a value entered the profile."
+      },
       "Outcome": {
         "type": "string",
         "enum": [
@@ -1753,6 +2753,51 @@
           "questions"
         ],
         "title": "PendingClarification"
+      },
+      "ProfileSlot": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/SlotStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Origin"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "ProfileSlot"
       },
       "ProfileSummary": {
         "properties": {
@@ -2141,6 +3186,124 @@
           "workflow"
         ],
         "title": "SessionView"
+      },
+      "Slot": {
+        "type": "string",
+        "enum": [
+          "account_type",
+          "customer_category",
+          "nri_scheme",
+          "holding",
+          "minor"
+        ],
+        "title": "Slot"
+      },
+      "SlotStatus": {
+        "type": "string",
+        "enum": [
+          "unknown",
+          "known",
+          "not_sure",
+          "skipped"
+        ],
+        "title": "SlotStatus"
+      },
+      "SourceCaveat": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "text"
+        ],
+        "title": "SourceCaveat"
+      },
+      "SourceCitation": {
+        "properties": {
+          "document_key": {
+            "type": "string",
+            "title": "Document Key"
+          },
+          "document_title": {
+            "type": "string",
+            "title": "Document Title"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_end": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page End"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section"
+          },
+          "text_reliability": {
+            "type": "string",
+            "title": "Text Reliability"
+          },
+          "extraction_method": {
+            "type": "string",
+            "title": "Extraction Method"
+          },
+          "date_basis": {
+            "type": "string",
+            "title": "Date Basis"
+          },
+          "quotable": {
+            "type": "boolean",
+            "title": "Quotable"
+          },
+          "basis": {
+            "type": "boolean",
+            "title": "Basis"
+          },
+          "passage": {
+            "type": "string",
+            "title": "Passage"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "document_key",
+          "document_title",
+          "page",
+          "page_end",
+          "section",
+          "text_reliability",
+          "extraction_method",
+          "date_basis",
+          "quotable",
+          "basis",
+          "passage"
+        ],
+        "title": "SourceCitation"
       },
       "SourceConflict": {
         "properties": {

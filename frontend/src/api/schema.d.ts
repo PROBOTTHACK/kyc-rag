@@ -165,6 +165,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/assistant/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Session */
+        post: operations["create_session_api_v2_assistant_sessions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/assistant/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Session */
+        get: operations["get_session_api_v2_assistant_sessions__session_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/assistant/sessions/{session_id}/turns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Turn */
+        post: operations["post_turn_api_v2_assistant_sessions__session_id__turns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -175,6 +226,212 @@ export interface components {
          * @enum {string}
          */
         Applicability: "MANDATORY" | "CONDITIONAL" | "OPTIONAL" | "UNCLEAR";
+        /** AssistantAnswer */
+        AssistantAnswer: {
+            kind: components["schemas"]["AssistantAnswerKind"];
+            question?: components["schemas"]["AssistantQuestion"] | null;
+            confirmation?: components["schemas"]["AssistantConfirmation"] | null;
+            /**
+             * Messages
+             * @default []
+             */
+            messages?: components["schemas"]["AssistantMessage"][];
+            /** Profile */
+            profile: {
+                [key: string]: components["schemas"]["ProfileSlot"];
+            };
+            coverage_state?: components["schemas"]["CoverageState"] | null;
+            checklist?: components["schemas"]["AssistantChecklist"] | null;
+            /** Fallback */
+            fallback?: string | null;
+            /** Technical Message */
+            technical_message?: string | null;
+            /** Notice */
+            notice: string;
+        };
+        /**
+         * AssistantAnswerKind
+         * @enum {string}
+         */
+        AssistantAnswerKind: "question" | "confirm" | "checklist" | "fallback" | "cannot_build" | "blocked" | "technical_error";
+        /** AssistantChecklist */
+        AssistantChecklist: {
+            groups: components["schemas"]["AssistantGroups"];
+            /** Sources */
+            sources: components["schemas"]["AssistantSource"][];
+            /** Coverage Note */
+            coverage_note?: string | null;
+        };
+        /** AssistantChoice */
+        AssistantChoice: {
+            /** Action */
+            action: string | null;
+            /** Slot */
+            slot: string | null;
+            /** Value */
+            value: string | null;
+        };
+        /**
+         * AssistantConfirmation
+         * @description A yes/no check of a proposed value. Why it was proposed (a hint, a conflict or an LLM
+         *     suggestion) is internal and not sent.
+         */
+        AssistantConfirmation: {
+            slot: components["schemas"]["Slot"];
+            /** Value */
+            value: string;
+            /** Text */
+            text: string;
+        };
+        /** AssistantGroups */
+        AssistantGroups: {
+            /** Documents */
+            documents: components["schemas"]["AssistantItem"][];
+            /** Information */
+            information: components["schemas"]["AssistantItem"][];
+            /** Not Confirmed */
+            not_confirmed: components["schemas"]["AssistantItem"][];
+        };
+        /** AssistantItem */
+        AssistantItem: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Kind */
+            kind: string;
+            classification: components["schemas"]["Classification"];
+            /** Classification Label */
+            classification_label: string;
+            /** Condition */
+            condition?: string | null;
+            /** Condition Note */
+            condition_note?: string | null;
+            /**
+             * Applies If
+             * @default []
+             */
+            applies_if?: string[];
+            /** Source Wording */
+            source_wording?: string | null;
+            /** Approximate Reading */
+            approximate_reading?: string | null;
+            /** Uncertainty Warning */
+            uncertainty_warning?: string | null;
+            /** Establishes */
+            establishes?: string | null;
+            /** Does Not Establish */
+            does_not_establish: string;
+            /** Note */
+            note?: string | null;
+            /**
+             * Citations
+             * @default []
+             */
+            citations?: components["schemas"]["SourceCitation"][];
+            /**
+             * Related Citations
+             * @default []
+             */
+            related_citations?: components["schemas"]["SourceCitation"][];
+            /**
+             * Caveats
+             * @default []
+             */
+            caveats?: components["schemas"]["SourceCaveat"][];
+            /**
+             * Asked
+             * @default false
+             */
+            asked?: boolean;
+            /** Fallback */
+            fallback?: string | null;
+        };
+        /**
+         * AssistantMessage
+         * @description A short message shown with the answer (a dialogue note, the blocked text, or why a
+         *     checklist cannot be built yet).
+         */
+        AssistantMessage: {
+            /** Code */
+            code: string;
+            /** Text */
+            text: string;
+            slot?: components["schemas"]["Slot"] | null;
+        };
+        /** AssistantQuestion */
+        AssistantQuestion: {
+            slot: components["schemas"]["Slot"];
+            /** Text */
+            text: string;
+            /** Chips */
+            chips: components["schemas"]["Chip"][];
+            /** Allow Not Sure */
+            allow_not_sure: boolean;
+            /** Allow Skip */
+            allow_skip: boolean;
+            /** Allow Explain */
+            allow_explain: boolean;
+        };
+        /** AssistantSessionStarted */
+        AssistantSessionStarted: {
+            /** Session Id */
+            session_id: string;
+            /**
+             * Turn
+             * @description Always 0: the opening question.
+             */
+            turn: number;
+            answer: components["schemas"]["AssistantAnswer"];
+        };
+        /** AssistantSessionView */
+        AssistantSessionView: {
+            /** Session Id */
+            session_id: string;
+            /** Turn */
+            turn: number;
+            /** Profile */
+            profile: {
+                [key: string]: components["schemas"]["ProfileSlot"];
+            };
+            /** Turns */
+            turns: components["schemas"]["AssistantTurnView"][];
+            answer: components["schemas"]["AssistantAnswer"] | null;
+        };
+        /** AssistantSource */
+        AssistantSource: {
+            /** Document Key */
+            document_key: string;
+            /** Title */
+            title: string;
+            /** Date Basis */
+            date_basis: string;
+            /** Scanned */
+            scanned: boolean;
+        };
+        /** AssistantTurnResult */
+        AssistantTurnResult: {
+            /** Session Id */
+            session_id: string;
+            /**
+             * Turn
+             * @description The latest stored turn.
+             */
+            turn: number;
+            answer: components["schemas"]["AssistantAnswer"];
+        };
+        /** AssistantTurnView */
+        AssistantTurnView: {
+            /** Turn */
+            turn: number;
+            /**
+             * Message
+             * @description The screened message; null when refused or absent.
+             */
+            message: string | null;
+            choice: components["schemas"]["AssistantChoice"] | null;
+            answer: components["schemas"]["AssistantAnswer"];
+        };
         /**
          * AtomicClaim
          * @description One checkable proposition. Typed claims come from a versioned template; explanatory
@@ -206,6 +463,13 @@ export interface components {
             latency_ms: number;
             /** Error */
             error?: string | null;
+        };
+        /** Chip */
+        Chip: {
+            /** Value */
+            value: string;
+            /** Label */
+            label: string;
         };
         /**
          * Citation
@@ -252,6 +516,11 @@ export interface components {
             /** Reason Codes */
             reason_codes?: string[];
         };
+        /**
+         * Classification
+         * @enum {string}
+         */
+        Classification: "policy_supported" | "form_indicated" | "unconfirmed" | "legacy_reference" | "unknown";
         /**
          * ComplianceReport
          * @description One report per run (M3_PLAN §5). Every report requires human review; no field can
@@ -358,6 +627,11 @@ export interface components {
             /** Cited */
             cited: boolean;
         };
+        /**
+         * CoverageState
+         * @enum {string}
+         */
+        CoverageState: "COVERED" | "COVERED_OCR" | "CONVERSION_ONLY" | "NOT_ESTABLISHED";
         /** Degradation */
         Degradation: {
             /**
@@ -525,6 +799,12 @@ export interface components {
             at: string;
         };
         /**
+         * Origin
+         * @description A1 §6: how a value entered the profile.
+         * @enum {string}
+         */
+        Origin: "chosen" | "stated" | "corrected";
+        /**
          * Outcome
          * @description The single outcome of a report, in precedence order (highest first).
          * @enum {string}
@@ -543,6 +823,15 @@ export interface components {
             max_rounds: number | null;
             /** Questions */
             questions: components["schemas"]["Question"][];
+        };
+        /** ProfileSlot */
+        ProfileSlot: {
+            status: components["schemas"]["SlotStatus"];
+            /** Value */
+            value?: string | null;
+            /** Label */
+            label?: string | null;
+            origin?: components["schemas"]["Origin"] | null;
         };
         /**
          * ProfileSummary
@@ -713,6 +1002,48 @@ export interface components {
             expires_at: string;
             /** @description The latest run of the session, or null before the first message. */
             workflow: components["schemas"]["WorkflowView"] | null;
+        };
+        /**
+         * Slot
+         * @enum {string}
+         */
+        Slot: "account_type" | "customer_category" | "nri_scheme" | "holding" | "minor";
+        /**
+         * SlotStatus
+         * @enum {string}
+         */
+        SlotStatus: "unknown" | "known" | "not_sure" | "skipped";
+        /** SourceCaveat */
+        SourceCaveat: {
+            /** Code */
+            code: string;
+            /** Text */
+            text: string;
+        };
+        /** SourceCitation */
+        SourceCitation: {
+            /** Document Key */
+            document_key: string;
+            /** Document Title */
+            document_title: string;
+            /** Page */
+            page: number;
+            /** Page End */
+            page_end: number | null;
+            /** Section */
+            section: string | null;
+            /** Text Reliability */
+            text_reliability: string;
+            /** Extraction Method */
+            extraction_method: string;
+            /** Date Basis */
+            date_basis: string;
+            /** Quotable */
+            quotable: boolean;
+            /** Basis */
+            basis: boolean;
+            /** Passage */
+            passage: string;
         };
         /**
          * SourceConflict
@@ -1481,6 +1812,206 @@ export interface operations {
             };
             /** @description Error (codes only). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error (codes only). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error (codes only). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_session_api_v2_assistant_sessions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Started. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantSessionStarted"];
+                };
+            };
+            /** @description Error (codes only). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error (codes only). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_session_api_v2_assistant_sessions__session_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The conversation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantSessionView"];
+                };
+            };
+            /** @description Error (codes only). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error (codes only). */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error (codes only). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error (codes only). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    post_turn_api_v2_assistant_sessions__session_id__turns_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Required. Reuse the same key to retry the same request safely (at most 200 chars). */
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Message
+                     * @description Free text (screened).
+                     */
+                    message?: string | null;
+                    /**
+                     * Action
+                     * @enum {unknown}
+                     */
+                    action?: "choose" | "correct" | "not_sure" | "skip" | "explain" | "confirm_yes" | "confirm_no" | null;
+                    /**
+                     * Slot
+                     * @enum {unknown}
+                     */
+                    slot?: "account_type" | "customer_category" | "nri_scheme" | "holding" | "minor" | null;
+                    /**
+                     * Value
+                     * @description A chip value of `slot`.
+                     */
+                    value?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description The answer to this turn. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantTurnResult"];
+                };
+            };
+            /** @description Error (codes only). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error (codes only). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error (codes only). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error (codes only). */
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };
