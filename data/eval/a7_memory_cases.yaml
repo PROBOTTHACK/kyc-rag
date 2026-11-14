@@ -55,8 +55,9 @@ cases:
   - choose: [customer_category, LLP]
   - say: "I also want to open an account for my child."
   - say: "we are in India"
+  - say: "thanks"
   checks:
-  - at_turn: 4
+  - at_turn: 5
     present: ["a current account for a limited liability partnership (LLP)"]
     absent: ['"account type":"Current account"']
 
@@ -76,7 +77,7 @@ cases:
   - say: "hello"
   checks:
   - at_turn: 2
-    present: ["unconfirmed"]
+    present: ["not yet confirmed"]
     absent: ['"customer category":"An individual living outside India']
 
 - id: mem-07

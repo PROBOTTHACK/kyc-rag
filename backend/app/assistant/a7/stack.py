@@ -19,6 +19,7 @@ import psycopg
 from alembic.config import Config
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from alembic import command
 from app.assistant.service import AssistantService, LazyChecklist
@@ -70,8 +71,11 @@ class Stack:
     def service(
         self, llm: Any = None, *, context_tokens: int = 1500, recent_turns: int = 10
     ) -> AssistantService:
+        # NullPool: a connection per use, closed afterwards, so the many services an
+        # evaluation builds (one per conversation, more for restarts) never exhaust the
+        # server's connection limit.
         engine = create_async_engine(
-            make_url(self.url).set(drivername="postgresql+psycopg"), pool_pre_ping=True
+            make_url(self.url).set(drivername="postgresql+psycopg"), poolclass=NullPool
         )
         self.engines.append(engine)
         store = PostgresAssistantStore(async_sessionmaker(engine, expire_on_commit=False))
