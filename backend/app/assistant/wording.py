@@ -53,6 +53,7 @@ class Wording(_Model):
     out_of_scope: str
     cannot_build: dict[Slot, str]
     blocked: BlockedWording
+    privacy: str
     fallback: str
     notice: str
 

@@ -484,3 +484,66 @@ def test_the_dialogue_state_survives_a_json_round_trip() -> None:
 
 def test_the_notice_is_the_same_in_the_dialogue_and_the_checklist() -> None:
     assert wording().notice == catalogue().wording.notice
+
+
+# --- A5 close-out: session security and privacy ---------------------------------------------------
+
+
+async def test_the_opening_answer_warns_against_real_personal_information(env: Env) -> None:
+    a = (await env.client.post(BASE)).json()["answer"]
+    first = a["messages"][0]
+    assert first["code"] == "privacy" and first["text"] == wording().privacy
+    assert "real personal or banking information" in first["text"]
+
+
+async def test_session_ids_are_random_uuid4_and_distinct(env: Env) -> None:
+    ids = [uuid.UUID(await start(env)) for _ in range(50)]
+    assert len(set(ids)) == 50 and all(i.version == 4 for i in ids)
+
+
+async def test_a_session_view_shows_only_its_own_conversation(env: Env) -> None:
+    a, b = await start(env), await start(env)
+    await turn(env, a, message="savings account for the Zebrafinch trust")
+    await turn(env, b, message="fixed deposit please")
+    view_b = (await env.client.get(f"{BASE}/{b}")).text
+    assert a not in view_b and "Zebrafinch" not in view_b and "fixed deposit please" in view_b
+    listing = await env.client.get(BASE)  # there is no way to list conversations
+    assert listing.status_code == 405
+
+
+def test_the_access_log_masks_assistant_session_ids() -> None:
+    import logging
+
+    from app.core.logging import MaskAssistantSessionIds
+
+    sid = str(uuid.uuid4())
+    record = logging.LogRecord(
+        "uvicorn.access", logging.INFO, __file__, 1, '%s - "%s %s HTTP/%s" %d',
+        ("127.0.0.1:1", "POST", f"/api/v2/assistant/sessions/{sid}/turns", "1.1", 200), None,
+    )  # fmt: skip
+    assert MaskAssistantSessionIds().filter(record)
+    line = record.getMessage()
+    assert sid not in line and "/api/v2/assistant/sessions/<session>/turns" in line
+    legacy = logging.LogRecord(
+        "uvicorn.access", logging.INFO, __file__, 1, "%s", (f"/api/v1/sessions/{sid}",), None
+    )
+    MaskAssistantSessionIds().filter(legacy)
+    assert sid in legacy.getMessage()  # the preserved v1 API is unchanged
+
+
+def test_no_assistant_module_logs_messages_or_session_ids() -> None:
+    import ast
+    from pathlib import Path
+
+    root = Path(__file__).parents[2] / "app"
+    files = [*(root / "assistant").glob("*.py"), *(root / "api" / "v2").glob("*.py")]
+    for path in files:
+        for node in ast.walk(ast.parse(path.read_text("utf-8"))):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "log"
+            ):
+                names = {n.id for a in node.args for n in ast.walk(a) if isinstance(n, ast.Name)}
+                assert not names & {"message", "turn", "body", "sid", "raw_sid", "key"}, path

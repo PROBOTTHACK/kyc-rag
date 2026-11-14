@@ -192,9 +192,22 @@ The fallback is never used for a technical failure, and the technical message is
 
 ## 8. Checklist output structure and citations
 ### 8.1 Answer object (API → UI; the A5 contract implements it)
+**Updated at the A5 close-out (2026-11-14, owner):** the API has **seven** answer kinds. The original four (`question`, `checklist`, `fallback`, `technical_error`) are joined by three outcomes the A3 dialogue already had: `confirm`, `cannot_build` and `blocked`. The contract is `AssistantAnswer` in `docs/assistant/A5_API.md` §2 and `docs/api/openapi.json`.
+
+| kind | When | Carries |
+|---|---|---|
+| `question` | The next material question | `question` (slot, text, chips, not-sure / skip / explain) |
+| `confirm` | A proposed value needs a yes / no (a hint, a conflict, or an LLM suggestion; the reason is not sent) | `confirmation` (slot, value, text) |
+| `checklist` | The profile is complete and the combination is covered | `checklist` (groups A/B/C, sources, coverage note) |
+| `fallback` | The documents don't establish the combination, or an out-of-scope question (a next question may ride along) | `fallback` (§7, verbatim) |
+| `cannot_build` | An essential answer is "not sure", so no checklist can be built yet | a message saying why |
+| `blocked` | Input screening refused the message (never echoed or stored) | a fixed message |
+| `technical_error` | Stored evidence could not be read (nothing is stored; the request can be retried) | `technical_message` (§7, verbatim) |
+
+Every answer also carries the profile, any messages and the notice. The outline below is the original §8.1 shape; field names in the implemented contract differ slightly (`question.chips`, `checklist.groups`).
 ```text
 Answer
-  kind:            "question" | "checklist" | "fallback" | "technical_error"
+  kind:            "question" | "confirm" | "checklist" | "fallback" | "cannot_build" | "blocked" | "technical_error"
   question?:       { slot, text, choices[] }                       (kind = question)
   profile:         { account_type, customer_category, facets…, each with origin }
   coverage_state:  COVERED | COVERED_OCR | CONVERSION_ONLY | NOT_ESTABLISHED

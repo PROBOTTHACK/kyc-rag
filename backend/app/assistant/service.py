@@ -26,7 +26,13 @@ from typing import Any
 from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
 
-from app.assistant.answer import AssistantAnswer, build_answer, profile_view, technical_answer
+from app.assistant.answer import (
+    AssistantAnswer,
+    build_answer,
+    opening_answer,
+    profile_view,
+    technical_answer,
+)
 from app.assistant.catalogue import catalogue
 from app.assistant.checklist import AnswerKind, ChecklistAnswer, ChecklistService
 from app.assistant.dialogue import ReadyProfile, TurnInput, opening, respond
@@ -139,7 +145,7 @@ class AssistantService:
 
     async def create_session(self) -> dict[str, Any]:
         state, response = opening()
-        answer = build_answer(state, response, self.words).model_dump(mode="json")
+        answer = opening_answer(state, response, self.words).model_dump(mode="json")
         sid = uuid.uuid4()
         record = TurnRecord(
             turn_no=0, message=None, screen_categories=(), request={}, answer=answer

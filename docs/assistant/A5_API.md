@@ -38,7 +38,8 @@ Stage A5 of the HDFC Bank Account Opening Assistant (independent portfolio proto
   - `messages`: dialogue notes, the blocked text, or why a checklist can't be built yet;
   - `coverage_state` when it is known;
   - **`notice`**: the dated-document notice, verbatim, on every answer.
-- **Extension of A1 §8.1, for review:** §8.1 lists four kinds. A5 adds `confirm`, `cannot_build` and `blocked`, which are dialogue outcomes A3 already had.
+- **Seven kinds (accepted at the A5 close-out):** A1 §8.1 originally listed four. A5 adds `confirm`, `cannot_build` and `blocked`, which are dialogue outcomes A3 already had. A1 §8.1 now lists all seven with when each is used.
+- **The opening answer** (turn 0) starts with a `privacy` message: "This is an independent prototype, not an HDFC Bank service. Please don't enter real personal or banking information, …" (wording in `dialogue.yaml`).
 - **Never sent** (tested):
   - citation chunk ids and A4 diagnostics;
   - the internal not-established reason and the checklist `reason` (coverage-map wording);
@@ -65,7 +66,23 @@ Stage A5 of the HDFC Bank Account Opening Assistant (independent portfolio proto
 
 Rows are deleted only by cascade with their session. Retention is not in A5.
 
-## 5. Demo (development stack)
+## 5. Session security and privacy (A5 close-out review)
+- **Session ids** are `uuid.uuid4()`: 122 random bits from the operating system's cryptographically secure generator (`os.urandom`). They can't feasibly be guessed (tested: version 4, distinct).
+- **Access:** a conversation can be read or continued only with its id. There is no endpoint that lists or searches conversations, and a request for one session never returns another's turns (tested). Authentication is deliberately out of scope: the id is the only handle, which is acceptable only because the prototype holds synthetic data.
+- **Logs:**
+  - Request bodies and customer messages are never logged. The service logs only exception class names, and a test checks that no assistant module passes a message, session id or key to the logger.
+  - The server's access log (uvicorn) prints every request path. Because the session id is in the path, `app.core.logging` masks it as `/api/v2/assistant/sessions/<session>/…` (tested). The preserved v1 paths are unchanged.
+- **Screening:** identifiers (PAN, Aadhaar, passport, card and account numbers) are refused and never stored; e-mail addresses and phone numbers are stored only in redacted form.
+- **Real data:** the prototype is **not intended for real customer data**. The opening answer says so, the screening message repeats it when an identifier is entered, and the A6 screen keeps the persistent disclaimer (A1 §7).
+
+## 6. Conversation retention (current behaviour)
+- **Kept until deleted by hand.** Conversations, turns and idempotency keys stay in Postgres indefinitely. There is no automatic deletion job in A5.
+- **Expiry only closes access.** A session expires 24 hours after its last stored turn: after that, the API answers `410 SESSION_EXPIRED` and the conversation can't be read or continued, but its rows remain.
+- **What a row holds:** enum codes for the profile, the screened message text (identifiers never; e-mail addresses and phone numbers only as `[REDACTED_…]`), and the answers given.
+- **Deleting by hand:** `DELETE FROM assistant_sessions WHERE …` removes a conversation; its turns and keys go by cascade. Turns can't be edited (insert-only trigger).
+- **Not for real customer data:** because nothing is deleted automatically and there is no authentication, the prototype must only ever receive synthetic data. An automatic purge would be a later, separately approved stage.
+
+## 7. Demo (development stack)
 ```bash
 make up && make migrate && make api        # http://127.0.0.1:8000
 S=http://127.0.0.1:8000/api/v2/assistant/sessions
@@ -85,12 +102,13 @@ Recorded on 2026-11-14 on the development stack:
 - **Reusing a key:** sending `k4` with a different body gave 409.
 - **Screening:** the PAN turn was blocked and did not appear in the reloaded conversation.
 
-## 6. Tests
-- **`tests/unit/test_assistant_api.py`** (32 tests; in-memory store, fake stored chunks, no LLM) covers:
+## 8. Tests
+- **`tests/unit/test_assistant_api.py`** (37 tests; in-memory store, fake stored chunks, no LLM) covers:
   - golden conversations: LLP current plus the PAN card question; NRI savings from free text; resident savings → fallback; the conversion;
   - parity with the A3 dialogue;
   - screening, idempotency, validation without echo, 404/410/503, and the technical-error path;
-  - session reload, the documented contract, the JSON round trip of the state, and the notice.
+  - session reload, the documented contract, the JSON round trip of the state, and the notice;
+  - the close-out checks: the privacy message, random distinct session ids, one session never showing another's turns, no listing endpoint, the masked access log, and no logging of messages or ids.
 - **`tests/integration/test_assistant_api_dev.py`** (5 tests; a throwaway Postgres for conversations, the development corpus for evidence) covers:
   - 0009 being additive and reversible;
   - a complete NRI savings conversation with citations checked against stored text;
@@ -99,8 +117,8 @@ Recorded on 2026-11-14 on the development stack:
   - concurrent requests with one key storing one turn;
   - an unknown session.
 
-## 7. Not in A5
+## 9. Not in A5
 - The chat screen (A6).
-- Retention or purging of old sessions.
+- Automatic deletion of old conversations (see §6).
 - Authentication: the session id is the only handle, which is acceptable for a synthetic-data prototype.
 - Any change to the dialogue policy, the catalogue, coverage or retrieval. The one addition to A3 is `dialogue.opening()`, which returns the first question without a turn; its policy is unchanged.

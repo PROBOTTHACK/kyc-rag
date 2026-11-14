@@ -237,6 +237,15 @@ def build_answer(
     )
 
 
+def opening_answer(
+    state: DialogueState, response: DialogueResponse, words: Wording
+) -> AssistantAnswer:
+    """The first answer of a conversation: the privacy message, then the first question."""
+    answer = build_answer(state, response, words)
+    privacy = AssistantMessage(code="privacy", text=words.privacy)
+    return answer.model_copy(update={"messages": (privacy, *answer.messages)})
+
+
 def technical_answer(state: DialogueState, words: Wording, message: str) -> AssistantAnswer:
     """The fixed technical message (A1 §7) when the checklist could not be built."""
     return AssistantAnswer(
