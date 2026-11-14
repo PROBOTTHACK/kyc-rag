@@ -687,7 +687,12 @@ def _apply_understanding(
             w.pending = None
             _change_application(w)
             return
-        if u.content or u.control is Control.YES:
+        if u.separate_request and w.offer_values:
+            # A separate request of its own ("I also want one for my child") is not a choice
+            # of the offered account: the offer lapses, nothing of it is applied, and the
+            # request is handled as usual below (A7 finding: it used to start both).
+            w.pending, w.offer_values = None, {}
+        elif u.content or u.control is Control.YES:
             person = previous.value or (u.person.value if u.person else None)
             _start_scenario(w, person, w.offer_values)
             # This message's details (e.g. "we live in India") apply to the new account.

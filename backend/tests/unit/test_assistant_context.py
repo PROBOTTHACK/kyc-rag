@@ -343,3 +343,24 @@ def test_residency_outside_the_which_person_question_is_still_confirmed() -> Non
     assert r.step is StepKind.CONFIRM
     assert (r.confirmation.slot, r.confirmation.value) == (Slot.CUSTOMER_CATEGORY, "NRI_INDIVIDUAL")
     assert state.value(Slot.CUSTOMER_CATEGORY) is None
+
+
+def test_a_separate_request_does_not_accept_a_pending_offer() -> None:
+    """A7 finding: with an offer open for a named account ("a current account for my
+    company"), "I also want one for my child" used to start the offered account too. The
+    offered values are never applied unless chosen; only one new account starts."""
+    state, r = run(
+        say("I live in Dubai and want an NRE savings account"),
+        {"action": "confirm_yes"},
+        choose("holding", "SINGLE"),
+        choose("minor", "NO"),
+        say("and a current account for my company"),
+    )
+    assert r.step is StepKind.CHOOSE_SCENARIO
+    state, r = respond_deterministic(
+        state, TurnInput(message="I also want to open an account for my child.")
+    )
+    assert codes(r).count("scenario_started") == 1
+    parked = [s.slots[Slot.CUSTOMER_CATEGORY].value for s in state.scenarios]
+    assert parked == ["NRI_INDIVIDUAL"]  # the NRI account, unchanged; no company account
+    assert state.value(Slot.CUSTOMER_CATEGORY) is None and not state.offer_values
