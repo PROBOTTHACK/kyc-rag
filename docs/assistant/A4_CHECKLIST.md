@@ -45,7 +45,7 @@ ChecklistAnswer (Pydantic; checklist | fallback | technical_error)
 ## 2. Evidence rules as implemented
 - **Classification** is assigned by `classify()` from the basis document's role only:
   - `opening_form` / `conversion_form` → `form_indicated`;
-  - natural assumptions with no source (rulings, PAN card copy) → `unconfirmed`;
+  - natural assumptions with no source (rulings, PAN card copy) → `unconfirmed`, shown **only when the customer asks** about them (§3a);
   - asked topics with nothing → `unknown`, with the fallback sentence.
   - `policy_supported` is reachable only from a `policy` role, which no corpus document has. `legacy_reference` is never emitted, because legacy documents can't be cited.
 - **Citations come from Postgres:** document title, page, section, text reliability, extraction method and date basis are copied from the stored row and the coverage map, never from retrieval payloads.
@@ -74,12 +74,18 @@ ChecklistAnswer (Pydantic; checklist | fallback | technical_error)
 ## 3. A2 rulings in the checklist (regression-tested for every organisation × CURRENT/FD/RD)
 | Ruling | Checklist outcome |
 |---|---|
-| `org_signatory_photograph` | Never in Group A or B. Group C `unconfirmed` "Photographs of authorised signatories", no citation. |
-| `org_entity_pan_card_copy` | Group C `unconfirmed`, no basis citation; the PAN No. field is shown only as related context. |
+| `org_signatory_photograph` | Never in Group A or B. Group C `unconfirmed` "Photographs of authorised signatories", no citation, **only when the customer asks** about photographs. |
+| `org_entity_pan_card_copy` | Group C `unconfirmed`, no basis citation, **only when the customer asks** about a PAN card copy; the PAN No. field is shown only as related context. |
 | `org_signatory_pan_number` | Group B `form_indicated` information, citing `f51508ae…` and `600f4dd7…` (OCR-uncertain). |
 | `org_form_60_61` | Group A `form_indicated` document, condition "for existing customers", citing `1c8150b4…` (OCR-uncertain). |
 
 The NRI and conversion PAN-card-copy assumptions follow the same pattern (A1 §4 rule 1).
+
+### 3a. Group C visibility (owner decision at the A4 review, 2026-11-14)
+- **Rule:** the four could-not-be-confirmed entries appear in Group C **only when the customer explicitly asks** about one of their topics. They are never shown proactively. The entries are `org_signatory_photograph` and `org_entity_pan_card_copy` (A2 rulings), and `nri_pan_card_copy` and `conv_pan_card_copy` (A1 §4 rule 1).
+- **Topics:** asking about photographs (`photograph`) shows the signatory-photograph entry. Asking about a PAN card copy (`pan_card_copy`) shows the card-copy entry. Asking about PAN in general (`pan`) shows only the PAN-number field as asked; it never brings up a card copy.
+- **What does not change:** this is presentation only. The rulings (`coverage.yaml` a2-2), the catalogue (`a4-1`, 47 items and 4 entries), the classes, citations and all validation are unchanged.
+- **Review copy:** the full catalogue is exported for review in `A4_CATALOGUE_REVIEW.md`. It is generated from the data by `python -m app.assistant.catalogue_report`, and a unit test keeps it current.
 
 ## 4. Example output (real database; Company × Current, the customer asked about photographs and a PAN card copy)
 | Group | Class | Item | Basis |
@@ -122,7 +128,7 @@ A guard check during development: removing the quote check or the permitted-sour
    - Its 47 items were chosen from the forms' stored text and checked verbatim against Postgres.
    - Titles are plain-language descriptions; notes say what a field does not establish.
    - It changes no coverage cell, but it is what customers will read, so it needs your review like the coverage map.
-2. **Group C shows the not-established rulings proactively** (signatory photographs, PAN card copy) for the categories they apply to, whether or not the customer asked. A1 allows this ("requirements that could not be confirmed"); the alternative is to show them only when asked.
+2. **Resolved at the A4 review:** Group C could-not-be-confirmed entries are now shown only when asked (§3a). Originally they were shown proactively for the categories they apply to.
 3. **Re-KYC context is not shown at all.** A1 permits it as Group C `unconfirmed` context; A4 omits it, following this stage's instruction never to use re-KYC material for account opening.
 4. **The scanned form yields few items** (5–7 per organisation checklist), because most of its OCR text is too garbled to quote. That is the honest result of "evidence or nothing".
 5. **`reason` on a fallback is the coverage map's internal wording.** It mentions "corpus" and "A0 amendment 2", so A5/A6 should decide whether to show it.

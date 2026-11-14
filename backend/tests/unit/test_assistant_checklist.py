@@ -165,7 +165,7 @@ def covered_profiles() -> list[ReadyProfile]:
 
 def test_every_section_is_present_and_separated() -> None:
     a = build(profile(C.NRI_INDIVIDUAL, A.SAVINGS, nri_scheme="NRE", holding="SINGLE",
-                      minor="NO", topics=("visa_or_status_proof",)))  # fmt: skip
+                      minor="NO", topics=("visa_or_status_proof", "pan_card_copy")))  # fmt: skip
     assert a.kind is AnswerKind.CHECKLIST and a.groups is not None
     assert {i.kind for i in a.groups.documents} <= {"document", "declaration"}
     assert {i.kind for i in a.groups.information} == {"information"}
@@ -247,7 +247,7 @@ def test_a_pan_number_field_never_becomes_a_pan_card_copy() -> None:
         assert a.groups is not None
         for item in [*a.groups.documents, *a.groups.information]:
             assert "card" not in item.title.lower(), item.id
-    nri = build(profile(C.NRI_INDIVIDUAL, A.SAVINGS))
+    nri = build(profile(C.NRI_INDIVIDUAL, A.SAVINGS, topics=("pan_card_copy",)))
     assert by_id(nri, "nri_pan_number").kind == "information"
     copy_item = by_id(nri, "nri_pan_card_copy")
     assert copy_item.classification is Classification.UNCONFIRMED and copy_item.citations == ()
@@ -694,3 +694,106 @@ def test_an_extra_field_in_the_catalogue_is_refused() -> None:
     data["items"][0]["classification"] = "policy_supported"
     with pytest.raises(ValidationError):
         Catalogue.model_validate(data)
+
+
+# --- Group C visibility (owner decision at the A4 review) ----------------------------------------
+
+
+def all_not_confirmed(a: ChecklistAnswer) -> list[str]:
+    assert a.groups is not None
+    return ids(a.groups.not_confirmed)
+
+
+@pytest.mark.parametrize(
+    "p", covered_profiles(), ids=lambda p: f"{p.customer_category}-{p.account_type}"
+)
+def test_a_general_checklist_shows_no_could_not_be_confirmed_items(p: ReadyProfile) -> None:
+    assert all_not_confirmed(build(p)) == []
+
+
+@pytest.mark.parametrize("cat", ORGS)
+def test_a_general_company_checklist_never_mentions_photographs_or_pan_card_copies(
+    cat: CustomerCategory,
+) -> None:
+    a = build(profile(cat, A.CURRENT, topics=("documents",)))  # "what do I need?"
+    assert all_not_confirmed(a) == []
+    titles = [i.title.lower() for i in items(a)]
+    assert not any("photograph" in t or "card" in t for t in titles)
+    assert "photograph" not in a.model_dump_json().lower()
+    # The only "PAN card" wording left is the PAN-number item's own note, which says the
+    # field does NOT establish a card copy (catalogue text, unchanged at this stage).
+    notes = [i.note or "" for i in items(a) if "pan card" in (i.note or "").lower()]
+    assert notes == [by_id(a, "org_signatory_pan_number").note]
+
+
+def test_asking_about_signatory_photographs_shows_the_unconfirmed_result() -> None:
+    a = build(profile(C.COMPANY, A.CURRENT, topics=("photograph",)))
+    assert all_not_confirmed(a) == ["org_signatory_photograph"]
+    item = by_id(a, "org_signatory_photograph")
+    assert item.asked and item.classification is Classification.UNCONFIRMED
+    assert item.classification_label == "Could not be confirmed"
+    assert item.citations == () and item.related_citations == () and item.fallback is None
+    assert "No stored text or form-schema field" in item.does_not_establish
+    assert not any("photo" in i.title.lower() for i in [*a.groups.documents, *a.groups.information])  # type: ignore[union-attr]
+
+
+def test_asking_about_a_pan_card_copy_shows_the_unconfirmed_result_only() -> None:
+    a = build(profile(C.LLP, A.CURRENT, topics=("pan_card_copy",)))
+    assert all_not_confirmed(a) == ["org_entity_pan_card_copy"]
+    card = by_id(a, "org_entity_pan_card_copy")
+    assert card.citations == ()  # the PAN No. field is never its evidence
+    assert {c.chunk_id[:8] for c in card.related_citations} == {"f51508ae", "600f4dd7"}
+    assert by_id(a, "org_signatory_pan_number").classification is Classification.FORM_INDICATED
+
+
+def test_asking_about_pan_does_not_raise_a_pan_card_copy() -> None:
+    for p in (profile(C.COMPANY, A.CURRENT, topics=("pan",)),
+              profile(C.NRI_INDIVIDUAL, A.SAVINGS, topics=("pan",)),
+              profile(None, None, topics=("pan",))):  # fmt: skip
+        a = build(p)
+        assert all_not_confirmed(a) == []
+        assert any(i.asked and i.kind == "information" for i in a.groups.information)  # type: ignore[union-attr]
+
+
+@pytest.mark.parametrize(
+    ("p", "expected"),
+    [
+        (profile(C.NRI_INDIVIDUAL, A.CURRENT, topics=("pan_card_copy",)), "nri_pan_card_copy"),
+        (profile(None, None, topics=("pan_card_copy",)), "conv_pan_card_copy"),
+    ],
+)
+def test_pan_card_copy_assumptions_follow_the_same_rule(p: ReadyProfile, expected: str) -> None:
+    a = build(p)
+    assert all_not_confirmed(a) == [expected]
+    assert by_id(a, expected).citations == ()
+
+
+def test_the_rule_works_from_the_customer_s_words_through_the_dialogue() -> None:
+    from app.assistant.dialogue import StepKind, TurnInput, respond_deterministic
+    from app.assistant.profile import DialogueState
+
+    def ready(*messages: str) -> ReadyProfile:
+        state = DialogueState()
+        for m in messages:
+            state, r = respond_deterministic(state, TurnInput(message=m))
+        assert r.step is StepKind.READY and r.ready is not None
+        return r.ready
+
+    general = build(ready("What documents does my company need for a current account?"))
+    assert all_not_confirmed(general) == []
+    asked = build(ready("current account for my company", "Do the signatories need photographs?"))
+    assert all_not_confirmed(asked) == ["org_signatory_photograph"]
+    card = build(ready("Does my LLP need a PAN card for a current account?"))
+    assert all_not_confirmed(card) == ["org_entity_pan_card_copy"]
+
+
+def test_visibility_does_not_change_the_rulings_or_the_catalogue() -> None:
+    cov = coverage()
+    assert {r.id: r.status for r in cov.item_rulings} == {
+        "org_signatory_photograph": "not_established",
+        "org_entity_pan_card_copy": "not_established",
+        "org_signatory_pan_number": "evidenced",
+        "org_form_60_61": "evidenced",
+    }
+    assert cov.version == "a2-2" and catalogue().version == "a4-1"
+    assert len(catalogue().items) == 47 and len(catalogue().not_confirmed) == 4

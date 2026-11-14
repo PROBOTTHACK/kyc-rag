@@ -283,7 +283,12 @@ class ChecklistService:
         return not item.only_when_asked or bool(asked)
 
     def _entry_applies(self, entry: NotConfirmedEntry, plan: _Plan) -> bool:
+        """Group C presentation rule (owner, A4 review): a "could not be confirmed" entry is
+        shown only when the customer explicitly asked about one of its topics. It is never
+        shown proactively. Which entries exist, and what they say, is unchanged."""
         if entry.scope != plan.scope:
+            return False
+        if not {t.value for t in entry.topics} & set(plan.profile.topics):
             return False
         if plan.scope == "conversion":
             return True
