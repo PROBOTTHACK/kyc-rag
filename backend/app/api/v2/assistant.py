@@ -5,10 +5,14 @@ never echoes it) and `response_model=None` sends the service output unchanged; t
 are documented from `app.api.v2.schemas`.
 """
 
+import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import APIRouter, Header, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy import exc as sa_exc
 
 from app.api.v1.schemas import errors, json_body
 from app.api.v2.schemas import (
@@ -21,13 +25,35 @@ from app.assistant.service import AssistantError, AssistantService
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 
+log = logging.getLogger(__name__)
+UNAVAILABLE = AssistantError(503, "ASSISTANT_UNAVAILABLE", "The assistant is not available.")
+# The conversation store cannot be reached (connection refused, dropped, pool timeout): the
+# documented 503, codes only. Any other error stays a 500 (A7 finding: these were 500s).
+_STORE_DOWN = (
+    sa_exc.OperationalError,
+    sa_exc.InterfaceError,
+    sa_exc.TimeoutError,
+    ConnectionError,
+    TimeoutError,
+)
+
+
+@asynccontextmanager
+async def _store_available() -> AsyncIterator[None]:
+    try:
+        yield
+    except _STORE_DOWN as exc:
+        log.warning("assistant storage unavailable: %s", type(exc).__name__)
+        raise UNAVAILABLE from None
+
+
 _IDEMPOTENCY = "Required. Reuse the same key to retry the same request safely (at most 200 chars)."
 
 
 def service(request: Request) -> AssistantService:
     svc = getattr(request.app.state, "assistant", None)
     if svc is None:
-        raise AssistantError(503, "ASSISTANT_UNAVAILABLE", "The assistant is not available.")
+        raise UNAVAILABLE
     return svc  # type: ignore[no-any-return]
 
 
@@ -41,7 +67,8 @@ def service(request: Request) -> AssistantService:
     },
 )
 async def create_session(request: Request) -> JSONResponse:
-    return JSONResponse(await service(request).create_session(), status_code=201)
+    async with _store_available():
+        return JSONResponse(await service(request).create_session(), status_code=201)
 
 
 @router.get(
@@ -53,7 +80,8 @@ async def create_session(request: Request) -> JSONResponse:
     },
 )
 async def get_session(session_id: str, request: Request) -> dict[str, Any]:
-    return await service(request).get_session(session_id)
+    async with _store_available():
+        return await service(request).get_session(session_id)
 
 
 @router.post(
@@ -73,4 +101,5 @@ async def post_turn(
     ),
 ) -> dict[str, Any]:
     body = await request.body()
-    return await service(request).submit_turn(session_id, idempotency_key, body)
+    async with _store_available():
+        return await service(request).submit_turn(session_id, idempotency_key, body)

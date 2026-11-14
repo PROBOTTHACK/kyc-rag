@@ -19,6 +19,7 @@ from typing import Any
 import httpx
 import pytest
 from fastapi.routing import APIRoute
+from sqlalchemy.exc import OperationalError
 
 from app.api.openapi import spec
 from app.api.v2.assistant import router as assistant_router
@@ -434,6 +435,32 @@ async def test_no_service_means_503() -> None:
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
         r = await c.post(BASE)
     assert (r.status_code, r.json()["error"]["code"]) == (503, "ASSISTANT_UNAVAILABLE")
+
+
+class _DownStore(MemoryStore):
+    """A conversation store whose database cannot be reached."""
+
+    async def create(self, *args: Any, **kwargs: Any) -> None:
+        raise OperationalError("SELECT 1", {}, ConnectionRefusedError("refused"))
+
+    async def load(self, *args: Any, **kwargs: Any) -> Any:
+        raise OperationalError("SELECT 1", {}, ConnectionRefusedError("refused"))
+
+
+async def test_an_unreachable_database_is_503_not_500() -> None:
+    """A7 finding: storage connection errors fell through to 500 INTERNAL_ERROR; the A5
+    contract documents 503 ASSISTANT_UNAVAILABLE. Codes only: nothing is echoed."""
+    app = create_app(Settings(_env_file=None, DATABASE_URL="x", REDIS_URL="y"))  # type: ignore[call-arg]
+    app.state.assistant = AssistantService(
+        _DownStore(), lambda: ChecklistService(FakeChunks()), None
+    )
+    transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+        created = await c.post(BASE)
+        viewed = await c.get(f"{BASE}/{uuid.uuid4()}")
+    for r in (created, viewed):
+        assert (r.status_code, r.json()["error"]["code"]) == (503, "ASSISTANT_UNAVAILABLE")
+        assert "SELECT" not in r.text and "refused" not in r.text
 
 
 # --- reload and the contract ---------------------------------------------------------------------
