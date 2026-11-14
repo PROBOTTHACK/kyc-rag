@@ -67,6 +67,14 @@ class Control(StrEnum):
     NO = "no"
 
 
+class Person(StrEnum):
+    """Who a message is about when it names no customer category. Context only: it never
+    becomes a profile value by itself (the dialogue asks or confirms first)."""
+
+    INDIVIDUAL = "individual"  # "for a person", "a personal account", "for me", "myself"
+    CHILD = "child"  # "my child", "my six-year-old", "my son", "a minor"
+
+
 class Unsupported(StrEnum):
     """Customer types the taxonomy has no category for (R7: never mapped to one)."""
 
@@ -94,6 +102,9 @@ class Understanding:
     out_of_scope: tuple[str, ...] = ()
     correction_cue: bool = False
     control: Control | None = None
+    person: Person | None = None  # who the message is about (context, never a value)
+    follow_up: bool = False  # refers back to the conversation ("that", "what about ...")
+    separate_request: bool = False  # another / a second / also ... an account
 
     @property
     def substantive(self) -> bool:
@@ -101,6 +112,7 @@ class Understanding:
         return bool(
             self.values or self.ambiguous or self.hints or self.residency or self.unsupported
             or self.organisation_unspecified or self.intent or self.topics or self.out_of_scope
+            or self.person or self.follow_up or self.separate_request
         )  # fmt: skip
 
 
@@ -274,6 +286,29 @@ OUT_OF_SCOPE_PATTERNS: dict[str, tuple[str, ...]] = {
     "other_products": (r"\binsurance\b", r"\bmutual funds?\b", r"\blockers?\b"),
 }  # fmt: skip
 
+# Conversational context (owner request: context-aware follow-ups). These never set a
+# profile value: the dialogue decides whether to ask, confirm or keep the profile.
+PERSON_PATTERNS: dict[Person, tuple[str, ...]] = {
+    Person.CHILD: (
+        r"\b(?:my|our|a|the|his|her) (?:\w+ )?(?:child|children|son|daughter|kid|kids|baby)\b",
+        r"\b\w+ (?:year|yr|month) olds?\b", r"\bminors?\b",
+    ),
+    Person.INDIVIDUAL: (
+        r"\b(?:a|one) person\b", r"\bpersonal\b", r"\bindividual\b", r"\bfor (?:me|myself)\b",
+        r"\bmyself\b", r"\bmy own\b", r"\bjust me\b",
+    ),
+}  # fmt: skip
+REFERENCE_PATTERNS = (
+    r"\bwhat about\b", r"\bhow about\b", r"\bwhat if\b", r"\b(?:and|but) (?:if|what)\b",
+    r"\b(?:does|do|would|will|is|are|can) (?:that|this|it|these|those|they)\b",
+    r"\b(?:for|about|of|with) (?:that|this|it|those|these)\b", r"\bapply to\b", r"\bthe same\b",
+)  # fmt: skip
+SEPARATE_WORDS = (
+    r"\balso\b", r"\btoo\b", r"\bas well\b", r"\banother\b", r"\bsecond\b", r"\bseparate\b",
+    r"\badditional\b", r"\bone more\b",
+)  # fmt: skip
+ACCOUNT_OR_OPEN = (r"\baccounts?\b", r"\bopen(?:ing)?\b")
+
 CORRECTION_CUES = (
     r"\bactually\b", r"\bsorry\b", r"\bi meant\b", r"\bi mean\b", r"\bcorrection\b",
     r"\binstead\b", r"\brather\b", r"\bchange (?:it|that|this)\b", r"^no\b", r"^oops\b",
@@ -402,6 +437,12 @@ def understand(message: str) -> Understanding:
     )
     if control is Control.NOT_SURE and not is_short and (values or topics):
         control = None  # "not sure which documents I need for an NRE account" is a question
+    # Who the message is about, when no category is named ("for my child", "a person").
+    person = None
+    if not has_category:
+        person = next((p for p, pats in PERSON_PATTERNS.items() if _found(pats, text)), None)
+    follow_up = _found(REFERENCE_PATTERNS, text)
+    separate = _found(SEPARATE_WORDS, text) and _found(ACCOUNT_OR_OPEN, text)
     return Understanding(
         values=values,
         ambiguous=ambiguous,
@@ -415,4 +456,7 @@ def understand(message: str) -> Understanding:
         out_of_scope=out_of_scope,
         correction_cue=correction,
         control=control,
+        person=person,
+        follow_up=follow_up,
+        separate_request=separate,
     )

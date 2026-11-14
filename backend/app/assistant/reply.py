@@ -69,18 +69,57 @@ def checklist_summary(answer: AssistantAnswer, words: Wording) -> list[str]:
     return lines
 
 
+def _subject(answer: AssistantAnswer, words: Wording) -> str:
+    r = words.replies
+    if answer.coverage_state == "CONVERSION_ONLY":
+        return r.conversion_subject
+    account = answer.profile.get(Slot.ACCOUNT_TYPE)
+    holder = answer.profile.get(Slot.CUSTOMER_CATEGORY)
+    return r.subject.format(
+        account=_lower_first((account.label if account else None) or ""),
+        holder=_lower_first((holder.label if holder else None) or ""),
+    )
+
+
+def focused_summary(answer: AssistantAnswer, words: Wording) -> list[str]:
+    """A short answer about the current checklist: its documents and asked-about items."""
+    r = words.replies
+    checklist = answer.checklist
+    if checklist is None:
+        return []
+    groups = checklist.groups
+    lines: list[str] = []
+    if groups.documents:
+        lines.append(r.focused_lead.format(subject=_subject(answer, words)))
+        lines += [
+            f"- {item.title}" + (f" ({' '.join(item.applies_if)})" if item.applies_if else "")
+            for item in groups.documents
+        ]
+    if groups.not_confirmed:
+        lines.append(r.asked_lead)
+        lines += [f"- {item.title}" for item in groups.not_confirmed]
+    lines.append(r.checklist_outro)
+    return lines
+
+
 def compose_reply(answer: AssistantAnswer, unchanged: bool, words: Wording) -> str | None:
     """What the assistant says for this answer, or None when only fixed texts apply."""
     if answer.kind in ("blocked", "technical_error"):
         return None
     lines = [m.text for m in answer.messages if m.code not in FIXED_MESSAGE_CODES]
     r = words.replies
+    codes = {m.code for m in answer.messages}
     if answer.kind == "checklist" and answer.checklist is not None:
         if answer.fallback:  # out of scope while the checklist stands
             lines.append(r.off_topic)
-        else:
-            if unchanged:
+        elif "separate_request" in codes:
+            pass  # the note says it all; the current checklist is kept, not repeated
+        elif "follow_up" in codes or unchanged:
+            # A follow-up about the same checklist: answer it briefly, don't repeat it all.
+            if unchanged and "follow_up" not in codes:
                 lines.append(r.unchanged)
+            lines += focused_summary(answer, words)
+        else:
             lines += checklist_summary(answer, words)
     elif answer.confirmation is not None:
         lines.append(answer.confirmation.text)

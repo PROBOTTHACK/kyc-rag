@@ -139,10 +139,21 @@ replies:
   details_many: "{n} details"
   documents_lead: "The documents:"
   asked_lead: "You asked about something the documents don't confirm:"
+  focused_lead: "For {subject}, the form asks you to bring:"
   checklist_outro: Open any item in the checklist to see why it's there and the form page it comes from.
   unchanged: Nothing has changed in your checklist.
   off_topic: I can only help with the documents and information for opening an account. Your checklist is still here whenever you need it.
   suggestions_lead: The documents do cover the options below. Choose one to change your answer.
+
+# Reading a message against the conversation so far. The profile only changes when the
+# customer chooses or confirms; these lines explain, they never decide.
+context:
+  conflict: "We've been looking at {subject}. Your message sounds like it's about an account for a person, such as a child, which uses a different form. I don't want to mix the two applications. Who should this be about? To keep your current checklist, choose {holder}."
+  change: "OK, an account for a person rather than {holder}. Who will hold the account?"
+  which_person: Is the account for someone living in India or outside India?
+  follow_up: "Here's how that relates to {subject}."
+  separate: It sounds like you'd like a separate checklist for another account. I'll keep this one as it is, and you can start a separate checklist whenever you're ready.
+  not_applicable: "That doesn't change anything for {subject}."
 
 # A1 §7, verbatim.
 fallback: I couldn't find this information in the available HDFC Bank documents. I don't want to give you an incorrect answer.

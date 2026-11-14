@@ -118,3 +118,26 @@ cd backend
 ../.venv/Scripts/python -m pytest tests/unit/test_assistant_understand.py tests/unit/test_assistant_dialogue.py tests/unit/test_assistant_llm_extract.py tests/unit/test_assistant_wording.py
 ../.venv/Scripts/python -c "from app.assistant.dialogue import respond_deterministic as r, TurnInput as T; from app.assistant.profile import DialogueState as S; s,x=r(S(),T(message='Does an LLP need a PAN card?')); print(x.step, x.question.text)"
 ```
+
+## Addendum: context-aware follow-ups (owner request, 2026-11-14, before A7)
+A browser test showed incompatible contexts being merged: "for a minor" was stored on an LLP current-account profile, and a question about the customer's child was then answered with the LLP checklist. Each message is now read against the conversation so far, inside the existing `_apply_understanding`; no second engine was added. `understand.py` adds three context cues that are never profile values:
+- **person:** individual or child;
+- **follow-up:** "that", "what about", "does that apply";
+- **separate request:** "also", "another" or "separate" with an account.
+
+| Message | Resolution | Profile |
+|---|---|---|
+| A chip, or words answering the question | as before | changes |
+| An answer that doesn't apply to the current account (e.g. "for a minor" on an LLP current account) | never stored. A minor said this way is read as a child (below); anything else gets a "doesn't change anything for …" note | unchanged |
+| A person or child mentioned while the holder is an organisation | the `context_conflict` note explains what was understood. The customer category is asked again with individuals listed first and the current holder next (choosing it keeps the checklist). If a correction cue was used ("actually … instead"), the `context_change` note is used instead; a second person-type reply asks whether they live in India or outside India | unchanged until the customer chooses |
+| A child mentioned while the holder is an individual | the existing yes/no confirmation of "for a minor" (a hint if unanswered, a conflict if the answer was "no") | unchanged until confirmed |
+| A follow-up about the current checklist | `follow_up` note; the reply answers briefly (the documents), not the whole checklist | unchanged |
+| A separate request ("I also want an account for my child") | `separate_request` note; this conversation is kept, and the interface offers a separate checklist | unchanged |
+| A different account type or category in a follow-up ("what about a fixed deposit?") | the existing conflict confirmation | unchanged until confirmed |
+| Not understood at all | out of scope: the prescribed fallback | unchanged |
+
+The **LLM voice** also receives the last three turns, as a delimited `<recent_conversation>` block used only to resolve references. Those turns are never facts: the reply check accepts only the current answer's facts, so an earlier profile's items can't reappear.
+
+When a combination isn't covered, the suggestions offer only the same kind of holder: an individual is never offered an organisation category.
+
+Tests: `tests/unit/test_assistant_context.py` covers the 13 owner scenarios, including reload and PII. `test_assistant_voice.py` checks that recent turns are never treated as facts.

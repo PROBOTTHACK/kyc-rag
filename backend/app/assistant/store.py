@@ -52,6 +52,10 @@ class TurnTx(Protocol):
 
     async def replay(self, key: str) -> Replay | None: ...
 
+    async def recent(self, n: int) -> list[tuple[str | None, str | None]]:
+        """The last `n` turns, oldest first: (screened customer message, assistant reply)."""
+        ...
+
     async def save(
         self, state: DialogueState, record: TurnRecord, key: str, sha: str, expires_at: datetime
     ) -> None: ...
@@ -127,6 +131,18 @@ class _PostgresTurn:
             return None
         sha, turn = found
         return Replay(request_sha256=sha, turn_no=turn.turn_no, answer=turn.answer)
+
+    async def recent(self, n: int) -> list[tuple[str | None, str | None]]:
+        assert self._row is not None  # noqa: S101 - only called for an existing session
+        rows = (
+            await self._s.scalars(
+                select(AssistantTurnRow)
+                .where(AssistantTurnRow.session_id == self._row.id)
+                .order_by(AssistantTurnRow.turn_no.desc())
+                .limit(n)
+            )
+        ).all()
+        return [(t.message, (t.answer or {}).get("reply")) for t in reversed(rows)]
 
     async def save(
         self, state: DialogueState, record: TurnRecord, key: str, sha: str, expires_at: datetime

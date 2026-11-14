@@ -73,6 +73,10 @@ class _MemoryTurn:
         turn = next(t for t in self._s.turns if t.turn_no == turn_no)
         return Replay(sha, turn_no, turn.answer)
 
+    async def recent(self, n: int) -> list[tuple[str | None, str | None]]:
+        assert self._s is not None
+        return [(t.message, t.answer.get("reply")) for t in self._s.turns[-n:]]
+
     async def save(
         self, state: DialogueState, record: TurnRecord, key: str, sha: str, expires_at: datetime
     ) -> None:

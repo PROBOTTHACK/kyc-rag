@@ -43,7 +43,7 @@ from app.assistant.profile import (
     valid_value,
 )
 from app.assistant.taxonomy import AccountType, CoverageState, CustomerCategory, Intent
-from app.assistant.understand import Control, Understanding, understand
+from app.assistant.understand import Control, Person, Understanding, understand
 from app.assistant.wording import Wording, wording
 from app.llm.provider import LLMProvider
 from app.security.screen import ScreenResult, screen_text
@@ -144,6 +144,12 @@ class NoteCode(StrEnum):
     ORGANISATION_UNSPECIFIED = "organisation_unspecified"
     UNSUPPORTED_CUSTOMER = "unsupported_customer"
     OUT_OF_SCOPE = "out_of_scope"
+    # Context-aware handling: the message is read against the conversation so far.
+    CONTEXT_CONFLICT = "context_conflict"  # it is about another kind of holder; ask first
+    CONTEXT_CHANGE = "context_change"  # an explicit change of holder; ask who
+    FOLLOW_UP = "follow_up"  # about the current checklist; nothing changes
+    SEPARATE_REQUEST = "separate_request"  # another account: keep this one, offer a new one
+    NOT_APPLICABLE = "not_applicable"  # an answer that does not apply to this account
 
 
 class Note(_Frozen):
@@ -228,6 +234,10 @@ class _Work:
     force_ask: Slot | None = None
     new_confirm: bool = False
     fallback: bool = False
+    # Ask this (known) slot again to clarify the context; the profile is unchanged until the
+    # customer chooses (owner: never silently merge incompatible contexts).
+    clarify: Slot | None = None
+    individuals_first: bool = False  # the message is about a person: list individuals first
     organisation_hint: bool = field(init=False)
     intent: Intent | None = field(init=False)
     topics: list[str] = field(init=False)
@@ -317,6 +327,22 @@ class _Work:
         cell = self.cov.cell(cat, acct)
         return cell.covered and slot in {slot_for_facet(f) for f in cell.material_facets}
 
+    @property
+    def ready_profile(self) -> bool:
+        return self.category is not None and self.account is not None
+
+    def subject(self) -> str:
+        """'a current account for a limited liability partnership (LLP)', from the profile."""
+        acct, cat = self.account, self.category
+        return self.words.replies.subject.format(
+            account=_lower_first(self.words.label(Slot.ACCOUNT_TYPE, acct.value) if acct else ""),
+            holder=_lower_first(self.words.label(Slot.CUSTOMER_CATEGORY, cat.value) if cat else ""),
+        )
+
+    def holder(self) -> str:
+        cat = self.category
+        return _lower_first(self.words.label(Slot.CUSTOMER_CATEGORY, cat.value)) if cat else ""
+
     def confirm(self, slot: Slot, value: str, reason: ConfirmReason) -> None:
         if self.new_confirm:
             return  # one question per turn: the first proposal wins
@@ -385,6 +411,10 @@ def advance(
         dict(w.slots) == dict(state.slots) and tuple(w.topics) == state.open_topics
     )
     return new_state, response.model_copy(update={"notes": tuple(w.notes), "unchanged": unchanged})
+
+
+def _lower_first(text: str) -> str:
+    return text[:1].lower() + text[1:] if text else text
 
 
 def _inline(label: str) -> str:
@@ -468,8 +498,23 @@ def _apply_understanding(
     if previous is not None and previous.kind is PendingKind.CONFIRM and w.pending == previous:
         w.pending = None  # anything but yes / no leaves the proposal unconfirmed (R7)
 
-    # 2. Values stated in words.
+    # 1b. Another account ("I also want one for my child"): this conversation's profile and
+    # checklist stay as they are; the customer is offered a separate checklist instead.
+    if u.separate_request and w.ready_profile and not explicit:
+        w.note(NoteCode.SEPARATE_REQUEST, w.words.context.separate)
+        return
+
+    # 2. Values stated in words. A value for a question that does not apply to the current
+    # account (e.g. "for a minor" on an LLP current account) is never stored: it would merge
+    # two incompatible contexts. A minor mentioned that way is read as a child (step 3b).
+    child_mentioned = False
     for slot, value in u.values.items():
+        if slot in FACET_SLOTS and w.ready_profile and not w.material(slot):
+            child_mentioned |= slot is Slot.MINOR and value == "YES"
+            if not (slot is Slot.MINOR and value == "YES"):
+                w.note(NoteCode.NOT_APPLICABLE,
+                       w.words.context.not_applicable.format(subject=w.subject()))  # fmt: skip
+            continue
         entry = w.entry(slot)
         if entry.known and entry.value != value and not u.correction_cue:
             w.confirm(slot, value, ConfirmReason.CONFLICT)  # never silently overwrite
@@ -496,6 +541,52 @@ def _apply_understanding(
             w.topics.append(t.value)
     if u.out_of_scope:
         w.note(NoteCode.OUT_OF_SCOPE, w.words.out_of_scope)
+
+    # 3b. Who the message is about, read against the profile (never a value by itself).
+    person = u.person or (Person.CHILD if child_mentioned else None)
+    category_stated = Slot.CUSTOMER_CATEGORY in u.values or Slot.CUSTOMER_CATEGORY in u.ambiguous
+    if person is not None and not explicit and not category_stated:
+        cat = w.category
+        if cat is None:
+            w.individuals_first = True  # the category question lists individuals first
+        elif cat in ORGANISATIONS:
+            # An account for a person (or a child) while the profile is an organisation's:
+            # explain, ask once, change nothing until the customer chooses.
+            w.individuals_first = True
+            w.clarify = Slot.CUSTOMER_CATEGORY
+            if previous is not None and previous.slot is Slot.CUSTOMER_CATEGORY:
+                w.note(NoteCode.CONTEXT_CHANGE, w.words.context.which_person,
+                       Slot.CUSTOMER_CATEGORY)  # fmt: skip
+            elif u.correction_cue:
+                w.note(NoteCode.CONTEXT_CHANGE,
+                       w.words.context.change.format(holder=w.holder()),
+                       Slot.CUSTOMER_CATEGORY)  # fmt: skip
+            else:
+                w.note(NoteCode.CONTEXT_CONFLICT,
+                       w.words.context.conflict.format(subject=w.subject(), holder=w.holder()),
+                       Slot.CUSTOMER_CATEGORY)  # fmt: skip
+        elif (
+            person is Person.CHILD
+            and Slot.MINOR not in u.values
+            and w.material(Slot.MINOR)
+            and w.entry(Slot.MINOR).value != "YES"
+        ):
+            # An individual's account and a child mentioned: the minor question, confirmed
+            # first (a hint if unanswered, a conflict if the answer was "no").
+            reason = ConfirmReason.CONFLICT if w.entry(Slot.MINOR).known else ConfirmReason.HINT
+            w.confirm(Slot.MINOR, "YES", reason)
+
+    # 3c. A follow-up about the current checklist ("does that apply to me?"): nothing
+    # changes; the reply relates it to the account being discussed.
+    if (
+        u.follow_up
+        and not explicit
+        and w.ready_profile
+        and w.clarify is None
+        and not u.values
+        and not w.new_confirm
+    ):
+        w.note(NoteCode.FOLLOW_UP, w.words.context.follow_up.format(subject=w.subject()))
 
     # 4. Hints and LLM proposals become confirmation questions, never values (R7).
     proposals = [(h.slot, h.value, ConfirmReason.HINT) for h in u.hints]
@@ -531,6 +622,8 @@ def _apply_understanding(
 def _decide(w: _Work) -> DialogueResponse:
     if w.pending is not None and w.pending.kind is PendingKind.CONFIRM and w.new_confirm:
         return _confirmation(w)
+    if w.clarify is not None:
+        return _ask(w, w.clarify)  # a known slot asked again: the context is unclear
     if w.force_ask is not None and not w.entry(w.force_ask).known:
         return _ask(w, w.force_ask)
     if w.intent is Intent.RESIDENT_TO_NRO_CONVERSION:
@@ -542,7 +635,13 @@ def _decide(w: _Work) -> DialogueResponse:
         if not cell.covered:
             alternatives: tuple[Suggestion, ...] = _suggest(
                 w, Slot.ACCOUNT_TYPE, w.cov.covered_accounts(cat)
-            ) or _suggest(w, Slot.CUSTOMER_CATEGORY, w.cov.covered_categories(acct))
+            ) or _suggest(
+                w,
+                Slot.CUSTOMER_CATEGORY,
+                # Only the same kind of holder: an individual is never offered a company.
+                [c for c in w.cov.covered_categories(acct)
+                 if (c in ORGANISATIONS) == (cat in ORGANISATIONS)],
+            )  # fmt: skip
             return _not_established(
                 w,
                 cell.reason or DEFAULT_NOT_ESTABLISHED,
@@ -592,6 +691,12 @@ def _ask(w: _Work, slot: Slot) -> DialogueResponse:
     if slot is Slot.CUSTOMER_CATEGORY and w.organisation_hint:
         orgs = [c.value for c in ORGANISATIONS]
         values = orgs + [v for v in values if v not in orgs]  # all options stay available (R8)
+    if slot is Slot.CUSTOMER_CATEGORY and w.individuals_first:
+        # Individuals first; the current answer next (choosing it keeps the checklist).
+        first = [c.value for c in CustomerCategory if c not in ORGANISATIONS]
+        current = [w.category.value] if w.category is not None else []
+        lead = first + [v for v in current if v not in first]
+        values = lead + [v for v in values if v not in lead]
     chips = tuple(Chip(value=v, label=words.chips[v]) for v in values)
     w.pending = Pending(kind=PendingKind.QUESTION, slot=slot)
     return DialogueResponse(

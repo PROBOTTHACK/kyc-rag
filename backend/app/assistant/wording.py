@@ -51,6 +51,7 @@ class ReplyWording(_Model):
     documents_lead: str = Field(min_length=1)
     asked_lead: str = Field(min_length=1)
     checklist_outro: str = Field(min_length=1)
+    focused_lead: str = Field(min_length=1)  # {subject}
     unchanged: str = Field(min_length=1)
     off_topic: str = Field(min_length=1)
     suggestions_lead: str = Field(min_length=1)
@@ -65,6 +66,30 @@ class ReplyWording(_Model):
         ]:
             if not all(p in getattr(self, name) for p in needed):
                 raise ValueError(f"reply wording {name} lost a placeholder")
+        return self
+
+
+class ContextWording(_Model):
+    """What the assistant says when a message must be read against the conversation so far
+    (owner request: context-aware follow-ups). {subject} / {holder} come from the profile."""
+
+    conflict: str = Field(min_length=1)  # {subject} {holder}
+    change: str = Field(min_length=1)  # {holder}
+    which_person: str = Field(min_length=1)
+    follow_up: str = Field(min_length=1)  # {subject}
+    separate: str = Field(min_length=1)
+    not_applicable: str = Field(min_length=1)  # {subject}
+
+    @model_validator(mode="after")
+    def _placeholders(self) -> ContextWording:
+        for name, needed in [
+            ("conflict", ("{subject}", "{holder}")),
+            ("change", ("{holder}",)),
+            ("follow_up", ("{subject}",)),
+            ("not_applicable", ("{subject}",)),
+        ]:
+            if not all(p in getattr(self, name) for p in needed):
+                raise ValueError(f"context wording {name} lost a placeholder")
         return self
 
 
@@ -86,6 +111,7 @@ class Wording(_Model):
     blocked: BlockedWording
     privacy: str
     replies: ReplyWording
+    context: ContextWording
     fallback: str
     notice: str
 

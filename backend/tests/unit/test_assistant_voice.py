@@ -82,7 +82,9 @@ def test_asking_again_says_nothing_changed_and_summarises() -> None:
         *NRI_SAVINGS, {"message": "what is needed for KYC?"}, {"message": "what is needed for KYC?"}
     )
     assert b.reply is not None and b.reply.startswith(wording().replies.unchanged)
-    assert "documents to bring" in b.reply
+    # The repeat is answered briefly (the documents), not with the whole checklist again.
+    assert "the form asks you to bring:" in b.reply
+    assert "details to fill in" not in b.reply
 
 
 def test_blocked_and_technical_answers_have_no_reply() -> None:
@@ -220,3 +222,22 @@ def test_claims_about_what_the_documents_only_cover_are_rejected() -> None:
     bad = "The available forms only include a conversion to an NRO account."
     assert check_reply(bad, "{}") is not None
     assert check_reply("Only if you choose that option.", '{"x":"Only if you choose"}') is None
+
+
+def test_recent_turns_are_sent_as_context_but_never_count_as_facts() -> None:
+    from app.assistant.voice import build_request
+
+    a = answer_after(*NRI_SAVINGS)
+    recent = [("current account for my LLP", "The documents: Form 60/61, for existing customers")]
+    request, fact_text = build_request(a, "what about that?", recent)
+    assert "<recent_conversation>" in request.user and "Form 60/61" in request.user
+    assert "Form 60/61" not in fact_text  # an earlier profile's item is not a fact now
+    assert "Never take facts from it" in request.system
+
+
+async def test_a_reply_reusing_an_earlier_profiles_item_is_rejected() -> None:
+    a = answer_after(*NRI_SAVINGS)
+    recent = [("current account for my LLP", "Bring Form 61 and a board resolution.")]
+    bad = "As before, bring a board resolution."
+    out = await voice_reply(scripted_llm(say(bad)), a, "and for me?", recent=recent)
+    assert out == a.reply

@@ -48,6 +48,7 @@ log = logging.getLogger(__name__)
 SESSION_TTL = timedelta(hours=24)  # sliding: every stored turn extends it
 MAX_BODY_BYTES = 16_384
 MAX_KEY_CHARS = 200
+RECENT_TURNS = 3  # earlier turns the voice may read to resolve "that" or "my child"
 
 ChecklistFactory = Callable[[], ChecklistService]
 
@@ -218,7 +219,8 @@ class AssistantService:
             # voice speaks for free text, checklists, fallbacks and confirmations.
             chip_question = turn.message is None and built.kind == "question"
             if self.llm is not None and built.kind != "blocked" and not chip_question:
-                reply = await voice_reply(self.llm, built, message)
+                recent = await tx.recent(RECENT_TURNS)
+                reply = await voice_reply(self.llm, built, message, recent=recent)
                 built = built.model_copy(update={"reply": reply})
             record = TurnRecord(
                 turn_no=state.turn,
