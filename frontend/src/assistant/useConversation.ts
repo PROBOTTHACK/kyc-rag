@@ -27,7 +27,7 @@ import {
   loadAssistantSession,
   saveAssistantSession,
 } from "../storage/assistantSession";
-import { ACTION_LABELS, slotLabel } from "./labels";
+import { ACTION_LABELS, slotLabel, TEXT } from "./labels";
 
 export interface CustomerEntry {
   role: "customer";
@@ -137,6 +137,16 @@ export function reducer(state: ConversationState, action: Action): ConversationS
 export function describeTurn(body: AssistantTurnRequest, latest: AssistantAnswer | null): string {
   if (body.message) return body.message;
   const action = body.action ?? "";
+  // A scenario offer's choice reads as the option the customer clicked ("Ask about a separate
+  // account", "Yes, go back to it"), never its raw value (A7.6: an empty or "0" bubble).
+  const offered = latest?.scenario_offer?.options.find(
+    (o) => o.action === action && (o.value ?? null) === (body.value ?? null),
+  );
+  if (offered) return offered.label;
+  if (action === "switch_scenario") {
+    const other = latest?.scenarios?.find((s) => String(s.index) === body.value);
+    if (other) return `${TEXT.goBackTo} ${other.label}`;
+  }
   if (action in ACTION_LABELS) return ACTION_LABELS[action as keyof typeof ACTION_LABELS];
   const slot = body.slot ?? "";
   const label =
