@@ -183,17 +183,40 @@ async def _live_upload(ctx: Context) -> str:
     tracer = tracer_from_settings(forced, evaluation=True)
     if not tracer.enabled:
         return "not run: the LangSmith client could not be created"
-    svc = ctx.stack.service(tracer=tracer)
-    sid = (await svc.create_session())["session_id"]
-    for body in (
-        {"message": "Hi"},
-        {"action": "choose", "slot": "account_type", "value": "CURRENT"},
-        {"action": "choose", "slot": "customer_category", "value": "LLP"},
-    ):
-        await svc.submit_turn(sid, uuid.uuid4().hex, json.dumps(body).encode())
+    import logging
+
+    class _Errors(logging.Handler):  # the client reports failed batch uploads as log records
+        def __init__(self) -> None:
+            super().__init__(logging.WARNING)
+            self.records: list[str] = []
+
+        def emit(self, record: logging.LogRecord) -> None:
+            self.records.append(record.getMessage()[:200])
+
+    errors = _Errors()
+    ls_log = logging.getLogger("langsmith")
+    ls_log.addHandler(errors)
     try:
+        svc = ctx.stack.service(tracer=tracer)
+        sid = (await svc.create_session())["session_id"]
+        for body in (
+            {"message": "Hi"},
+            {"action": "choose", "slot": "account_type", "value": "CURRENT"},
+            {"action": "choose", "slot": "customer_category", "value": "LLP"},
+        ):
+            await svc.submit_turn(sid, uuid.uuid4().hex, json.dumps(body).encode())
         tracer.client.flush()
+    finally:
+        ls_log.removeHandler(errors)
+    failed = [r for r in errors.records if "fail" in r.lower() or "error" in r.lower()]
+    if failed:
+        status = "403" if any("403" in r for r in failed) else "an error"
+        return f"upload FAILED: the client reported {status} while sending the traces"
+    sent = f"3 synthetic turns sent to `{tracer.project}` (no ingest error reported)"
+    try:
         runs = list(tracer.client.list_runs(project_name=tracer.project, is_root=True, limit=5))
-        return f"uploaded and read back: {len(runs)} recent root runs in `{tracer.project}`"
+        return f"{sent}; read back: {len(runs)} recent root runs"
     except Exception as exc:  # noqa: BLE001 - reported, not hidden
-        return f"upload attempted; read-back failed: {type(exc).__name__}"
+        if "403" in str(exc):
+            return f"{sent}; read-back not permitted (403: the key is a tracing-only key)"
+        return f"{sent}; read-back failed: {type(exc).__name__}"

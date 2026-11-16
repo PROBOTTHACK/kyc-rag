@@ -72,6 +72,7 @@ def main(argv: list[str] | None = None) -> int:
         "suites_conversation",
         "suites_privacy",
         "suites_observability",
+        "suites_langsmith",
     ):
         name = f"app.assistant.a7.{module}"
         if importlib.util.find_spec(name) is not None:  # later stages add their modules
@@ -79,7 +80,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("suites", nargs="+", choices=[*SUITES, "all"])
     args = parser.parse_args(argv)
-    names = [n for n in SUITES if n != "smoke"] if "all" in args.suites else args.suites
+    # `all` never uploads: the LangSmith evaluation runs only when named (`langsmith_eval`).
+    names = (
+        [n for n in SUITES if n not in ("smoke", "langsmith_eval")]
+        if "all" in args.suites
+        else args.suites
+    )
     dev = get_settings()  # the development settings, before DATABASE_URL is switched
     checklist = CapturingChecklist(development_checklist(dev))
     # The database is created and migrated outside the evaluation loop (alembic runs its own).
