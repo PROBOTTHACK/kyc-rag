@@ -633,12 +633,58 @@ def _report(
     print(md)
 
 
+RECHECK_MARK = "\n## Offline re-check with the current `check_reply`\n"
+
+
+def recheck() -> int:
+    """No network: re-apply the CURRENT `check_reply` to every reply the live run received
+    (data/processed/a7/live.json) and re-audit what it still accepts. Used after a validator
+    fix, so the live findings are measured against the fixed check without a second run."""
+    record = json.loads((RECORD_DIR / "live.json").read_text("utf-8"))
+    received = [
+        v for v in record["voice"]
+        if v["accepted"] or str(v["fallback"]).startswith("rejected")
+    ]  # fmt: skip
+    replies = {(t["conversation"], t["index"]): t for t in record["turns"]}
+    kept: list[dict[str, Any]] = []
+    for v in received:
+        turn = replies.get((v["conversation"], v["turn"]))
+        calls = [c for c in (turn or {}).get("calls", []) if c["prompt_id"] == "assistant_voice"]
+        reply = ((calls[-1].get("output") if calls else None) or {}).get("reply")
+        if reply is not None and check_reply(reply, v["facts"]) is None:
+            kept.append({**v, "reply": reply, "flags": strict_audit(reply, v["facts"])})
+    flagged = [k for k in kept if k["flags"]]
+    section = (
+        RECHECK_MARK
+        + "\nThe validator was fixed after this run (A7.6: obligation wording such as \"you'll "
+        'need" / "requirement", and profile words not in the facts; owner decision '
+        "2026-11-16). The recorded replies were re-checked offline with the fixed check; no "
+        "second live run was made (budget).\n\n"
+        "| Metric | Result | Threshold |\n|---|---|---|\n"
+        f"| Voice validity with the fixed check | {len(kept)}/{len(received)} = "
+        f"{len(kept) / max(len(received), 1):.0%} | >= 80 % (soft) |\n"
+        f"| Accepted replies still flagged by the stricter audit | {len(flagged)} | "
+        "classified below |\n\n"
+        + "".join(
+            f"- `{k['conversation']}#{k['turn']}`: {'; '.join(k['flags'])}\n" for k in flagged
+        )
+    )
+    path = REPORT_DIR / "live_llm_report.md"
+    md = path.read_text("utf-8").split(RECHECK_MARK)[0].rstrip("\n") + "\n"
+    path.write_text(md + section, encoding="utf-8", newline="\n")
+    print(section)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--dry-run", action="store_true", help="no network: the estimate only")
     mode.add_argument("--live", action="store_true", help="the opt-in live run")
+    mode.add_argument("--recheck", action="store_true", help="no network: fixed-check re-audit")
     args = parser.parse_args(argv)
+    if args.recheck:
+        return recheck()
     dev = get_settings()
     checklist = CapturingChecklist(development_checklist(dev))
     with (
