@@ -67,7 +67,12 @@ def main(argv: list[str] | None = None) -> int:
     # Import the later stages' suites so they register (kept in their own modules).
     import importlib.util
 
-    for module in ("suites_evidence", "suites_conversation", "suites_privacy"):
+    for module in (
+        "suites_evidence",
+        "suites_conversation",
+        "suites_privacy",
+        "suites_observability",
+    ):
         name = f"app.assistant.a7.{module}"
         if importlib.util.find_spec(name) is not None:  # later stages add their modules
             importlib.import_module(name)

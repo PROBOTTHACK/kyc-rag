@@ -70,6 +70,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         from app.assistant.llm_extract import assistant_llm
         from app.assistant.service import AssistantService, LazyChecklist
         from app.assistant.store import PostgresAssistantStore
+        from app.assistant.tracing import tracer_from_settings
 
         checklist = LazyChecklist(settings)
         app.state.assistant = AssistantService(
@@ -78,6 +79,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             assistant_llm(settings),
             context_tokens=settings.ASSISTANT_CONTEXT_TOKENS,
             recent_turns=settings.ASSISTANT_RECENT_TURNS,
+            tracer=tracer_from_settings(settings),
         )
     try:
         await workflow.log_stale_leases()

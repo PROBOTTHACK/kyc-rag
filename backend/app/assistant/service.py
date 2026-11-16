@@ -38,6 +38,7 @@ from app.assistant.checklist import AnswerKind, ChecklistAnswer, ChecklistServic
 from app.assistant.dialogue import ReadyProfile, TurnInput, opening, respond
 from app.assistant.memory import ConversationContext, ConversationSummary, assemble
 from app.assistant.store import AssistantStore, TurnRecord
+from app.assistant.tracing import DISABLED, Tracer, sha, span, traced
 from app.assistant.voice import voice_reply
 from app.assistant.wording import Wording, wording
 from app.config import Settings
@@ -120,6 +121,10 @@ def _stored_message(turn: TurnInput) -> tuple[str | None, tuple[str, ...]]:
     return kept, res.categories
 
 
+def sha256_hex(text: str) -> str:
+    return sha(text)
+
+
 def _choice(turn: TurnInput) -> dict[str, Any]:
     return {
         "action": turn.action.value if turn.action else None,
@@ -139,12 +144,14 @@ class AssistantService:
         clock: Callable[[], datetime] = _now,
         context_tokens: int = CONTEXT_TOKENS,
         recent_turns: int = RECENT_TURNS,
+        tracer: Tracer | None = None,
     ) -> None:
+        self.tracer = tracer or DISABLED  # LangSmith observability (tracing.py); off by default
         self.context_tokens = context_tokens
         self.recent_turns = recent_turns
         self.store = store
         self._checklist = checklist
-        self.llm = llm
+        self.llm = traced(llm, self.tracer)
         self.words = words or wording()
         self.technical_message = catalogue().wording.technical_error
         self.clock = clock
@@ -188,16 +195,44 @@ class AssistantService:
         }
 
     async def submit_turn(self, raw_sid: str, key: str | None, body: bytes) -> dict[str, Any]:
+        """One customer turn, traced as `assistant.turn` when tracing is configured."""
         if not key or len(key) > MAX_KEY_CHARS:
             raise KEY_REQUIRED
         sid = _session_id(raw_sid)
         data, turn = _parse(body)
+        kept, categories = _stored_message(turn)
+        inputs = {  # the stored (screened) message only; a refused one is never traced
+            "message": kept,
+            "screen_categories": list(categories),
+            **_choice(turn),
+        }
+        metadata = {"session": sha256_hex(str(sid)), "idempotency_key": sha256_hex(key)}
+        with (
+            self.tracer.activate(),
+            span("assistant.turn", inputs=inputs, metadata=metadata) as root,
+        ):
+            out = await self._submit_turn(sid, key, data, turn, root)
+            answer = out["answer"]
+            groups = (answer.get("checklist") or {}).get("groups") or {}
+            root.set(
+                answer_kind=answer.get("kind"),
+                turn=out.get("turn"),
+                coverage_state=answer.get("coverage_state"),
+                notes=[m.get("code") for m in answer.get("messages") or []],
+                checklist_items=sum(len(v) for v in groups.values()),
+            )
+            return out
+
+    async def _submit_turn(
+        self, sid: uuid.UUID, key: str, data: dict[str, Any], turn: TurnInput, root: Any
+    ) -> dict[str, Any]:
         sha = request_sha256(data)
         async with self.store.turn(sid) as tx:
             session = tx.session
             if session is None:
                 raise NOT_FOUND
             replay = await tx.replay(key)
+            root.meta(replay=replay is not None)
             if replay is not None:
                 if replay.request_sha256 != sha:
                     raise KEY_MISMATCH
@@ -207,9 +242,15 @@ class AssistantService:
                 raise EXPIRED
             # Memory: the stored history (and rolling summary) as context for the LLM.
             context, summary = await self._context(tx, session)
-            state, response = await respond(
-                session.state, turn, llm=self.llm, context=context.render()
-            )
+            with span("intent_resolution") as s:
+                state, response = await respond(
+                    session.state, turn, llm=self.llm, context=context.render()
+                )
+                s.set(
+                    step=response.step.value,
+                    notes=[n.code.value for n in response.notes],
+                    llm_consulted=response.llm_consulted,
+                )
             checklist: ChecklistAnswer | None = None
             if response.ready is not None:
                 checklist = await self._build(response.ready)
@@ -229,7 +270,9 @@ class AssistantService:
             # voice speaks for free text, checklists, fallbacks and confirmations.
             chip_question = turn.message is None and built.kind == "question"
             if self.llm is not None and built.kind != "blocked" and not chip_question:
-                reply = await voice_reply(self.llm, built, message, context=context)
+                with span("voice") as s:
+                    reply = await voice_reply(self.llm, built, message, context=context)
+                    s.set(reworded=reply != built.reply)
                 built = built.model_copy(update={"reply": reply})
             record = TurnRecord(
                 turn_no=state.turn,
@@ -253,15 +296,24 @@ class AssistantService:
         sizes and timings only (never content)."""
         previous = ConversationSummary.model_validate(session.summary) if session.summary else None
         after = previous.through_turn if previous is not None else 0
-        turns = await tx.turns_after(after, limit=self.recent_turns * 4)
-        context, summary = assemble(
-            session.state,
-            turns,
-            previous,
-            self.words,
-            budget_tokens=self.context_tokens,
-            max_recent=self.recent_turns,
-        )
+        with span("history_retrieval", "retriever") as s:
+            turns = await tx.turns_after(after, limit=self.recent_turns * 4)
+            s.set(turns=len(turns), summarised_through=after)
+        with span("context_assembly") as s:
+            context, summary = assemble(
+                session.state,
+                turns,
+                previous,
+                self.words,
+                budget_tokens=self.context_tokens,
+                max_recent=self.recent_turns,
+            )
+            s.set(
+                tokens=context.tokens,
+                recent_turns=len(context.recent),
+                summarised_turns=context.dropped_turns,
+                summary_updated=summary is not None and summary is not previous,
+            )
         log.info(
             "assistant context: %d tokens, %d recent turns, %d summarised, %.1f ms",
             context.tokens,
@@ -275,7 +327,10 @@ class AssistantService:
 
     async def _build(self, ready: ReadyProfile) -> ChecklistAnswer | None:
         def build() -> ChecklistAnswer:
-            return self._checklist().build(ready)
+            with span("checklist", inputs={"profile": ready.model_dump(mode="json")}) as s:
+                answer = self._checklist().build(ready)
+                s.set(kind=answer.kind.value, coverage_state=answer.coverage_state)
+                return answer
 
         try:
             return await run_in_threadpool(build)

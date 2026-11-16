@@ -69,7 +69,12 @@ class Stack:
     engines: list[AsyncEngine] = field(default_factory=list)
 
     def service(
-        self, llm: Any = None, *, context_tokens: int = 1500, recent_turns: int = 10
+        self,
+        llm: Any = None,
+        *,
+        context_tokens: int = 1500,
+        recent_turns: int = 10,
+        tracer: Any = None,
     ) -> AssistantService:
         # NullPool: a connection per use, closed afterwards, so the many services an
         # evaluation builds (one per conversation, more for restarts) never exhaust the
@@ -80,7 +85,12 @@ class Stack:
         self.engines.append(engine)
         store = PostgresAssistantStore(async_sessionmaker(engine, expire_on_commit=False))
         return AssistantService(
-            store, self.checklist, llm, context_tokens=context_tokens, recent_turns=recent_turns
+            store,
+            self.checklist,
+            llm,
+            context_tokens=context_tokens,
+            recent_turns=recent_turns,
+            tracer=tracer,
         )
 
     async def close(self) -> None:

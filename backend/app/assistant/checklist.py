@@ -39,6 +39,7 @@ from app.assistant.taxonomy import (
     Intent,
     SourceRole,
 )
+from app.assistant.tracing import span
 from app.assistant.understand import Topic
 
 log = logging.getLogger(__name__)
@@ -246,19 +247,31 @@ class ChecklistService:
         b = _Build()
         items = [i for i in self.cat.items if self._applies(i, plan)]
         entries = [e for e in self.cat.not_confirmed if self._entry_applies(e, plan)]
-        hits = self._retrieve(items, plan, b)
+        with span("retrieval", "retriever", {"items": len(items), "sources": plan.sources}) as s:
+            hits = self._retrieve(items, plan, b)
+            s.set(supplementary_hits=sum(len(v) for v in hits.values()))
         wanted = {ev.chunk_id for i in items for ev in i.evidence}
         wanted |= {cid for ids in hits.values() for cid in ids}
-        try:
-            stored = self.chunks.get(wanted)
-        except Exception:  # storage failure is not "no evidence" (A1 §7)
-            log.exception("checklist: stored evidence could not be read")
-            return self._answer(plan, AnswerKind.TECHNICAL_ERROR)
-        built: dict[str, ChecklistItem] = {}
-        for item in items:
-            out = self._build_item(item, plan, stored, hits.get(item.id, ()), b)
-            if out is not None:
-                built[item.id] = out
+        with span("evidence_validation", inputs={"chunks": len(wanted)}) as s:
+            try:
+                stored = self.chunks.get(wanted)
+            except Exception:  # storage failure is not "no evidence" (A1 §7)
+                log.exception("checklist: stored evidence could not be read")
+                s.set(stored_evidence_unreadable=True)
+                return self._answer(plan, AnswerKind.TECHNICAL_ERROR)
+            built: dict[str, ChecklistItem] = {}
+            for item in items:
+                out = self._build_item(item, plan, stored, hits.get(item.id, ()), b)
+                if out is not None:
+                    built[item.id] = out
+            # Ids, document keys and pages only: never the passages.
+            s.set(
+                items=len(built),
+                dropped=len(b.dropped),
+                citations=sorted(
+                    {f"{c.document_key}:p{c.page}" for i in built.values() for c in i.citations}
+                ),
+            )
         if not built:
             return self._answer(plan, AnswerKind.FALLBACK, diagnostics=b)
         asked = set(profile.topics) - {Topic.DOCUMENTS.value}
