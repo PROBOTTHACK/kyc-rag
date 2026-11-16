@@ -25,6 +25,9 @@ class Settings(BaseSettings):
 
     # --- App ---
     APP_ENV: str = "dev"
+    # The preserved legacy compliance-engine API (/api/v1/sessions, its workflow runtime).
+    # false = not mounted and not built (a small deployment); /api/v1/health always stays.
+    LEGACY_API_ENABLED: bool = True
     FRONTEND_ORIGIN: str = "http://localhost:5173"
     # --- Postgres ---
     # Connection URLs have no in-code default: they come from .env / infra/.env.example.
