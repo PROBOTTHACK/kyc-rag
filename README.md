@@ -47,10 +47,108 @@ Prerequisites (Tesseract OCR, GNU Make on Windows) and `.env` setup (`cp infra/.
 
 **Checks:** `make test`, `make lint`, `make check-schema`, `make web-test`, `make web-lint`, `make web-build`, `make assistant-eval`.
 
+## Evaluation results (A7, 2026-11-16)
+The final evaluation, measured on the real stack: PostgreSQL, Qdrant, the stored HDFC corpus and the production checklist. It uses **synthetic data only** and is **deterministic** (no LLM) unless marked *live*.
+
+**Read this first:**
+- This is a prototype, **not release-ready**.
+- **The 30-item human citation review has not been signed off.** Citations are verified **automatically**, not by a person.
+- **One hard threshold is missed:** deterministic latency, p95 899 ms against 750 ms (867 ms at A7.4, 948 ms in the fresh clone).
+
+Full report: [`docs/assistant/A7_CLOSURE_REPORT.md`](docs/assistant/A7_CLOSURE_REPORT.md).
+
+### Checklists, coverage and evidence
+| What | Result | Target |
+|---|---|---|
+| Covered combinations: 55 complete profiles over 26 cells, each building a valid cited checklist | **55/55** | 100 % |
+| Combinations the corpus can't establish: the exact prescribed fallback | **28/28** | 100 % |
+| Resident → NRO conversion phrasings / near-misses routed correctly | **12/12** and **6/6** | 100 % |
+| Citations re-resolved in PostgreSQL (document, page, exact passage, HDFC only) | **1,332/1,332** | 100 % |
+| Strengthened classifications (`policy_supported`, inferred documents, organisation photos) | **0** | 0 |
+| Human citation review (30 sampled items checked against the PDF pages) | **not signed off (0/30)**. The automated pre-check found the wording in the text layer for 19 rows; 1 row was not found; 10 rows are scanned pages that need a visual check | 30/30 |
+
+### Conversation, memory and safety
+| What | Result | Target |
+|---|---|---|
+| Scripted conversations (greetings, follow-ups, ambiguity, corrections, separate accounts, long context, off-topic and injection): 70 conversations, 241 turns | **91/91** checked turns correct | 100 % |
+| Greetings that triggered a fallback or repeated the checklist | **0** of 23 | 0 |
+| Memory: required facts in the LLM context / forbidden facts | **20/20** / **0** of 7 | 100 % / 0 |
+| Context within budget / identical after a server restart / summary fidelity | **31/31** / **15/15** / **2/2** | 100 % |
+| A deleted conversation is unrecoverable (database, summary, Redis, API) | **yes** | yes |
+| Separate accounts: 200 random sequences (1,939 turns) | **0** leaks | 0 |
+| Synthetic PAN / Aadhaar / passport / card / account numbers refused | **29/29** | 100 % |
+| E-mail and phone redacted / harmless messages wrongly blocked | **7/7** / **0** of 15 | 100 % / 0 |
+| Identifiers found in answers, the database, 140 log records or LLM requests | **0** | 0 |
+| Cross-session reads / unknown ids answered 404 / id collisions in 10,000 | **0** / **20/20** / **0** | as listed |
+| Idempotent replay, 409 on key reuse, 10 concurrent duplicates → 1 stored turn | **pass** | pass |
+| Failure handling: store down, LLM error / 429 / timeout, expiry 410, database down 503 | **pass** | pass |
+| **Deterministic latency, 500 turns** | p50 66 ms, **p95 899 ms**, p99 977 ms | p95 ≤ 750 ms: **missed** |
+
+### Browser (Chrome 157, headless)
+| Width | 22-step main flow | Keyboard only | Reduced motion | Layout | Console errors |
+|---|---|---|---|---|---|
+| 1440, 1024, 768, 390 px | **pass** at every width | **pass** (visible focus 5/5) | **pass** | no overflow at any step | **0** |
+
+Demo video: 2 min 31 s, kept outside Git. Its SHA-256 and recording steps are in [`A7_DEMO.md`](docs/assistant/A7_DEMO.md).
+
+### Live LLM (*live*, opt-in, Groq `openai/gpt-oss-120b`, synthetic only)
+| What | Result | Target |
+|---|---|---|
+| Token budget (printed and enforced before the run) / used | 572,718 / 522,991 reserved; 187,424 in + 47,935 out reported by Groq | within budget |
+| Voice replies accepted by the reply check, at run time | 116/119 (97 %) | ≥ 80 % (soft) |
+| Factual-safety violations found by the stricter offline audit | ~48 ("you'll need …" obligation wording, plus 1 unsupported claim): **hard gate failed, check fixed** (`d7fc99b`) | 0 |
+| The same replies with the fixed check | 66/119 (**55 %**), **0** violations | ≥ 80 %: **missed** |
+| Turn time with the live voice | p50 2.2 s, p95 10.3 s (25 % hit the 10 s timeout) | p95 ≤ 12 s |
+| Identifiers sent to the LLM / blocked messages reaching it / proposals used unconfirmed | **0** / **0** / **0** | 0 |
+
+Every rejected or timed-out voice reply falls back to the deterministic reply, so the customer always gets the checked answer.
+
+### Retrieval (25 HDFC-only cases, single annotator; not a gate)
+| Mode | Recall@5 | Hit@5 | MRR@5 |
+|---|---|---|---|
+| dense (default) | 0.733 | 0.880 | 0.599 |
+| BM25 | 0.613 | 0.800 | 0.653 |
+| hybrid (RRF) | 0.793 | 0.920 | 0.727 |
+
+### Observability (LangSmith)
+- **Tracing:** one trace per turn with nested spans (history, context, intent, LLM, voice, retrieval, evidence): **286/286** turns, every span closed with its latency, **0** identifiers or source passages uploaded, and answers identical when LangSmith fails.
+- **Live upload:** 3 synthetic turns are sent per observability run to `account-opening-assistant-eval`; the client reported no ingest error.
+- **LangSmith experiment** (the 70 conversations as a dataset, with turn-accuracy evaluators): **not run**. The configured key is tracing-only (403). Run `make a7-eval SUITE=langsmith_eval` with a personal access token.
+- **Tracing your own sessions:** set `ASSISTANT_TRACING=true` and `LANGSMITH_API_KEY` in `.env`. It is off by default.
+
+### Tests and reproducibility
+Final validation on this branch (A7.8, commit `f9da526` plus the closure documents):
+
+| Check | Result |
+|---|---|
+| Backend unit tests (`make test`) | **2,111 passed**, 0 failed |
+| Backend integration tests (`make test-integration`, real Postgres, Qdrant, Redis) | **519 passed**, 0 failed |
+| Frontend tests (`make web-test`) | **197 passed** |
+| `make lint` (ruff, black, mypy), `make check-schema`, `make web-lint`, typecheck, `make web-build`, `check:api` | all pass |
+| A7 deterministic suites (`make a7-eval`) | all pass except **reliability: the latency target only** (all functional checks pass) |
+
+**Fresh-clone reproduction (A7.7):** a new clone on an isolated stack, from `requirements.lock`, `npm ci` and the owner's 9 PDFs (9/9 SHA-256 match):
+- **identical results:** the same 456 chunks (ids and text), checklist item ids, 1,332 citations, conversation, memory, scenario and privacy results, and retrieval scores;
+- **3 documented test differences, none of which affects the assistant's answers:**
+  - a load-dependent legacy timing flake (K22);
+  - 2 integration tests (one assistant provenance check, one legacy) that need a Gemini-extracted form schema a clone can't recreate without a live Gemini call (K23);
+  - 2 skips that need local legacy data.
+
+Details: [`reproducibility.md`](docs/assistant/a7/reproducibility.md).
+
+**Reproduce:**
+- `make a7-eval` (all deterministic suites);
+- `make assistant-eval MODE=dense|bm25|hybrid`;
+- `make a7-browser` and `make a7-demo` (need `make api` and `make web`);
+- `make a7-live GROQ_LIVE_ENABLED=true` (opt-in; prints and enforces a token budget).
+
+Reports: [`docs/assistant/a7/`](docs/assistant/a7/).
+
 ## Documentation
 - **[`docs/assistant/PRODUCT_SPEC.md`](docs/assistant/PRODUCT_SPEC.md): the authoritative product specification.**
 - [`docs/assistant/A5_API.md`](docs/assistant/A5_API.md): the API contract, persistence and demo.
 - [`docs/assistant/A0_AUDIT.md`](docs/assistant/A0_AUDIT.md): the corpus audit and coverage matrix.
+- [`docs/assistant/A7_CLOSURE_REPORT.md`](docs/assistant/A7_CLOSURE_REPORT.md): the final evaluation, its results and open limitations; the per-area reports are in [`docs/assistant/a7/`](docs/assistant/a7/), and the recorded demo in [`A7_DEMO.md`](docs/assistant/A7_DEMO.md).
 - Historical stage records: A1–A4, A6 and [`REDESIGN.md`](docs/assistant/REDESIGN.md) in `docs/assistant/`.
 - [`CLAUDE.md`](CLAUDE.md): the project rules.
 
@@ -328,7 +426,7 @@ M4 limits (full register: [`docs/handoff/04-limitations-and-known-issues.md`](do
 - NLI semantic verification is disabled (no configuration qualified), so claims are *not verified* and reports with a checklist are DEGRADED.
 - The automated conflict scan does not run in production.
 - Review cases are open and read-only; there is no decision workflow and no authentication.
-- Known issues include deferred verification-rule defects, a pre-existing citation page-range mismatch for child chunks, and three environment-dependent test failures.
+- Known issues include deferred verification-rule defects, a pre-existing citation page-range mismatch for child chunks, and three environment-dependent test failures (K7, K7b and K8, all fixed in A7.5: see [`docs/assistant/a7/known_failures.md`](docs/assistant/a7/known_failures.md)).
 
 M3 limits:
 - The workflow drafts a checklist only from retrieved, cited sources, and a deterministic validator checks every citation and every MANDATORY.

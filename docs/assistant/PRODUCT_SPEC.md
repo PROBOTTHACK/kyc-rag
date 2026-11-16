@@ -291,7 +291,7 @@ Checklist items keep the A1 shape: title, kind (document / information / declara
 | A5 | API v2 and persistence | Done |
 | A6 | Frontend: the conversational assistant | Done |
 | Upgrade | Redesign, fallback that explains, LLM voice, context, memory, accounts, greetings, full-screen chat, cleanup (owner requests of 2026-11-14) | Done |
-| A7 | Evaluation, opt-in live-LLM run (synthetic), browser demo, documentation, closure | **Not started**; needs owner approval |
+| A7 | Evaluation, opt-in live-LLM run (synthetic), browser demo, documentation, closure | **Done as an evaluation, 2026-11-16** ([`A7_CLOSURE_REPORT.md`](A7_CLOSURE_REPORT.md)). Not release-ready: the 30-item citation review is unsigned, and the latency target and the live-voice soft target are missed. |
 
 There is no A8.
 
