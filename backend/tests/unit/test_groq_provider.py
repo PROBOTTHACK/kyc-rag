@@ -320,7 +320,11 @@ def test_no_fallback_wrapper_when_the_fallback_model_is_the_primary() -> None:
     assert isinstance(p, GroqProvider)
 
 
-def test_live_calls_and_cache_are_off_by_default() -> None:
+def test_live_calls_and_cache_are_off_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The defaults are the subject: the process environment outranks env files, so a shell
+    # with live Groq switched on for a local demo must not decide this test (K7, A7.5).
+    for name in [k for k in os.environ if k.startswith(("GROQ_", "LLM_"))]:
+        monkeypatch.delenv(name)
     fields = Settings.model_fields
     assert fields["GROQ_LIVE_ENABLED"].default is False
     assert fields["GROQ_DATA_TERMS_VERIFIED_ON"].default is None
@@ -337,12 +341,14 @@ def test_groq_retries_cannot_exceed_the_project_default() -> None:
 
 
 def test_app_imports_without_the_groq_sdk_or_a_key() -> None:
+    # Settings from the committed example only: the local root `.env` (which may switch
+    # live Groq on for a demo) must not decide this test (K7b, A7.5).
     code = (
         "import sys; import app.main, app.llm.provider, app.llm.groq, app.llm.cache; "
-        "from app.config import get_settings; s = get_settings(); "
+        f"from app.config import Settings; s = Settings(_env_file={str(EXAMPLE_ENV)!r}); "
         "print(s.GROQ_API_KEY is None, s.GROQ_LIVE_ENABLED, 'groq' in sys.modules)"
     )
-    env = {k: v for k, v in os.environ.items() if not k.startswith("GROQ")}
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("GROQ", "LLM_"))}
     env |= {"GROQ_API_KEY": "", "TESSDATA_DIR": ""}
     out = subprocess.run(  # noqa: S603 (fixed interpreter and code)
         [sys.executable, "-c", code],
