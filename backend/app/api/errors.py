@@ -13,6 +13,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from app.assistant.service import AssistantError
 from app.workflow.service import WorkflowError
 
 log = logging.getLogger(__name__)
@@ -32,6 +33,11 @@ async def workflow_error(request: Request, exc: Exception) -> JSONResponse:
     return envelope(exc.status, exc.code, exc.message, **exc.extra)
 
 
+async def assistant_error(request: Request, exc: Exception) -> JSONResponse:
+    assert isinstance(exc, AssistantError)  # noqa: S101 - registered for this type only
+    return envelope(exc.status, exc.code, exc.message)
+
+
 async def validation_error(request: Request, exc: Exception) -> JSONResponse:
     return envelope(422, "VALIDATION_ERROR", "The request is not valid.")
 
@@ -43,5 +49,6 @@ async def unexpected_error(request: Request, exc: Exception) -> JSONResponse:
 
 def install(app: FastAPI) -> None:
     app.add_exception_handler(WorkflowError, workflow_error)
+    app.add_exception_handler(AssistantError, assistant_error)
     app.add_exception_handler(RequestValidationError, validation_error)
     app.add_exception_handler(Exception, unexpected_error)

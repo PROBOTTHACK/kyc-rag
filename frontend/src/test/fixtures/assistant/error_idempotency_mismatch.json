@@ -1,0 +1,9 @@
+{
+  "status": 409,
+  "body": {
+    "error": {
+      "code": "IDEMPOTENCY_MISMATCH",
+      "message": "This Idempotency-Key was already used for a different request."
+    }
+  }
+}

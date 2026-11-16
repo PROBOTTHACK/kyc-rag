@@ -120,6 +120,11 @@ class Settings(BaseSettings):
     LANGSMITH_TRACING: bool = False
     LANGSMITH_API_KEY: SecretStr | None = None
     LANGSMITH_PROJECT: str = "kyc-engine"
+    # The assistant's own tracing (A7): needs ASSISTANT_TRACING=true and LANGSMITH_API_KEY.
+    # Separate from LANGSMITH_TRACING, which would also trace the legacy LangGraph code.
+    ASSISTANT_TRACING: bool = False
+    ASSISTANT_TRACE_PROJECT: str = "account-opening-assistant-dev"
+    ASSISTANT_TRACE_EVAL_PROJECT: str = "account-opening-assistant-eval"
     # --- Limits ---
     MAX_REGENERATIONS: int = Field(default=2, ge=0, le=2)
     # --- Workflow graph (M3) ---
@@ -156,6 +161,10 @@ class Settings(BaseSettings):
     # Per-minute token budget for Groq (input estimate + max output). Below the lowest
     # published figure (8K TPM, docs/02); check the organisation's real limits.
     RATE_LIMIT_GROQ_TPM: int = Field(default=6000, gt=0)
+    # Assistant conversation memory: the token budget for the conversation context given
+    # to the LLM (recent turns + rolling summary), and the most recent turns kept verbatim.
+    ASSISTANT_CONTEXT_TOKENS: int = Field(default=1500, ge=200, le=32000)
+    ASSISTANT_RECENT_TURNS: int = Field(default=10, ge=1, le=100)
     # Longest a call may wait for rate-limit capacity before failing (transient).
     RATE_LIMIT_MAX_WAIT_S: float = Field(default=120.0, gt=0, le=600)
     # Redis operation timeout for the shared limiter; on any Redis error the limiter

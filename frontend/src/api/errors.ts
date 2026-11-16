@@ -24,6 +24,7 @@ const MESSAGES: Record<string, string> = {
   STALE_CHECKPOINT:
     "The question you answered is no longer the current one. Load the latest question and answer again.",
   NOTHING_TO_RETRY: "There is nothing to retry in this session.",
+  ASSISTANT_UNAVAILABLE: "The assistant is not available right now. Please try again later.",
   WORKFLOW_UNAVAILABLE: "The service is not available right now. Please try again later.",
   INTERNAL_ERROR: "Something went wrong on the server.",
   NETWORK_ERROR: "The server could not be reached.",

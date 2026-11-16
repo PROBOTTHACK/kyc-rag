@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.api import errors
 from app.api.v1.router import api_router
 from app.api.v1.schemas import add_extra_schemas
+from app.api.v2.assistant import router as assistant_router
 from app.config import Settings, get_settings
 from app.core.health import postgres_check, qdrant_check, redis_check
 from app.core.logging import configure_logging
@@ -63,6 +64,23 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         factory = build_runtime
     workflow = WorkflowService(await factory(settings, app.state.sessionmaker))
     app.state.workflow = workflow
+    # A5: the account opening assistant (tests may pre-set a fake service).
+    checklist = None
+    if not hasattr(app.state, "assistant"):
+        from app.assistant.llm_extract import assistant_llm
+        from app.assistant.service import AssistantService, LazyChecklist
+        from app.assistant.store import PostgresAssistantStore
+        from app.assistant.tracing import tracer_from_settings
+
+        checklist = LazyChecklist(settings)
+        app.state.assistant = AssistantService(
+            PostgresAssistantStore(app.state.sessionmaker),
+            checklist,
+            assistant_llm(settings),
+            context_tokens=settings.ASSISTANT_CONTEXT_TOKENS,
+            recent_turns=settings.ASSISTANT_RECENT_TURNS,
+            tracer=tracer_from_settings(settings),
+        )
     try:
         await workflow.log_stale_leases()
     except Exception as exc:  # noqa: BLE001 - startup must not fail on a reporting query
@@ -71,6 +89,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         await workflow.shutdown()
+        if checklist is not None:
+            checklist.close()
         await qdrant.close()
         await redis.aclose()
         await engine.dispose()
@@ -81,7 +101,16 @@ def create_app(
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(settings.APP_ENV)
-    app = FastAPI(title="Agentic KYC Compliance Engine", version="0.0.1", lifespan=lifespan)
+    app = FastAPI(
+        title="Account Opening Assistant API",
+        description=(
+            "Independent portfolio prototype; not affiliated with or endorsed by HDFC Bank or "
+            "the RBI. Synthetic data only. `/api/v2/assistant` is the product API; `/api/v1` is "
+            "the preserved legacy compliance-engine API."
+        ),
+        version="0.0.1",
+        lifespan=lifespan,
+    )
     app.state.settings = settings
     if runtime_factory is not None:
         app.state.runtime_factory = runtime_factory
@@ -94,6 +123,7 @@ def create_app(
         allow_headers=["*"],
     )
     app.include_router(api_router, prefix="/api/v1")
+    app.include_router(assistant_router, prefix="/api/v2")
     _publish_extra_schemas(app)
     return app
 

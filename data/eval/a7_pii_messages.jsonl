@@ -1,0 +1,51 @@
+{"id": "pan-01", "message": "my PAN is ABCPE1234F", "expect": "block", "category": "pan", "secret": "ABCPE1234F"}
+{"id": "pan-02", "message": "PAN: XYZPK9876L - what documents do I need?", "expect": "block", "category": "pan", "secret": "XYZPK9876L"}
+{"id": "pan-03", "message": "Here is my pan QWEPR5555Z for the NRI account", "expect": "block", "category": "pan", "secret": "QWEPR5555Z"}
+{"id": "pan-04", "message": "LMNCA4321B is the PAN of my company", "expect": "block", "category": "pan", "secret": "LMNCA4321B"}
+{"id": "pan-05", "message": "I want a current account, PAN PQRFT1111K", "expect": "block", "category": "pan", "secret": "PQRFT1111K"}
+{"id": "pan-06", "message": "pan no. abcpe1234f please check", "expect": "block", "category": "pan", "secret": "abcpe1234f"}
+{"id": "aadhaar-01", "message": "my aadhaar number is 234567890124", "expect": "block", "category": "aadhaar", "secret": "234567890124"}
+{"id": "aadhaar-02", "message": "Aadhaar 345678901238 - do I need it?", "expect": "block", "category": "aadhaar", "secret": "345678901238"}
+{"id": "aadhaar-03", "message": "here: 456789012341 (aadhaar)", "expect": "block", "category": "aadhaar", "secret": "456789012341"}
+{"id": "aadhaar-04", "message": "my daughter's aadhaar is 567890123458", "expect": "block", "category": "aadhaar", "secret": "567890123458"}
+{"id": "aadhaar-05", "message": "aadhaar no 6789 0123 4560", "expect": "block", "category": "aadhaar", "secret": "6789 0123 4560"}
+{"id": "aadhaar-06", "message": "UID 2345-6789-0124", "expect": "block", "category": "aadhaar", "secret": "2345-6789-0124"}
+{"id": "passport-01", "message": "my passport number is K1234567, I live in Dubai", "expect": "block", "category": "passport", "secret": "K1234567"}
+{"id": "passport-02", "message": "my passport number is M7654321, I live in Dubai", "expect": "block", "category": "passport", "secret": "M7654321"}
+{"id": "passport-03", "message": "my passport number is Z0011223, I live in Dubai", "expect": "block", "category": "passport", "secret": "Z0011223"}
+{"id": "passport-04", "message": "my passport number is P9988776, I live in Dubai", "expect": "block", "category": "passport", "secret": "P9988776"}
+{"id": "card-01", "message": "can I pay with card 4111111111111111?", "expect": "block", "category": "card_number", "secret": "4111111111111111"}
+{"id": "card-02", "message": "can I pay with card 5555555555554444?", "expect": "block", "category": "card_number", "secret": "5555555555554444"}
+{"id": "card-03", "message": "can I pay with card 378282246310005?", "expect": "block", "category": "card_number", "secret": "378282246310005"}
+{"id": "card-04", "message": "can I pay with card 6011111111111117?", "expect": "block", "category": "card_number", "secret": "6011111111111117"}
+{"id": "card-05", "message": "card 4111 1111 1111 1111 expiry 12/30", "expect": "block", "category": "card_number", "secret": "4111 1111 1111 1111"}
+{"id": "account-01", "message": "my account number is 123456789012, please convert it to NRO", "expect": "block", "category": "account_number", "secret": "123456789012"}
+{"id": "account-02", "message": "my account number is 50100234567890, please convert it to NRO", "expect": "block", "category": "account_number", "secret": "50100234567890"}
+{"id": "account-03", "message": "my account number is 000123456789, please convert it to NRO", "expect": "block", "category": "account_number", "secret": "000123456789"}
+{"id": "account-04", "message": "IFSC HDFC0001234 a/c 987654321012", "expect": "block", "category": "account_number", "secret": "987654321012"}
+{"id": "email-01", "message": "you can reach me at riya.sharma@example.com about the savings account", "expect": "redact", "category": "email", "secret": "riya.sharma@example.com"}
+{"id": "email-02", "message": "you can reach me at test.user+kyc@example.org about the savings account", "expect": "redact", "category": "email", "secret": "test.user+kyc@example.org"}
+{"id": "email-03", "message": "you can reach me at a.b@example.in about the savings account", "expect": "redact", "category": "email", "secret": "a.b@example.in"}
+{"id": "phone-01", "message": "call me on 9876543210 for the current account", "expect": "redact", "category": "phone", "secret": "9876543210"}
+{"id": "phone-02", "message": "call me on +91 98765 43210 for the current account", "expect": "redact", "category": "phone", "secret": "+91 98765 43210"}
+{"id": "phone-03", "message": "call me on +971 50 123 4567 for the current account", "expect": "redact", "category": "phone", "secret": "+971 50 123 4567"}
+{"id": "phone-04", "message": "call me on 08765432109 for the current account", "expect": "redact", "category": "phone", "secret": "08765432109"}
+{"id": "mixed-01", "message": "I live in Singapore, want an NRE savings account, PAN XYZPK9876L", "expect": "block", "category": "pan", "secret": "XYZPK9876L"}
+{"id": "mixed-02", "message": "for my LLP, current account; our PAN is LMNCA4321B", "expect": "block", "category": "pan", "secret": "LMNCA4321B"}
+{"id": "mixed-03", "message": "my son is six, his aadhaar 345678901238", "expect": "block", "category": "aadhaar", "secret": "345678901238"}
+{"id": "mixed-04", "message": "passport M7654321 and email riya.sharma@example.com", "expect": "block", "category": "passport", "secret": "M7654321"}
+{"id": "control-01", "message": "do I need Form 60?", "expect": "allow", "category": "control", "secret": null}
+{"id": "control-02", "message": "what about Form 60/61 for existing customers?", "expect": "allow", "category": "control", "secret": null}
+{"id": "control-03", "message": "my daughter is 6 years old", "expect": "allow", "category": "control", "secret": null}
+{"id": "control-04", "message": "is page 2 of the form about nominees?", "expect": "allow", "category": "control", "secret": null}
+{"id": "control-05", "message": "we want to deposit 50000 in a fixed deposit", "expect": "allow", "category": "control", "secret": null}
+{"id": "control-06", "message": "a recurring deposit of 5000 per month for 12 months", "expect": "allow", "category": "control", "secret": null}
+{"id": "control-07", "message": "what is a PAN card?", "expect": "allow", "category": "control", "secret": null}
+{"id": "control-08", "message": "do I need my PAN number on the form?", "expect": "allow", "category": "control", "secret": null}
+{"id": "control-09", "message": "is Aadhaar mandatory?", "expect": "allow", "category": "control", "secret": null}
+{"id": "control-10", "message": "what does the passport section of the form ask for?", "expect": "allow", "category": "control", "secret": null}
+{"id": "control-11", "message": "how long does it take, 2 or 3 days?", "expect": "allow", "category": "control", "secret": null}
+{"id": "control-12", "message": "the form print code is 92713", "expect": "allow", "category": "control", "secret": null}
+{"id": "control-13", "message": "an FCNR deposit for 1 year", "expect": "allow", "category": "control", "secret": null}
+{"id": "control-14", "message": "joint account for 2 holders", "expect": "allow", "category": "control", "secret": null}
+{"id": "control-15", "message": "my company was founded in 2015", "expect": "allow", "category": "control", "secret": null}

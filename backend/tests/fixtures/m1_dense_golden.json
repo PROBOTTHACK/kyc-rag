@@ -1,5 +1,5 @@
 {
-  "description": "M1 dense retrieval golden snapshot (M2 Stage 0). Dense BGE search, production filters (primary + supporting) plus each case's entity_terms, top 5. Used by M2 regression tests: dense mode must reproduce these ids and order.",
+  "description": "M1 dense retrieval golden snapshot (M2 Stage 0). Dense BGE search, production filters (primary + supporting) plus each case's entity_terms, top 5. Used by M2 regression tests: dense mode must reproduce these ids and order. A7.5 (K8, owner-approved 2026-11-16): exact-score ties are ranked by chunk id (app/retrieval/search.py); the snapshot had recorded Qdrant's internal order for one tied pair, so m1-14 ranks 2/3 (identical text and score 0.676856) were swapped to that order. Nothing else changed; metrics unchanged.",
   "dataset": "data/eval/m1_retrieval.jsonl",
   "captured_at": "2026-11-10T06:24:30+00:00",
   "embedding_model": "BAAI/bge-small-en-v1.5",
@@ -509,15 +509,15 @@
         },
         {
           "rank": 2,
-          "chunk_id": "97ca44f3-9764-5eac-be86-b1b4d1c133c2",
-          "score": 0.676856,
-          "citation": "hdfc_nri_account_opening, p.3"
-        },
-        {
-          "rank": 3,
           "chunk_id": "346df081-4fbc-559c-8751-e8f02746684a",
           "score": 0.676856,
           "citation": "hdfc_resident_to_nro_conversion, p.3"
+        },
+        {
+          "rank": 3,
+          "chunk_id": "97ca44f3-9764-5eac-be86-b1b4d1c133c2",
+          "score": 0.676856,
+          "citation": "hdfc_nri_account_opening, p.3"
         },
         {
           "rank": 4,

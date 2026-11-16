@@ -1,0 +1,192 @@
+# A7 memory evaluation set (docs/assistant/A7_PLAN.md §2.4, §4). Synthetic only.
+# `at_turn` N (1-based): the conversation context the LLM received while answering scripted
+# turn N (which must be a free-text message, so the voice is consulted). `present` /
+# `absent` are substrings of that delimited context. `summary_*` check the rolling summary
+# stored in PostgreSQL after turn N.
+version: a7-1
+cases:
+
+- id: mem-01
+  description: the confirmed profile reaches the LLM
+  turns:
+  - choose: [account_type, CURRENT]
+  - choose: [customer_category, LLP]
+  - say: "Does that apply to me?"
+  checks:
+  - at_turn: 3
+    present: ["Current account", "A limited liability partnership (LLP)"]
+
+- id: mem-02
+  description: an early message is still available many turns later
+  context_tokens: 300
+  recent_turns: 3
+  turns:
+  - say: "Hello there, I run a small trust"
+  - choose: [account_type, CURRENT]
+  - choose: [customer_category, TRUST]
+  - say: "thanks"
+  - say: "ok"
+  - say: "what about Form 60?"
+  - say: "Does that apply to me?"
+  checks:
+  - at_turn: 7
+    present: ["Hello there, I run a small trust", "A trust"]
+
+- id: mem-03
+  description: a correction supersedes the old value (context and summary)
+  context_tokens: 200
+  recent_turns: 1
+  turns:
+  - choose: [account_type, SAVINGS]
+  - choose: [customer_category, NRI_INDIVIDUAL]
+  - correct: [account_type, CURRENT]
+  - say: "thanks"
+  - say: "Does that apply to me?"
+  checks:
+  - at_turn: 5
+    present: ["Current account", "Savings account (replaced by Current account)"]
+    summary_confirmed: {"account type": "Current account"}
+    summary_corrected: ["Savings account (replaced by Current account)"]
+
+- id: mem-04
+  description: a parked account appears only as another scenario
+  turns:
+  - choose: [account_type, CURRENT]
+  - choose: [customer_category, LLP]
+  - say: "I also want to open an account for my child."
+  - say: "we are in India"
+  - say: "thanks"
+  checks:
+  - at_turn: 5
+    present: ["a current account for a limited liability partnership (LLP)"]
+    absent: ['"account type":"Current account"']
+
+- id: mem-05
+  description: the open question is part of the context
+  turns:
+  - choose: [account_type, CURRENT]
+  - say: "hmm not sure what you mean"
+  checks:
+  - at_turn: 2
+    present: ["Current account", "Who is the account for?"]
+
+- id: mem-06
+  description: a pending confirmation is presented as unconfirmed, never as a fact
+  turns:
+  - say: "I live in Dubai"
+  - say: "hello"
+  checks:
+  - at_turn: 2
+    present: ["not yet confirmed"]
+    absent: ['"customer category":"An individual living outside India']
+
+- id: mem-07
+  description: a blocked message never reaches the LLM context
+  turns:
+  - say: "my PAN is ABCPE1234F"
+  - choose: [account_type, CURRENT]
+  - say: "for my LLP please"
+  - say: "thanks"
+  checks:
+  - at_turn: 4
+    absent: ["ABCPE1234F", "my PAN is"]
+
+- id: mem-08
+  description: a redacted e-mail is stored and sent only in redacted form
+  turns:
+  - say: "write to riya.sharma@example.com about a current account"
+  - say: "for my company"
+  checks:
+  - at_turn: 2
+    present: ["[REDACTED_EMAIL]"]
+    absent: ["riya.sharma@example.com"]
+
+- id: mem-09
+  description: summary keeps the confirmed answers when old turns are condensed
+  context_tokens: 200
+  recent_turns: 2
+  turns:
+  - say: "Hello"
+  - say: "I want a current account"
+  - say: "for my LLP"
+  - say: "what is Form 60?"
+  - say: "thanks"
+  - say: "ok"
+  checks:
+  - at_turn: 6
+    present: ["Hello"]
+    summary_confirmed: {"account type": "Current account", "customer category": "A limited liability partnership (LLP)"}
+
+- id: mem-10
+  description: scenario switch swaps the active profile in the context
+  turns:
+  - choose: [account_type, CURRENT]
+  - choose: [customer_category, LLP]
+  - say: "I also want to open an account for my child."
+  - say: "we live in Dubai"
+  - action: switch_scenario
+    value: "0"
+  - say: "Does that apply to me?"
+  checks:
+  - at_turn: 6
+    present: ["A limited liability partnership (LLP)", "an account for an individual living outside India"]
+
+- id: mem-11
+  description: the context respects the token budget and keeps complete messages
+  context_tokens: 150
+  recent_turns: 10
+  turns:
+  - say: "Hello, I would like to understand what I need to open an account for my family business which is a partnership firm"
+  - choose: [account_type, CURRENT]
+  - choose: [customer_category, PARTNERSHIP_FIRM]
+  - say: "thanks a lot for the help so far, this is very useful for me"
+  - say: "Does that apply to me?"
+  checks:
+  - at_turn: 5
+    present: ["A partnership firm"]
+
+- id: mem-12
+  description: the daughter's residency answer is recorded for the daughter's account
+  turns:
+  - choose: [account_type, CURRENT]
+  - choose: [customer_category, LLP]
+  - say: "How can I open an account for my daughter who is six?"
+  - say: "I wanna ask about my daughter account."
+  - say: "No, we are in India."
+  - say: "thanks"
+  checks:
+  - at_turn: 6
+    present: ["An individual living in India", "a current account for a limited liability partnership (LLP)"]
+
+- id: mem-13
+  description: identical context after a restart
+  turns:
+  - choose: [account_type, CURRENT]
+  - choose: [customer_category, LLP]
+  - restart: true
+  - say: "Does that apply to me?"
+  checks:
+  - at_turn: 4
+    present: ["Current account", "A limited liability partnership (LLP)"]
+
+- id: mem-14
+  description: a declined proposal is not presented as an answer
+  turns:
+  - say: "I live abroad"
+  - action: confirm_no
+  - say: "hello"
+  checks:
+  - at_turn: 3
+    absent: ['"customer category":"An individual living outside India']
+
+- id: mem-15
+  description: a not-sure answer is presented as not sure, not as a value
+  turns:
+  - choose: [account_type, CURRENT]
+  - action: not_sure
+    slot: customer_category
+  - say: "what do you need from me?"
+  checks:
+  - at_turn: 3
+    present: ["Current account"]
+    absent: ['"customer category":"A']

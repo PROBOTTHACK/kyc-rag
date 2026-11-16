@@ -1,0 +1,210 @@
+{
+  "status": 200,
+  "body": {
+    "session_id": "0a5e5510-0000-4000-8000-000000000001",
+    "turn": 7,
+    "answer": {
+      "kind": "question",
+      "reply": "OK, let's look at that account separately. I'll keep a current account for a company (private or public limited) as it is, and you can go back to it at any time.\nIs the account for someone living in India or outside India?",
+      "question": {
+        "slot": "customer_category",
+        "text": "Who is the account for?",
+        "chips": [
+          {
+            "value": "RESIDENT_INDIVIDUAL",
+            "label": "An individual living in India"
+          },
+          {
+            "value": "NRI_INDIVIDUAL",
+            "label": "An individual living outside India (NRI / PIO / OCI)"
+          },
+          {
+            "value": "SOLE_PROPRIETORSHIP",
+            "label": "A sole proprietorship"
+          },
+          {
+            "value": "PARTNERSHIP_FIRM",
+            "label": "A partnership firm"
+          },
+          {
+            "value": "LLP",
+            "label": "A limited liability partnership (LLP)"
+          },
+          {
+            "value": "COMPANY",
+            "label": "A company (private or public limited)"
+          },
+          {
+            "value": "TRUST",
+            "label": "A trust"
+          },
+          {
+            "value": "HUF",
+            "label": "A Hindu Undivided Family (HUF)"
+          },
+          {
+            "value": "OTHER_ORGANISATION",
+            "label": "A society, association, club or other organisation"
+          }
+        ],
+        "allow_not_sure": true,
+        "allow_skip": false,
+        "allow_explain": true
+      },
+      "confirmation": null,
+      "scenario_offer": null,
+      "messages": [
+        {
+          "code": "scenario_started",
+          "text": "OK, let's look at that account separately. I'll keep a current account for a company (private or public limited) as it is, and you can go back to it at any time.",
+          "slot": null
+        },
+        {
+          "code": "context_change",
+          "text": "Is the account for someone living in India or outside India?",
+          "slot": "customer_category"
+        }
+      ],
+      "profile": {
+        "account_type": {
+          "status": "unknown",
+          "value": null,
+          "label": null,
+          "origin": null,
+          "choices": [
+            {
+              "value": "SAVINGS",
+              "label": "Savings account"
+            },
+            {
+              "value": "CURRENT",
+              "label": "Current account"
+            },
+            {
+              "value": "SALARY",
+              "label": "Salary account"
+            },
+            {
+              "value": "FIXED_DEPOSIT",
+              "label": "Fixed / term deposit"
+            },
+            {
+              "value": "RECURRING_DEPOSIT",
+              "label": "Recurring deposit"
+            },
+            {
+              "value": "FCNR_RFC",
+              "label": "FCNR / RFC deposit"
+            }
+          ]
+        },
+        "customer_category": {
+          "status": "unknown",
+          "value": null,
+          "label": null,
+          "origin": null,
+          "choices": [
+            {
+              "value": "RESIDENT_INDIVIDUAL",
+              "label": "An individual living in India"
+            },
+            {
+              "value": "NRI_INDIVIDUAL",
+              "label": "An individual living outside India (NRI / PIO / OCI)"
+            },
+            {
+              "value": "SOLE_PROPRIETORSHIP",
+              "label": "A sole proprietorship"
+            },
+            {
+              "value": "PARTNERSHIP_FIRM",
+              "label": "A partnership firm"
+            },
+            {
+              "value": "LLP",
+              "label": "A limited liability partnership (LLP)"
+            },
+            {
+              "value": "COMPANY",
+              "label": "A company (private or public limited)"
+            },
+            {
+              "value": "TRUST",
+              "label": "A trust"
+            },
+            {
+              "value": "HUF",
+              "label": "A Hindu Undivided Family (HUF)"
+            },
+            {
+              "value": "OTHER_ORGANISATION",
+              "label": "A society, association, club or other organisation"
+            }
+          ]
+        },
+        "nri_scheme": {
+          "status": "unknown",
+          "value": null,
+          "label": null,
+          "origin": null,
+          "choices": [
+            {
+              "value": "NRE",
+              "label": "NRE account"
+            },
+            {
+              "value": "NRO",
+              "label": "NRO account"
+            }
+          ]
+        },
+        "holding": {
+          "status": "unknown",
+          "value": null,
+          "label": null,
+          "origin": null,
+          "choices": [
+            {
+              "value": "SINGLE",
+              "label": "Just one holder"
+            },
+            {
+              "value": "JOINT",
+              "label": "Jointly with others"
+            }
+          ]
+        },
+        "minor": {
+          "status": "unknown",
+          "value": null,
+          "label": null,
+          "origin": null,
+          "choices": [
+            {
+              "value": "YES",
+              "label": "Yes, for a minor"
+            },
+            {
+              "value": "NO",
+              "label": "No"
+            }
+          ]
+        }
+      },
+      "coverage_state": null,
+      "checklist": null,
+      "fallback": null,
+      "explanation": null,
+      "suggestions": [],
+      "technical_message": null,
+      "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply.",
+      "active_scenario": null,
+      "scenarios": [
+        {
+          "index": 0,
+          "label": "a current account for a company (private or public limited)"
+        }
+      ]
+    }
+  }
+}

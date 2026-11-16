@@ -54,7 +54,7 @@ function CompletedRun({ workflow }: { workflow: WorkflowView }) {
       <p className="mt-1 text-sm font-medium">{REVIEW_NOTE}</p>
       {workflow.report_id != null ? (
         <Link
-          to={`/reports/${encodeURIComponent(workflow.report_id)}`}
+          to={`/legacy/reports/${encodeURIComponent(workflow.report_id)}`}
           className="mt-2 inline-block underline"
         >
           Open the report

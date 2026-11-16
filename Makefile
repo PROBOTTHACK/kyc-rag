@@ -1,4 +1,4 @@
-# Agentic KYC Compliance Engine — dev commands.
+# Account Opening Assistant — dev commands.
 # Uses the repo-local virtualenv (.venv); create it with `make venv install`.
 #
 # Portability: GNU Make runs recipes with sh on Linux/macOS (and on Windows when sh.exe is
@@ -29,11 +29,14 @@ DOC ?=
 DOCS = $(foreach d,$(DOC),--document $(d))
 
 .DEFAULT_GOAL := help
+PHONY_A7 := a7-profiles a7-eval a7-live-dry a7-live a7-browser a7-demo
+.PHONY: $(PHONY_A7)
 .PHONY: help venv install install-locked lock up down migrate check-schema ingest ingest-dry
 .PHONY: persist index retry reconcile repair runs forms search check-corpus eval eval-compare eval-select eval-heldout check-dense-golden
 .PHONY: api test test-integration lint fmt openapi
 .PHONY: web web-install web-test web-lint web-build web-types
 .PHONY: purge purge-dry check-workflow demo demo-live
+.PHONY: assistant-eval
 .PHONY: nli-check eval-claims eval-claims-select test-nli
 
 # Printed by make itself ($(info)), so it needs no shell and looks the same everywhere.
@@ -45,6 +48,7 @@ help:
 	$(info Ingestion: ingest ingest-dry persist index retry reconcile repair runs check-corpus)
 	$(info Forms:     forms [DOC="key ..."]  (then: cli forms list | show KEY))
 	$(info Retrieval: search Q="..."  eval  eval-compare  eval-select  check-dense-golden)
+	$(info Assistant: assistant-eval [MODE=dense|bm25|hybrid|all]  (A2, HDFC-only, read-only))
 	$(info Dev:       api test test-integration lint fmt openapi)
 	$(info Frontend:  web-install web web-test web-lint web-build web-types  (Node 26.13.1))
 	$(info Workflow:  purge purge-dry check-workflow demo demo-live  (demo needs `make api`))
@@ -171,6 +175,36 @@ eval-select:
 # to run again once data/eval/m2_heldout_results.json exists.
 eval-heldout:
 	$(CLI) evaluate --final-heldout --report data/processed/m2_heldout_report.md --record data/eval/m2_heldout_results.json
+
+# A7 final evaluation (docs/assistant/A7_PLAN.md). Conversations in a throwaway database,
+# evidence read-only from the development corpus, no live LLM. SUITE=all or a suite name.
+a7-profiles:
+	cd $(BACKEND) && $(PY) -m app.assistant.a7.generate_profiles
+
+a7-eval:
+	cd $(BACKEND) && $(PY) -m app.assistant.a7.runner $(if $(SUITE),$(SUITE),all)
+
+# A7 E11 (A7_PLAN.md §6): the opt-in live LLM run, synthetic data only. Always prints the dry-run
+# token budget first and enforces it; refuses unless GROQ_LIVE_ENABLED=true and the cache is off.
+# Run: make a7-live GROQ_LIVE_ENABLED=true   (a7-live-dry: the estimate only, no network)
+a7-live-dry:
+	cd $(BACKEND) && $(PY) -m app.assistant.a7.live --dry-run
+
+a7-live:
+	cd $(BACKEND) && $(PY) -m app.assistant.a7.live --live
+
+# A7 E10 / E12: the browser matrix (4 widths) and the recorded demo. Need `make api` (live Groq
+# off) and `make web` running; Chrome and, for the demo, ffmpeg (local tools, not dependencies).
+a7-browser:
+	node scripts/browser/a7_browser.mjs matrix
+
+a7-demo:
+	node scripts/browser/a7_browser.mjs demo
+
+# A2 assistant: HDFC-only retrieval evaluation (data/eval/assistant_retrieval.jsonl). Read-only.
+# MODE=dense (default) | bm25 | hybrid | all; `all` also rewrites the committed per-case record.
+assistant-eval:
+	cd $(BACKEND) && $(PY) -m app.assistant.eval --mode $(if $(MODE),$(MODE),dense) --report ../data/processed/assistant_retrieval_$(if $(MODE),$(MODE),dense)_report.md $(if $(filter all,$(MODE)),--record ../data/eval/assistant_retrieval_a2_record.json,)
 
 # M4 S4 claim verification (dev set only; the held-out set is refused). Models load from the
 # local Hugging Face cache at their pinned revisions; a first run downloads them (decision D12).

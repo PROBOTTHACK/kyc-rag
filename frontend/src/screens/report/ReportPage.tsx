@@ -20,7 +20,7 @@ export function ReportPage() {
         Compliance Report
       </h1>
       <p className="mt-1 text-sm">
-        <Link to="/assistant" className="underline">
+        <Link to="/legacy/assistant" className="underline">
           Back to the KYC Assistant
         </Link>
       </p>

@@ -1,0 +1,277 @@
+# Coverage map of the Account Opening Assistant (A2).
+#
+# Source of truth: docs/assistant/A0_AUDIT.md §2 (owner-approved 2026-11-14) and A1 §2, §5.
+# Rules (enforced by app/assistant/coverage.py and its tests):
+# - Only combinations with evidence are listed. ANY combination not listed here is
+#   NOT_ESTABLISHED (the prescribed fallback), so no coverage exists by assumption.
+# - Every listed cell cites stored chunks (chunks.id; HDFC; checked against Postgres by the
+#   integration tests). Multimodal-schema evidence names the schema field and says whether
+#   it is corroborated by stored text.
+# - Cells may only use `opening_form` (or future `policy`) sources; the conversion intent
+#   only the `conversion_form`. Re-KYC (`context`) and the legacy FAQ never create coverage.
+# - Changing a cell needs corpus evidence and owner review (CLAUDE.md).
+
+version: a2-2
+basis: docs/assistant/A0_AUDIT.md section 2, as corrected by A1 section 5.4 (A2 review)
+
+documents:
+  hdfc_nri_account_opening:
+    role: opening_form
+    title: Account Cum Term Deposit Opening Form for Non Resident - Individual Customers
+    categories: [NRI_INDIVIDUAL]
+    scanned: false
+    date_basis: form copy; PDF created 2019; no printed edition date
+  hdfc_non_individual_account_opening:
+    role: opening_form
+    title: Account Opening Form for Sole Proprietor/HUF/Trust/Firm/Corporate
+    categories: [SOLE_PROPRIETORSHIP, PARTNERSHIP_FIRM, LLP, COMPANY, TRUST, HUF, OTHER_ORGANISATION]
+    scanned: true
+    date_basis: form copy; print code 92713/07.01.2015
+  hdfc_resident_to_nro_conversion:
+    role: conversion_form
+    title: Resident Account to NRO Account Conversion Form for Non Resident - Individual Customers
+    categories: [RESIDENT_INDIVIDUAL, NRI_INDIVIDUAL]
+    scanned: false
+    date_basis: form copy; PDF created 2018; no printed edition date
+  hdfc_nri_rekyc:
+    role: context
+    title: NRI Customer Updation Form for Re-KYC
+    categories: [NRI_INDIVIDUAL]
+    scanned: true
+    date_basis: form copy; print code 93316/05.08.2020
+  hdfc_resident_rekyc_dormant:
+    role: context
+    title: Re-KYC and Dormant Activation form for Resident Individuals
+    categories: [RESIDENT_INDIVIDUAL]
+    scanned: false
+    date_basis: form copy; print code 93317/03.02.2021
+  hdfc_kyc_aml_faq:
+    role: legacy_reference
+    title: Frequently Asked Questions on KYC Norms and Anti Money Laundering (provenance unverified)
+    categories: [RESIDENT_INDIVIDUAL, COMPANY, PARTNERSHIP_FIRM, TRUST]
+    scanned: false
+    date_basis: undated; based on an RBI circular of 29/11/2004; PDF created 2008
+  hdfc_netbanking_corporate_application:
+    role: not_used
+    title: Application for NetBanking facility for Companies / Trusts / Co-Operative Societies / Association of Persons / Clubs
+    categories: []
+    scanned: false
+    date_basis: form copy; footer code company-clubDec06
+
+# --- shared evidence (YAML anchors) ------------------------------------------------------------
+_evidence:
+  nre_accounts: &nre_accounts
+    chunk_id: ac5d4793-795a-5b7f-8238-df6523e8d88a
+    document_key: hdfc_nri_account_opening
+    page: 3
+    basis: stored_text
+    shows: "Section H fields: NRE Savings / NRE Current"
+  nro_accounts: &nro_accounts
+    chunk_id: 042dfa85-1b9b-548f-9b0b-32e4263d7055
+    document_key: hdfc_nri_account_opening
+    page: 3
+    basis: stored_text
+    shows: "Section I fields: NRO Savings / NRO Current"
+  nri_recurring: &nri_recurring
+    chunk_id: 66c99a5c-b1ce-52a4-86ff-d5cf62682dd0
+    document_key: hdfc_nri_account_opening
+    page: 3
+    basis: stored_text
+    shows: "Section J fields: NRE RD / NRO RD"
+  nri_term: &nri_term
+    chunk_id: 905c3f50-d152-5512-91fd-32e96f63ab2f
+    document_key: hdfc_nri_account_opening
+    page: 3
+    basis: stored_text
+    shows: "Section K: NRE FD, NRO FD, FCNR (only face to face), Deposit for Returning NRIs (RFC)"
+  nri_fcnr_tick: &nri_fcnr_tick
+    chunk_id: 36730a55-8aca-512f-8a93-5fef97fda37f
+    document_key: hdfc_nri_account_opening
+    page: 1
+    basis: stored_text
+    shows: "Page 1 fields: NRE/FCNR/RFC Account, NRO Account"
+  nri_operating: &nri_operating
+    chunk_id: 94504e3d-b4a9-5dcf-95cd-7c9e250c6188
+    document_key: hdfc_nri_account_opening
+    page: 1
+    basis: stored_text
+    shows: "Operating instruction: Single, Either or Survivor, Minor under Guardian, Jointly"
+  nri_guardian: &nri_guardian
+    chunk_id: 3322b2d0-c699-5b02-88bd-59ce9a08b849
+    document_key: hdfc_nri_account_opening
+    page: 2
+    basis: stored_text
+    shows: "Section D: second applicant's details / guardian (in case of minor account)"
+  ni_account_types: &ni_account_types
+    chunk_id: 1c8150b4-c49f-5b26-9c14-a1a2c5535102
+    document_key: hdfc_non_individual_account_opening
+    page: 1
+    basis: stored_text
+    shows: "Account type options read by OCR (Savings, Current, Fixed Deposit, Recurring Deposit); text is OCR-uncertain"
+  ni_fd_rd: &ni_fd_rd
+    chunk_id: a830037e-f9ad-5b55-b5a1-05308807fef2
+    document_key: hdfc_non_individual_account_opening
+    page: 2
+    basis: stored_text
+    shows: "INSTRUCTION FOR FIXED DEPOSIT / RECURRING DEPOSIT (OCR-uncertain)"
+  ni_entity_types: &ni_entity_types
+    chunk_id: 1a6efe5d-463c-50ec-8041-641d0ca7524e
+    document_key: hdfc_non_individual_account_opening
+    page: 1
+    basis: schema_field
+    schema: {form_key: hdfc_non_individual_account_opening, extraction_method: gemini_multimodal, extractor_version: 2, label: "Type of Entity:-"}
+    corroborated: true
+    shows: "Type of Entity options (multimodal schema; label corroborated by stored text, option texts from the page image): Proprietorship, Partnership, Limited Liability Partnership, Public / Private Limited Company, HUF, Trust, Societies, Association, Clubs, and others"
+  ni_partnership_huf_declarations: &ni_partnership_huf_declarations
+    chunk_id: 0609fd10-8280-501a-a00c-b4bbec51e1ca
+    document_key: hdfc_non_individual_account_opening
+    page: 2
+    basis: stored_text
+    shows: "Declaration blocks: 'Please fill in for a partnership firm', 'Please fill in for a HUF' (OCR-uncertain)"
+  ni_proprietor_declaration: &ni_proprietor_declaration
+    chunk_id: 305d1ccb-08db-5311-a257-c576ffadf65c
+    document_key: hdfc_non_individual_account_opening
+    page: 2
+    basis: stored_text
+    shows: "Karta / co-parceners signatures and 'Please fill in for a Sole Proprietorship Account' (OCR-uncertain)"
+
+# --- covered cells (everything else is NOT_ESTABLISHED) -----------------------------------------
+cells:
+  # NRI individual: native-text opening form
+  - {category: NRI_INDIVIDUAL, account_type: SAVINGS, state: COVERED, sources: [hdfc_nri_account_opening],
+     evidence: [*nre_accounts, *nro_accounts],
+     facets: [{facet: nri_scheme, evidence: [*nre_accounts, *nro_accounts]},
+              {facet: holding, evidence: [*nri_operating]},
+              {facet: minor, evidence: [*nri_operating, *nri_guardian]}]}
+  - {category: NRI_INDIVIDUAL, account_type: CURRENT, state: COVERED, sources: [hdfc_nri_account_opening],
+     evidence: [*nre_accounts, *nro_accounts],
+     facets: [{facet: nri_scheme, evidence: [*nre_accounts, *nro_accounts]},
+              {facet: holding, evidence: [*nri_operating]},
+              {facet: minor, evidence: [*nri_operating, *nri_guardian]}]}
+  - {category: NRI_INDIVIDUAL, account_type: FIXED_DEPOSIT, state: COVERED, sources: [hdfc_nri_account_opening],
+     evidence: [*nri_term],
+     facets: [{facet: nri_scheme, evidence: [*nri_term]},
+              {facet: holding, evidence: [*nri_operating]},
+              {facet: minor, evidence: [*nri_operating, *nri_guardian]}]}
+  - {category: NRI_INDIVIDUAL, account_type: RECURRING_DEPOSIT, state: COVERED, sources: [hdfc_nri_account_opening],
+     evidence: [*nri_recurring],
+     facets: [{facet: nri_scheme, evidence: [*nri_recurring]},
+              {facet: holding, evidence: [*nri_operating]},
+              {facet: minor, evidence: [*nri_operating, *nri_guardian]}]}
+  - {category: NRI_INDIVIDUAL, account_type: FCNR_RFC, state: COVERED, sources: [hdfc_nri_account_opening],
+     evidence: [*nri_fcnr_tick, *nri_term],
+     facets: [{facet: holding, evidence: [*nri_operating]}]}
+
+  # Non-individual entities: scanned opening form (OCR-uncertain), current / FD / RD only
+  - {category: SOLE_PROPRIETORSHIP, account_type: CURRENT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_entity_types, *ni_proprietor_declaration]}
+  - {category: SOLE_PROPRIETORSHIP, account_type: FIXED_DEPOSIT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_fd_rd, *ni_entity_types]}
+  - {category: SOLE_PROPRIETORSHIP, account_type: RECURRING_DEPOSIT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_fd_rd, *ni_entity_types]}
+  - {category: PARTNERSHIP_FIRM, account_type: CURRENT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_entity_types, *ni_partnership_huf_declarations]}
+  - {category: PARTNERSHIP_FIRM, account_type: FIXED_DEPOSIT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_fd_rd, *ni_entity_types]}
+  - {category: PARTNERSHIP_FIRM, account_type: RECURRING_DEPOSIT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_fd_rd, *ni_entity_types]}
+  - {category: LLP, account_type: CURRENT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_entity_types]}
+  - {category: LLP, account_type: FIXED_DEPOSIT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_fd_rd, *ni_entity_types]}
+  - {category: LLP, account_type: RECURRING_DEPOSIT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_fd_rd, *ni_entity_types]}
+  - {category: COMPANY, account_type: CURRENT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_entity_types]}
+  - {category: COMPANY, account_type: FIXED_DEPOSIT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_fd_rd, *ni_entity_types]}
+  - {category: COMPANY, account_type: RECURRING_DEPOSIT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_fd_rd, *ni_entity_types]}
+  - {category: TRUST, account_type: CURRENT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_entity_types]}
+  - {category: TRUST, account_type: FIXED_DEPOSIT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_fd_rd, *ni_entity_types]}
+  - {category: TRUST, account_type: RECURRING_DEPOSIT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_fd_rd, *ni_entity_types]}
+  - {category: HUF, account_type: CURRENT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_entity_types, *ni_partnership_huf_declarations]}
+  - {category: HUF, account_type: FIXED_DEPOSIT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_fd_rd, *ni_entity_types]}
+  - {category: HUF, account_type: RECURRING_DEPOSIT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_fd_rd, *ni_entity_types]}
+  - {category: OTHER_ORGANISATION, account_type: CURRENT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_entity_types]}
+  - {category: OTHER_ORGANISATION, account_type: FIXED_DEPOSIT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_fd_rd, *ni_entity_types]}
+  - {category: OTHER_ORGANISATION, account_type: RECURRING_DEPOSIT, state: COVERED_OCR, sources: [hdfc_non_individual_account_opening], evidence: [*ni_account_types, *ni_fd_rd, *ni_entity_types]}
+
+# --- the conversion intent ----------------------------------------------------------------------
+conversion:
+  intent: RESIDENT_TO_NRO_CONVERSION
+  state: CONVERSION_ONLY
+  sources: [hdfc_resident_to_nro_conversion]
+  evidence:
+    - chunk_id: 1a47e28b-707c-53af-80f6-fd245a50bae1
+      document_key: hdfc_resident_to_nro_conversion
+      page: 1
+      basis: stored_text
+      shows: "RESIDENT ACCOUNT TO NRO ACCOUNT CONVERSION FORM"
+    - chunk_id: bff01c26-9cd0-52fe-bb65-0f50deeb8716
+      document_key: hdfc_resident_to_nro_conversion
+      page: 1
+      basis: stored_text
+      shows: "Operating instruction for the NRO account: Single, Either or Survivor, Minor under Guardian, Jointly"
+
+# --- why prominent combinations are NOT_ESTABLISHED (explanations only; never coverage) ---------
+# `reason` is the internal basis (review only); `explanation` is what the customer reads.
+not_established_reasons:
+  - category: RESIDENT_INDIVIDUAL
+    account_type: null
+    reason: "The corpus has no HDFC account opening form or document list for resident individuals; re-KYC material is not account-opening evidence (A0 amendment 2)."
+    explanation: "The HDFC Bank documents available to this assistant don't include an account opening form for individuals living in India. They do include a form for converting a resident account to an NRO account when you move abroad."
+  - category: null
+    account_type: SALARY
+    reason: "No HDFC document in the corpus covers opening a salary account (the only mention is an NRI-form rule about converting an inactive salary account)."
+    explanation: "The HDFC Bank documents available to this assistant don't cover opening a salary account."
+  - category: null
+    account_type: SAVINGS
+    reason: "For organisations, the corpus does not establish a savings account: the NRI form states 'Savings account can be opened only by individuals for non-business purposes', and the scanned non-individual form only shows a tick box."
+    explanation: "The HDFC Bank form available to this assistant says savings accounts are for individuals, so it doesn't cover a savings account for an organisation."
+  - category: null
+    account_type: FCNR_RFC
+    reason: "FCNR / RFC deposits appear only on the NRI individual form."
+    explanation: "The HDFC Bank documents available to this assistant show FCNR / RFC deposits only for individuals living outside India."
+
+# What the customer reads for any other combination the documents don't cover.
+default_explanation: "The HDFC Bank documents available to this assistant don't cover this combination."
+
+# --- item rulings (owner-approved interpretations; A1 §5.4) --------------------------------------
+# Decided at the A2 review (owner, 2026-11-14). They state what the stored corpus does and does NOT
+# establish for specific items, so later stages cannot re-introduce an item from a visual reading
+# or by inference. `not_established` rulings carry no evidence and are never checklist items; an
+# `evidenced` ruling records the evidence, never a classification (classes are assigned in A4).
+item_rulings:
+  - id: org_signatory_photograph
+    subject: Photographs of authorised signatories
+    kind: document
+    status: not_established
+    categories: [SOLE_PROPRIETORSHIP, PARTNERSHIP_FIRM, LLP, COMPANY, TRUST, HUF, OTHER_ORGANISATION]
+    sources: [hdfc_non_individual_account_opening]
+    reason: "No stored text or form-schema field of the non-individual opening form mentions a photograph. The A0 reading of photograph boxes came from the page image and cannot be cited."
+  - id: org_entity_pan_card_copy
+    subject: A copy of the entity's PAN card
+    kind: document
+    status: not_established
+    categories: [SOLE_PROPRIETORSHIP, PARTNERSHIP_FIRM, LLP, COMPANY, TRUST, HUF, OTHER_ORGANISATION]
+    sources: [hdfc_non_individual_account_opening]
+    reason: "No applicable HDFC document asks for a PAN card copy. The entity-level PAN field exists only in the multimodal schema and is not corroborated by stored text; a PAN number field never establishes a card copy (A1 §4 rule 1)."
+  - id: org_signatory_pan_number
+    subject: PAN No. of authorised signatories / partners
+    kind: information
+    status: evidenced
+    categories: [SOLE_PROPRIETORSHIP, PARTNERSHIP_FIRM, LLP, COMPANY, TRUST, HUF, OTHER_ORGANISATION]
+    sources: [hdfc_non_individual_account_opening]
+    evidence:
+      - chunk_id: f51508ae-d9ec-5594-bd70-c0cada97e60a
+        document_key: hdfc_non_individual_account_opening
+        page: 2
+        basis: stored_text
+        shows: "'PAN No.' within the Authorized Signatory Details blocks (OCR-uncertain)"
+      - chunk_id: 600f4dd7-c142-5dc8-9b38-fd2d6fb00f61
+        document_key: hdfc_non_individual_account_opening
+        page: 2
+        basis: stored_text
+        shows: "'PAN No' within the Authorized Signatory Details blocks, including the partnership block (OCR-uncertain)"
+  - id: org_form_60_61
+    subject: Form 60/61 (as worded on the form)
+    kind: document
+    status: evidenced
+    categories: [SOLE_PROPRIETORSHIP, PARTNERSHIP_FIRM, LLP, COMPANY, TRUST, HUF, OTHER_ORGANISATION]
+    sources: [hdfc_non_individual_account_opening]
+    condition: "for existing customers"
+    evidence:
+      - chunk_id: 1c8150b4-c49f-5b26-9c14-a1a2c5535102
+        document_key: hdfc_non_individual_account_opening
+        page: 1
+        basis: stored_text
+        shows: "'Form 60/61 attached for existing customers' next to the customer ID field (OCR-uncertain)"

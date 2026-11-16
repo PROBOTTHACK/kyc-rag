@@ -1,0 +1,376 @@
+"""The assistant's per-turn service behind `/api/v2/assistant` (A5).
+
+One turn:
+1. the raw body is parsed into `TurnInput` (enum-validated; errors never echo input);
+2. under the session lock, a repeated `Idempotency-Key` returns the stored answer;
+3. the A3 dialogue runs (`respond`; the optional LLM only behind the existing gate). It
+   screens the message itself; a refused message is never stored, only its categories;
+4. once the profile is ready, the A4 checklist is built from stored HDFC evidence;
+5. the answer is mapped to the customer-facing `AssistantAnswer` and stored with the new state.
+
+A checklist that could not be built (storage or retrieval failure) returns the fixed
+technical message and stores nothing, so the same request can simply be sent again.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import logging
+import threading
+import uuid
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+from pydantic import ValidationError
+from starlette.concurrency import run_in_threadpool
+
+from app.assistant.answer import (
+    AssistantAnswer,
+    build_answer,
+    opening_answer,
+    profile_view,
+    technical_answer,
+)
+from app.assistant.catalogue import catalogue
+from app.assistant.checklist import AnswerKind, ChecklistAnswer, ChecklistService
+from app.assistant.dialogue import ReadyProfile, TurnInput, opening, respond
+from app.assistant.memory import ConversationContext, ConversationSummary, assemble
+from app.assistant.store import AssistantStore, TurnRecord
+from app.assistant.tracing import DISABLED, Tracer, sha, span, traced
+from app.assistant.voice import voice_reply
+from app.assistant.wording import Wording, wording
+from app.config import Settings
+from app.llm.provider import LLMProvider
+from app.security.screen import screen_text
+
+log = logging.getLogger(__name__)
+
+SESSION_TTL = timedelta(hours=24)  # sliding: every stored turn extends it
+MAX_BODY_BYTES = 16_384
+MAX_KEY_CHARS = 200
+CONTEXT_TOKENS = 1500  # default conversation-context budget (Settings.ASSISTANT_CONTEXT_TOKENS)
+RECENT_TURNS = 10  # default verbatim turns (Settings.ASSISTANT_RECENT_TURNS)
+
+ChecklistFactory = Callable[[], ChecklistService]
+
+
+class AssistantError(Exception):
+    """An API error with a fixed, codes-only message (never derived from the request)."""
+
+    def __init__(self, status: int, code: str, message: str) -> None:
+        super().__init__(code)
+        self.status = status
+        self.code = code
+        self.message = message
+
+
+NOT_FOUND = AssistantError(404, "SESSION_NOT_FOUND", "The conversation was not found.")
+EXPIRED = AssistantError(
+    410, "SESSION_EXPIRED", "The conversation has expired. Please start a new one."
+)
+INVALID = AssistantError(422, "VALIDATION_ERROR", "The request is not valid.")
+KEY_REQUIRED = AssistantError(
+    400,
+    "IDEMPOTENCY_KEY_REQUIRED",
+    "An Idempotency-Key header (at most 200 characters) is required.",
+)
+KEY_MISMATCH = AssistantError(
+    409, "IDEMPOTENCY_MISMATCH", "This Idempotency-Key was already used for a different request."
+)
+
+
+def _now() -> datetime:
+    return datetime.now(UTC)
+
+
+def request_sha256(data: dict[str, Any]) -> str:
+    canonical = json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _session_id(raw: str) -> uuid.UUID:
+    try:
+        return uuid.UUID(raw)
+    except ValueError:
+        raise NOT_FOUND from None
+
+
+def _parse(body: bytes) -> tuple[dict[str, Any], TurnInput]:
+    if len(body) > MAX_BODY_BYTES:
+        raise INVALID
+    try:
+        data = json.loads(body) if body else None
+    except (ValueError, UnicodeDecodeError):
+        raise INVALID from None
+    if not isinstance(data, dict):
+        raise INVALID
+    try:
+        return data, TurnInput.model_validate(data)
+    except ValidationError:
+        raise INVALID from None
+
+
+def _stored_message(turn: TurnInput) -> tuple[str | None, tuple[str, ...]]:
+    """What may be kept of the message: the screened text, only when screening allowed it."""
+    if turn.message is None:
+        return None, ()
+    res = screen_text(turn.message)
+    kept = res.text if res.action in ("allow", "redact") and not res.sensitive else None
+    return kept, res.categories
+
+
+def sha256_hex(text: str) -> str:
+    return sha(text)
+
+
+def _choice(turn: TurnInput) -> dict[str, Any]:
+    return {
+        "action": turn.action.value if turn.action else None,
+        "slot": turn.slot.value if turn.slot else None,
+        "value": turn.value,
+    }
+
+
+class AssistantService:
+    def __init__(
+        self,
+        store: AssistantStore,
+        checklist: ChecklistFactory,
+        llm: LLMProvider | None = None,
+        *,
+        words: Wording | None = None,
+        clock: Callable[[], datetime] = _now,
+        context_tokens: int = CONTEXT_TOKENS,
+        recent_turns: int = RECENT_TURNS,
+        tracer: Tracer | None = None,
+    ) -> None:
+        self.tracer = tracer or DISABLED  # LangSmith observability (tracing.py); off by default
+        self.context_tokens = context_tokens
+        self.recent_turns = recent_turns
+        self.store = store
+        self._checklist = checklist
+        self.llm = traced(llm, self.tracer)
+        self.words = words or wording()
+        self.technical_message = catalogue().wording.technical_error
+        self.clock = clock
+
+    # --- endpoints -------------------------------------------------------------------------------
+
+    async def create_session(self) -> dict[str, Any]:
+        state, response = opening()
+        answer = opening_answer(state, response, self.words).model_dump(mode="json")
+        sid = uuid.uuid4()
+        record = TurnRecord(
+            turn_no=0, message=None, screen_categories=(), request={}, answer=answer
+        )
+        await self.store.create(sid, state, record, self.clock() + SESSION_TTL)
+        return {"session_id": str(sid), "turn": 0, "answer": answer}
+
+    async def get_session(self, raw_sid: str) -> dict[str, Any]:
+        session = await self.store.load(_session_id(raw_sid))
+        if session is None:
+            raise NOT_FOUND
+        if session.expires_at <= self.clock():
+            raise EXPIRED
+        turns = [
+            {
+                "turn": t.turn_no,
+                "message": t.message,
+                "choice": t.request if any(v is not None for v in t.request.values()) else None,
+                "answer": t.answer,
+            }
+            for t in session.turns
+        ]
+        return {
+            "session_id": str(session.id),
+            "turn": session.state.turn,
+            "profile": {
+                k.value: v.model_dump(mode="json")
+                for k, v in profile_view(session.state, self.words).items()
+            },
+            "turns": turns,
+            "answer": session.turns[-1].answer if session.turns else None,
+        }
+
+    async def submit_turn(self, raw_sid: str, key: str | None, body: bytes) -> dict[str, Any]:
+        """One customer turn, traced as `assistant.turn` when tracing is configured."""
+        if not key or len(key) > MAX_KEY_CHARS:
+            raise KEY_REQUIRED
+        sid = _session_id(raw_sid)
+        data, turn = _parse(body)
+        kept, categories = _stored_message(turn)
+        inputs = {  # the stored (screened) message only; a refused one is never traced
+            "message": kept,
+            "screen_categories": list(categories),
+            **_choice(turn),
+        }
+        metadata = {"session": sha256_hex(str(sid)), "idempotency_key": sha256_hex(key)}
+        with (
+            self.tracer.activate(),
+            span("assistant.turn", inputs=inputs, metadata=metadata) as root,
+        ):
+            out = await self._submit_turn(sid, key, data, turn, root)
+            answer = out["answer"]
+            groups = (answer.get("checklist") or {}).get("groups") or {}
+            root.set(
+                answer_kind=answer.get("kind"),
+                turn=out.get("turn"),
+                coverage_state=answer.get("coverage_state"),
+                notes=[m.get("code") for m in answer.get("messages") or []],
+                checklist_items=sum(len(v) for v in groups.values()),
+            )
+            return out
+
+    async def _submit_turn(
+        self, sid: uuid.UUID, key: str, data: dict[str, Any], turn: TurnInput, root: Any
+    ) -> dict[str, Any]:
+        sha = request_sha256(data)
+        async with self.store.turn(sid) as tx:
+            session = tx.session
+            if session is None:
+                raise NOT_FOUND
+            replay = await tx.replay(key)
+            root.meta(replay=replay is not None)
+            if replay is not None:
+                if replay.request_sha256 != sha:
+                    raise KEY_MISMATCH
+                return {"session_id": str(sid), "turn": replay.turn_no, "answer": replay.answer}
+            now = self.clock()
+            if session.expires_at <= now:
+                raise EXPIRED
+            # Memory: the stored history (and rolling summary) as context for the LLM.
+            context, summary = await self._context(tx, session)
+            with span("intent_resolution") as s:
+                state, response = await respond(
+                    session.state, turn, llm=self.llm, context=context.render()
+                )
+                s.set(
+                    step=response.step.value,
+                    notes=[n.code.value for n in response.notes],
+                    llm_consulted=response.llm_consulted,
+                )
+            checklist: ChecklistAnswer | None = None
+            if response.ready is not None:
+                checklist = await self._build(response.ready)
+                if checklist is None or checklist.kind is AnswerKind.TECHNICAL_ERROR:
+                    answer = technical_answer(session.state, self.words, self.technical_message)
+                    # Nothing stored: the same request can be sent again.
+                    return {
+                        "session_id": str(sid),
+                        "turn": session.state.turn,
+                        "answer": answer.model_dump(mode="json"),
+                    }
+            built: AssistantAnswer = build_answer(state, response, self.words, checklist)
+            message, categories = _stored_message(turn)
+            # The optional LLM voice rephrases the reply from the answer's own facts; it only
+            # ever sees screened text (None for a refused message) and falls back on failure.
+            # A plain chip click on a question needs no rewording (fast and deterministic); the
+            # voice speaks for free text, checklists, fallbacks and confirmations.
+            chip_question = turn.message is None and built.kind == "question"
+            if self.llm is not None and built.kind != "blocked" and not chip_question:
+                with span("voice") as s:
+                    reply = await voice_reply(self.llm, built, message, context=context)
+                    s.set(reworded=reply != built.reply)
+                built = built.model_copy(update={"reply": reply})
+            record = TurnRecord(
+                turn_no=state.turn,
+                message=message,
+                screen_categories=categories,
+                request=_choice(turn),
+                answer=built.model_dump(mode="json"),
+            )
+            stored_summary = (
+                None if summary is None else (summary.model_dump(mode="json"), summary.through_turn)
+            )
+            await tx.save(state, record, key, sha, now + SESSION_TTL, summary=stored_summary)
+        return {"session_id": str(sid), "turn": record.turn_no, "answer": record.answer}
+
+    # --- memory ----------------------------------------------------------------------------------
+
+    async def _context(
+        self, tx: Any, session: Any
+    ) -> tuple[ConversationContext, ConversationSummary | None]:
+        """Recent turns verbatim + the rolling summary, within the token budget. Logged as
+        sizes and timings only (never content)."""
+        previous = ConversationSummary.model_validate(session.summary) if session.summary else None
+        after = previous.through_turn if previous is not None else 0
+        with span("history_retrieval", "retriever") as s:
+            turns = await tx.turns_after(after, limit=self.recent_turns * 4)
+            s.set(turns=len(turns), summarised_through=after)
+        with span("context_assembly") as s:
+            context, summary = assemble(
+                session.state,
+                turns,
+                previous,
+                self.words,
+                budget_tokens=self.context_tokens,
+                max_recent=self.recent_turns,
+            )
+            s.set(
+                tokens=context.tokens,
+                recent_turns=len(context.recent),
+                summarised_turns=context.dropped_turns,
+                summary_updated=summary is not None and summary is not previous,
+            )
+        log.info(
+            "assistant context: %d tokens, %d recent turns, %d summarised, %.1f ms",
+            context.tokens,
+            len(context.recent),
+            context.dropped_turns,
+            context.assembly_ms,
+        )
+        return context, summary
+
+    # --- checklist -------------------------------------------------------------------------------
+
+    async def _build(self, ready: ReadyProfile) -> ChecklistAnswer | None:
+        def build() -> ChecklistAnswer:
+            with span("checklist", inputs={"profile": ready.model_dump(mode="json")}) as s:
+                answer = self._checklist().build(ready)
+                s.set(kind=answer.kind.value, coverage_state=answer.coverage_state)
+                return answer
+
+        try:
+            return await run_in_threadpool(build)
+        except Exception as exc:  # noqa: BLE001 - the customer gets the fixed technical message
+            log.error("assistant checklist could not be built: %s", type(exc).__name__)
+            return None
+
+
+class LazyChecklist:
+    """Builds the production `ChecklistService` on first use (the sync engine for stored
+    chunks and the dense retriever load lazily, off the event loop). Without a retriever the
+    checklist still cites the catalogue's stored chunks (A4)."""
+
+    def __init__(self, settings: Settings) -> None:
+        self._settings = settings
+        self._lock = threading.Lock()
+        self._service: ChecklistService | None = None
+        self._engine: Any = None
+
+    def __call__(self) -> ChecklistService:
+        with self._lock:
+            if self._service is None:
+                from app.assistant.chunks import PostgresChunkSource
+                from app.assistant.retrieval import AssistantRetriever
+                from app.db.session import create_sync_engine, create_sync_sessionmaker
+                from app.retrieval.factory import retriever_from_settings
+
+                self._engine = create_sync_engine(self._settings)
+                sessions = create_sync_sessionmaker(self._engine)
+                retriever: AssistantRetriever | None
+                try:
+                    retriever = AssistantRetriever(
+                        retriever_from_settings(self._settings, sessions=sessions)
+                    )
+                except Exception as exc:  # noqa: BLE001 - supplementary references only
+                    log.warning("assistant retriever unavailable: %s", type(exc).__name__)
+                    retriever = None
+                self._service = ChecklistService(PostgresChunkSource(sessions), retriever)
+            return self._service
+
+    def close(self) -> None:
+        if self._engine is not None:
+            self._engine.dispose()

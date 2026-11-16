@@ -1,0 +1,221 @@
+# Product redesign: the Account Opening Assistant as the application
+
+> **Historical stage record.** The authoritative product specification is now [`PRODUCT_SPEC.md`](PRODUCT_SPEC.md) (2026-11-14). This document records what was decided and verified at its stage; where it differs from `PRODUCT_SPEC.md`, the specification applies.
+
+Stage: the product redesign and consolidation before A7 (owner request, 2026-11-14), on `feat/account-opening-assistant`. The Account Opening Assistant is now the main application, with a dark design system and a rebuilt journey. Its working behaviour is unchanged: the same A5 API, dialogue, checklist, idempotency, session recovery, corrections and PII safeguards.
+
+## 1. Application structure
+| Route | What it is |
+|---|---|
+| **`/`** | **The Account Opening Assistant** (`frontend/src/assistant/`). |
+| `/open-account` | Redirects to `/` (the A6 address keeps working). |
+| `/legacy`, `/legacy/assistant`, `/legacy/reports/:id` | The preserved M5 compliance-engine screens, unchanged apart from their address. They are not linked from the assistant. |
+| anything else | The assistant's own "Page not found", linking to `/`. |
+
+**Shell:** the assistant has its own:
+- **header:** the product mark (an abstract "verified document" glyph; no third-party branding), its name, "Independent prototype" and **Start again**;
+- **persistent disclaimer ribbon:** all A1 §7 claims.
+
+The phase (welcome, then the workspace) is state, not part of the URL, so the session id never reaches the address bar.
+
+## 2. The journey
+1. **Welcome.** The headline, what the assistant does and three principles (evidence not guesses; dated sources clearly marked; no approvals or scoring). Also:
+   - the **real-data warning before any input** (there is no text box until Start);
+   - **I understand — start**;
+   - a decorative schematic of the result: bars, not invented content.
+2. **Account discovery.** The API's question appears as large selection cards with icons, in the API's order, with only the API's choices. "I'm not sure", "Skip" and "What does this mean?" appear only when the API offers them; free text is always available.
+   The account-type list is the dialogue engine's own. Combinations the HDFC documents don't cover are answered with the prescribed fallback after selection, so the frontend never filters or adds choices.
+3. **Workspace.**
+   - **Wide screens (≥ 1280 px):** a rail (progress and your answers), the conversation, and the checklist as its own column.
+   - **Laptop and tablet (1024 px and up):** the rail, plus a **Conversation / Checklist** switch.
+   - **Mobile:** a compact progress bar, a **Your answers** button that opens a bottom sheet, and the switch. The first checklist takes the stage automatically.
+   - **Message entrance:** messages appear with a short entrance motion.
+   - **Answer dock:** the question cards or Yes / No sit between the transcript and the composer.
+   - **Errors:** failures show inline with **Try again**, which resends with the same Idempotency-Key.
+4. **Your answers.** Confirmed answers have a green dot and say how they were given. Answers marked "Not sure" or "Skipped" have an amber dot and are shown in italics. Each answer keeps its **Change** control, which offers the API's choices for that slot.
+5. **Checklist (the centrepiece).** A document workspace:
+   - **Summary:** item counts per group, the coverage note, **Expand all** and **Print checklist**.
+   - **Groups:** **A** documents and declarations, **B** information to provide, **C** could not be confirmed (only when the API sends it).
+   - **Each item, collapsed**, shows:
+     - the kind icon and title;
+     - the classification label and kind (Document / Declaration / Information);
+     - "Applies if…" notes;
+     - a **Scanned form** flag;
+     - the condition;
+     - the source line (*document · page*).
+   - **Expanded**, it adds:
+     - "The form says" (an exact quotation, for reliable text only) **or** "Approximate reading of the scanned form" with the OCR warning, never in quotation marks;
+     - **Why this is here** (what the form establishes and what it does not);
+     - caveats;
+     - **source disclosures**.
+   - **Group C items** always show their plain explanation and the "Could not be confirmed" label, never "Asked for on the HDFC Bank form".
+6. **Sources and evidence.** Each source panel shows the document, page or pages, section, document date, and whether the text comes from the document or is an automatic reading of a scanned page. It also shows the stored passage. Related form fields are labelled as context only. A summary lists the documents the checklist uses, with their dates and a scanned flag. No database ids, document keys, scores or diagnostics are shown (tested).
+7. **Print.** A dedicated print stylesheet:
+   - white page and dark text; light colour scheme;
+   - the conversation, rail and controls are hidden;
+   - every item's evidence is expanded;
+   - the disclaimer ribbon and a print-only product and disclaimer heading are kept, as is the dated-document notice.
+
+   There is no PDF infrastructure; the browser prints.
+
+## 2a. A fallback that explains and suggests (owner decision after the browser test)
+**The problem:** a combination the documents don't cover (resident savings, LLP savings, salary) used to end in the bare fallback. The answer now has three parts.
+- **The prescribed fallback text**, verbatim, as before.
+- **A plain explanation** from the coverage map's customer wording, for example: "The HDFC Bank form available to this assistant says savings accounts are for individuals, so it doesn't cover a savings account for an organisation."
+- **"Covered by the documents" cards**, read from the coverage map:
+
+  | When | The cards offer |
+  |---|---|
+  | The customer category is known | the account types covered for that category (LLP → Current, Fixed / term deposit, Recurring deposit) |
+  | Nothing is covered for that category | the categories covered for the chosen account (resident savings → an individual living outside India) |
+  | Only the account type is known (salary) | every account type the documents cover |
+
+  A card sends an ordinary `correct` turn, which the server validates.
+
+Coverage decisions are unchanged, and the internal reason is still never shown. Verified in the browser by replaying the reported conversation: LLP + Savings shows the explanation and three cards, and choosing "Current account" builds the LLP checklist (screenshot `17_fallback_explain_suggest.png`).
+
+## 2b. A conversational voice (owner decision after the second browser test)
+**The problem:** after a checklist existed, every unreadable message ("bleeh", a prompt-injection attempt) got "Your checklist has been updated." with nothing changed, and questions got canned lines.
+
+**The fixes:**
+- **Deterministic:**
+  - an unreadable message after the checklist is out of scope: the prescribed fallback plus a polite redirect;
+  - every answer has a `reply`: its notes and question, or a checklist summary ("Here's what the HDFC Bank form asks for …: 4 documents to bring and 14 details to fill in", followed by the documents as bullets, then a pointer to the sources). The wording comes from `dialogue.yaml`; titles, labels and numbers come from the answer.
+- **The LLM voice:** with Groq enabled, the reply is reworded warmly from the answer's facts only. It is checked deterministically (numbers and document terms must be in the facts; no obligation or approval wording; no "only covers" claims; no internal wording, links or code). The deterministic reply is used on any failure.
+  - **Calls:** chip clicks on questions don't call the LLM (fast); free text, confirmations, checklists and fallbacks do.
+- **Live check (2026-11-14):** the owner's conversation was replayed at a human pace with `openai/gpt-oss-120b`.
+  - **Replies:** natural questions, a friendly checklist summary, polite redirects for the injection and "bleeh". The validator rejected a reply that tried to mention a passport "copy", and the safe reply was used.
+  - **Limits:** a few calls timed out because of the free-tier token budget the app enforces (`RATE_LIMIT_GROQ_TPM=6000`); those turns used the deterministic reply.
+
+## 2c. Context awareness and a simpler workspace (owner request, before A7)
+**Context.** Each message is read against the conversation (A3 addendum, `A3_DIALOGUE_POLICY.md`):
+- a child or person mentioned against an organisation profile is explained and clarified once, with nothing changed until the customer chooses;
+- a follow-up keeps the profile and gets a brief answer;
+- a separate request keeps the checklist and offers a separate one;
+- an answer that doesn't apply to the account is never stored.
+
+The LLM voice reads the last three turns only to resolve references, and is told the turn's situation (follow-up, clarify, separate request, off-topic, not covered).
+
+**Workspace.** It is built around one conversation column on every screen size:
+- a compact progress line;
+- a **Conversation / Checklist** switch once a checklist applies (it no longer opens by itself: the chat shows the summary and **Open checklist**);
+- **Your answers** in a drawer: a right-hand panel on desktop, a bottom sheet on mobile. It holds the progress steps, the answers with Change, and the notice.
+
+The checklist built for the current answers stays available during follow-ups and clarifications, and disappears once an answer changes.
+
+**Less noise:** no permanent side rail, no stat tiles, glow or decorative eyebrow labels in the checklist; plain small labels; compact cards for long choice lists; and the notice at the foot of the conversation.
+
+The checklist evidence features are unchanged: groups A/B/C, conditions, sources with pages, OCR warnings, expand/collapse, print.
+
+**Screenshots:**
+- `18_context_clarify.png`
+- `19_mobile_simplified.png`
+- `20_mobile_checklist_view.png`
+
+## 2d. Full-screen chat, compact choices and accounts (master upgrade, Stages 3-4)
+- **Full screen:** while a conversation is active the page is exactly one screen tall; only the conversation scrolls. On phones the chat runs edge to edge. The prototype disclaimer stays visible at every width.
+- **Compact choices:** choice buttons are smaller (still at least 44 px tall). A "Hide options" / "Show options (n)" toggle (`aria-expanded`) folds them away to give the conversation room; the next answer shows its choices again.
+- **Accounts:** a message that may be about another account shows the API's scenario offer as buttons ("Ask about a separate account" / "Change this application", or "Yes, go back to it" / "No, stay with this one"). "Your answers" lists the account being discussed and the other accounts in the conversation, each with a way back. The old "Start a separate checklist" button (which restarted the conversation) is gone.
+- **Greetings:** a greeting or thanks is answered in the chat; fixed texts already shown (such as the fallback) are not repeated under it.
+- **Browser check (2026-11-14, real API on :8001, no live LLM):** the daughter flow (LLP current account -> daughter -> separate account -> "No, we are in India." -> thanks -> back to the LLP) at 1440, 1024, 768 and 390 px: no horizontal overflow, no page scroll, no console errors.
+- **Final validation (Stage 6, 2026-11-15):** `make lint` and `make check-schema` clean; `make test` 2,072 passed with the known environment failures only (K7, plus `test_app_imports_without_the_groq_sdk_or_a_key`, which fails the same way: both read the Groq settings of the local demo `.env`); `make test-integration` 518 passed, 1 failed (K8, the Qdrant tied-score flake in `test_dense_golden`); frontend 192 tests, lint, build and `check:api` clean. The same browser flow was repeated after the cleanup, once without and once with the live LLM voice (the voice reworded the checklist summary; other turns used the deterministic reply); no console errors.
+
+## 3. Design system (`frontend/src/index.css`, Tailwind 4 `@theme`)
+**Revised 2026-11-15 (owner direction "Minimalist fintech, not a GPT clone").** The earlier dark futuristic look (cyan and violet accents, glows, a grid backdrop, sparkle avatars, rounded chat bubbles) was replaced by a restrained, typography-led identity. The conversation engine and API were not changed.
+
+- **Colours** (every text colour meets WCAG AA on every surface; checked by script):
+
+  | Token | Value | Use |
+  |---|---|---|
+  | `void` | `#0B0D10` | page background |
+  | `surface` | `#14171C` | primary surface (drawer, composer field, passages) |
+  | `raised` | `#1B2027` | secondary surface (customer messages, hover) |
+  | `hover` | `#20262E` | hover |
+  | `line` / `line-strong` | `#252A31` / `#333A44` | hairline dividers and borders |
+  | `fg` | `#E8E9EC` | primary text |
+  | `muted` / `subtle` | `#939BA6` / `#828A95` | secondary text and metadata |
+  | `accent` / `accent-strong` | `#8CAFC0` / `#A9C5D2` | the one muted blue-grey accent: links, focus, "asked for on the form" |
+  | `ok`, `warn`, `danger` | `#86B89F`, `#D4B072`, `#E0908A` | only where they carry meaning (done steps, scanned-text and unconfirmed items, errors) |
+
+- **Type:** Inter for everything (restrained sizes, tight tracking on headings, tabular figures); JetBrains Mono only for the character counter. Space Grotesk was dropped. Fonts load from Google Fonts with system fallbacks; no npm dependency.
+- **Structure from whitespace and hairlines, not boxes:** assistant replies are plain editorial text (no avatar, no bubble, en-dash bullets); customer messages are small, quiet blocks on `raised`; notes, the fallback and warnings use a 2px left rule. The primary button is solid off-white; there are no gradients, glows, blurs or shadows.
+- **Layout:** the conversation owns the screen, centred at a reading width (`max-w-3xl`). One quiet top line names the account being discussed and holds two controls: **Checklist (n)**, shown once a checklist applies, and **Your answers** (the drawer with progress, answers and other accounts). The progress bar and the Conversation/Checklist switch were removed.
+- **Composer:** a slim field with a hairline border, solid surface, small send icon and a visible accent focus ring; it stays fixed at the bottom without covering messages.
+- **Checklist:** a document workspace: section headings with a quiet letter (A, B, C), rows separated by dividers, compact metadata tags, evidence indented under the item, citations as hairline disclosure rows. All evidence, condition, approximate-reading and scanned-text disclosures are unchanged.
+- **Motion:** a 180 ms fade on new content and colour transitions on hover; the pulsing "thinking" dots, drifting glows and progress animations were removed ("Checking the documents…" is plain text). Everything is off under `prefers-reduced-motion`.
+- **Focus:** a 2px accent outline on every keyboard focus.
+- **Print:** unchanged rules (white paper, checklist only, all details expanded), with the product name and disclaimer heading the page.
+- **The legacy screens keep Tailwind's default palette** and are unaffected.
+
+## 4. Consolidation audit (frontend only; no backend, migration, document or test was deleted)
+| Item | Decision | Why |
+|---|---|---|
+| `src/assistant/*` | **Redesign** | The product. `ConversationScreen.tsx` (A6) is replaced by `Workspace.tsx`. |
+| `useConversation`, `api/client.ts`, `api/types.ts`, `api/errors.ts`, `api/idempotency.ts`, `storage/assistantSession.ts` | **Keep** | The A5 integration, idempotency and recovery, unchanged. |
+| `components/ErrorBoundary`, `components/useFocusWhenLost`, `api/hooks` (`ApiContext`) | **Keep** | Shared infrastructure used by the assistant. |
+| `screens/dashboard`, `screens/assistant` (v1), `screens/report`, `screens/NotFoundPage`, `components/Layout`, `components/Disclaimer` | **Modify (moved to `/legacy`)** | The preserved M5 compliance engine. It still works and its tests pass, but it is no longer in the assistant's path. |
+| `api/events.ts`, `api/sse.ts`, `storage/sessions.ts`, `test/fixtures/live`, `test/fixtures/reports` | **Keep** | Used only by the legacy screens. |
+| `screens/Placeholder.tsx` | **Removed** in the master-upgrade cleanup (Stage 5, 2026-11-14; recoverable from git history) | It has no importers anywhere. |
+| The legacy screens themselves | **Proposed removal, needs approval** | Possible later. CLAUDE.md says legacy removal happens only in a reviewed, owner-approved stage, so they are kept for now. |
+
+## 5. Verification (2026-11-14)
+- **Frontend:** 175 tests in 19 files pass. ESLint, Prettier, `tsc` strict and the production build pass, and `check:api` reports the generated types as current.
+  - **Assistant tests:** the redesign changed some assertions. Card text has no "→" (the arrow is an icon), sources are inside collapsed details, and focus moves on the next frame. New tests cover:
+    - the summary versus the hidden evidence;
+    - Expand all / Collapse all;
+    - Group C visible and never labelled as a requirement;
+    - the scanned flag;
+    - print;
+    - the answers sheet (dialog, Escape, focus return, corrections);
+    - the Conversation / Checklist switch;
+    - `/` and `/open-account`, and the assistant's not-found page.
+  - **Legacy tests:** only their addresses changed (`/legacy…`).
+- **Browser:** headless Chrome 157 against the real backend (development corpus, no LLM), at 1440, 1024, 768 and 390 px:
+
+  | Check | Result |
+  |---|---|
+  | Fonts loaded | yes |
+  | Text box before Start | none |
+  | Keyboard focus | 2px cyan outline |
+  | NRI savings checklist | reached, 20 items |
+  | Session id in the URL or page | absent |
+  | Expanding an item and its source | works |
+  | Print preview | white background; conversation hidden; **12 of 12 collapsed details expanded for paper** |
+  | Follow-up question | checklist updated |
+  | Synthetic PAN | blocked and never on the page (also after reload) |
+  | Reload | 15 bubbles restored |
+  | Change of account type | sent as a correction; checklist updated |
+  | 1024 px | rail and switch |
+  | Mobile LLP current account | the checklist took the stage; Group C after the PAN-card question; the answers sheet works |
+  | 768 px resident savings | the fixed fallback |
+  | Horizontal overflow | none at any width |
+  | Console | **no errors or warnings** |
+- **Bugs found in review and fixed before the commit:**
+  - checklist cards were clipped by a grid `min-width`;
+  - the focus style overrode component styles because it was unlayered;
+  - print rendered dark text on a dark canvas (`color-scheme`);
+  - print kept details collapsed (Tailwind's `[hidden] !important` in its base layer);
+  - "Start again" wrapped on mobile.
+
+**Screenshots** are in `docs/assistant/redesign/`:
+
+| File | Shows |
+|---|---|
+| `01_welcome_desktop` | Welcome screen, desktop |
+| `03_discovery_desktop` | Account discovery cards, desktop |
+| `05_checklist_wide` | Checklist workspace, wide screen |
+| `06_item_source_wide` | An expanded item and its source, wide screen |
+| `07_print` | Print preview |
+| `08_blocked_wide` | A blocked message, wide screen |
+| `10_laptop_1024` | Laptop layout at 1024 px |
+| `11_welcome_mobile` | Welcome screen, mobile |
+| `13_checklist_mobile` | Checklist, mobile |
+| `14_groupc_mobile` | Group C, mobile |
+| `15_sheet_mobile` | The answers sheet, mobile |
+| `16_fallback_tablet` | The fallback, tablet |
+
+## 6. Known issues and notes
+- **Account-type cards:** they include choices such as "Salary account". The dialogue engine offers them, and the documents then answer with the prescribed fallback; the frontend doesn't filter the API's choices. Hiding unsupported choices before selection would need an A3/A5 change (not done).
+- **Fonts:** they load from Google Fonts at runtime. Self-hosting them would need an npm dependency (`@fontsource/*`) and owner approval.
+- **Port 8000:** an old pre-A5 API process was still listening on port 8000 during this work, so the browser review ran the backend on port 8001 (see A6_UI.md §7). `make api` / `make web` need that old process stopped.
+- **Legacy screens:** they keep the light M5 styling. They're reachable only by typing `/legacy`.

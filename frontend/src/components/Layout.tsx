@@ -4,8 +4,8 @@ import { Disclaimer } from "./Disclaimer";
 import { ErrorBoundary } from "./ErrorBoundary";
 
 const NAV = [
-  { to: "/", label: "Dashboard", end: true },
-  { to: "/assistant", label: "KYC Assistant", end: false },
+  { to: "/legacy", label: "Dashboard", end: true },
+  { to: "/legacy/assistant", label: "KYC Assistant", end: false },
 ] as const;
 
 /** The application shell: the disclaimer and navigation stay outside the page error

@@ -24,7 +24,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSON, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from app.graph.state import DataClass, Outcome, RunStatus
@@ -687,4 +687,87 @@ class ApiIdempotency(Base):
         CheckConstraint(
             "endpoint IN ('messages', 'resume', 'retry')", name="ck_api_idempotency_endpoint"
         ),
+    )
+
+
+# --- A5: the customer-facing account opening assistant (migration 0009) --------------------------
+
+
+class AssistantSessionRow(Base):
+    """One assistant conversation (A5). `state` is the A3 `DialogueState` as JSON: slot
+    values are enum codes only, never free text. `expires_at` moves forward on every turn."""
+
+    __tablename__ = "assistant_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    state: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    turn_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # The rolling conversation summary (memory.py): older turns condensed, recent turns stay
+    # verbatim in `assistant_turns`. Deleted with the session (no separate copy).
+    summary: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    summary_through_turn: Mapped[int | None] = mapped_column(Integer)
+
+    __table_args__ = (CheckConstraint("turn_count >= 0", name="ck_assistant_sessions_turn_count"),)
+
+
+class AssistantTurnRow(Base):
+    """One turn (A5), INSERT-ONLY (a trigger rejects UPDATE); deleted only by cascade with
+    its session. `message` is the screened text, or NULL when screening refused it (only the
+    categories are kept). `request` holds the enum-validated choice fields only."""
+
+    __tablename__ = "assistant_turns"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("assistant_sessions.id", ondelete="CASCADE"), nullable=False
+    )
+    turn_no: Mapped[int] = mapped_column(Integer, nullable=False)
+    message: Mapped[str | None] = mapped_column(Text)
+    screen_categories: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), nullable=False, server_default=text("'{}'")
+    )
+    request: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    answer: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)  # byte-stable replays
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint("turn_no >= 0", name="ck_assistant_turns_turn_no"),
+        UniqueConstraint("session_id", "turn_no", name="uq_assistant_turns_session_turn"),
+    )
+
+
+class AssistantIdempotencyRow(Base):
+    """Idempotency keys for POST /api/v2/assistant/sessions/{id}/turns (A5): a replay
+    returns the stored answer of `turn_id`."""
+
+    __tablename__ = "assistant_idempotency"
+
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("assistant_sessions.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    key: Mapped[str] = mapped_column(Text, primary_key=True)
+    request_sha256: Mapped[str] = mapped_column(Text, nullable=False)
+    turn_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("assistant_turns.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "request_sha256 ~ '^[0-9a-f]{64}$'", name="ck_assistant_idempotency_sha256"
+        ),
+        CheckConstraint("length(key) BETWEEN 1 AND 200", name="ck_assistant_idempotency_key"),
     )

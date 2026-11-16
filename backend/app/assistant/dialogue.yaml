@@ -1,0 +1,182 @@
+# Fixed customer-facing wording of the dialogue (A3; A1 §5, §6, §7).
+#
+# Rules (enforced by app/assistant/wording.py and its tests):
+# - Every slot has a question, an explanation ("What does this mean?") and a not-sure note;
+#   every value of every slot has a chip label (A1 §5.1 / §5.2 wording).
+# - Explanations say what the question is about and what the answer changes. They state
+#   no requirement, document, condition or banking fact (CLAUDE.md principles 1, 2, 5).
+# - `fallback` and `notice` are the A1 §7 texts, verbatim.
+
+version: a3-1
+
+slots:
+  account_type:
+    question: Which account would you like to open?
+    explanation: >-
+      This is the kind of account you want, for example a savings account, a current account or a
+      deposit. It decides which HDFC Bank form, and which part of it, your checklist comes from.
+    not_sure: >-
+      That's fine. Without the account type I can't tell which form applies, so I can't build a
+      reliable checklist yet. You can choose it at any time.
+    chips:
+      SAVINGS: Savings account
+      CURRENT: Current account
+      SALARY: Salary account
+      FIXED_DEPOSIT: Fixed / term deposit
+      RECURRING_DEPOSIT: Recurring deposit
+      FCNR_RFC: FCNR / RFC deposit
+  customer_category:
+    question: Who is the account for?
+    explanation: >-
+      This is the person or organisation who will hold the account. Individuals living in India,
+      individuals living outside India and organisations use different HDFC Bank forms, so this
+      decides which form your checklist comes from.
+    not_sure: >-
+      That's fine. Without knowing who the account is for I can't tell which form applies, so I
+      can't build a reliable checklist yet. You can choose it at any time.
+    chips:
+      RESIDENT_INDIVIDUAL: An individual living in India
+      NRI_INDIVIDUAL: An individual living outside India (NRI / PIO / OCI)
+      SOLE_PROPRIETORSHIP: A sole proprietorship
+      PARTNERSHIP_FIRM: A partnership firm
+      LLP: A limited liability partnership (LLP)
+      COMPANY: A company (private or public limited)
+      TRUST: A trust
+      HUF: A Hindu Undivided Family (HUF)
+      OTHER_ORGANISATION: A society, association, club or other organisation
+  nri_scheme:
+    question: Is it an NRE or an NRO account?
+    explanation: >-
+      NRE and NRO are the two kinds of NRI account on the HDFC Bank NRI account opening form, and
+      the form has a separate section for each. Your answer decides which section of the form the
+      checklist uses.
+    not_sure: >-
+      That's fine. I'll leave it open, so the checklist won't be narrowed to the NRE or the NRO
+      section of the form.
+    chips:
+      NRE: NRE account
+      NRO: NRO account
+  holding:
+    question: Will the account be held by one person or jointly?
+    explanation: >-
+      A single account has one holder; a joint account has more than one. The form has parts for
+      additional applicants, so this decides whether those parts apply to you.
+    not_sure: >-
+      That's fine. I'll leave it open, so the checklist won't include or leave out the parts of
+      the form for joint applicants.
+    chips:
+      SINGLE: Just one holder
+      JOINT: Jointly with others
+  minor:
+    question: Is the account being opened for a minor?
+    explanation: >-
+      The form has parts for an account opened for a minor with a guardian. This decides whether
+      those parts apply to you.
+    not_sure: >-
+      That's fine. I'll leave it open, so the checklist won't include or leave out the parts of
+      the form for minors and guardians.
+    chips:
+      "YES": "Yes, for a minor"
+      "NO": "No"
+
+# Shown when the customer chooses "Skip" (non-essential slots only) or tries to skip an essential one.
+skipped: OK, I'll continue without it.
+skip_not_available: I need this to know which HDFC Bank form applies, so it can't be skipped. You can choose "I'm not sure" instead.
+
+# One reworded re-ask after an unclear reply; a second unclear reply counts as "I'm not sure".
+unclear: Sorry, I didn't catch that. Please pick one of the options, or choose "I'm not sure".
+unclear_gave_up: I'll leave this open for now; you can answer it at any time.
+
+# Confirmation questions ({value} is the chip label).
+confirm:
+  hint: "Just to check: is the account for {value}?"
+  llm: "Just to check: did you mean {value}?"
+  conflict: "Earlier you said {old}. Should I change it to {value}?"
+confirm_declined: OK, I've left it as it was.
+
+corrected: "I've updated your answer to: {value}."
+ambiguous: You mentioned more than one option. Which one did you mean?
+organisation_unspecified: Which kind of organisation is it?
+unsupported_customer: >-
+  The HDFC Bank documents available to me don't cover that kind of customer, so I can't build a
+  checklist for it. If I've misunderstood, please choose who the account is for.
+out_of_scope: I can only help with the documents and information needed to open an HDFC Bank account.
+
+# The checklist cannot be built while an essential slot stays unknown (A1 R4).
+cannot_build:
+  account_type: >-
+    I can't build a reliable checklist without knowing which account you want, because different
+    accounts use different HDFC Bank forms. Choose an account type whenever you're ready.
+  customer_category: >-
+    I can't build a reliable checklist without knowing who the account is for, because
+    individuals and organisations use different HDFC Bank forms. Choose an option whenever you're ready.
+
+# Input screening (A1 R9). Fixed texts; the customer's message is never echoed.
+blocked:
+  identifier: >-
+    Please don't share personal identifiers such as PAN, Aadhaar, passport, card or account
+    numbers. I don't need them to answer your question, and your message wasn't stored.
+  unusable: I couldn't read that message. Please try again with a shorter message in plain text.
+  other: I can't process that message. Please rephrase your question about opening an account.
+
+# Shown with the opening question of every conversation (A5 close-out): the prototype must not
+# receive real personal or banking information.
+privacy: >-
+  This is an independent prototype, not an HDFC Bank service. Please don't enter real personal or
+  banking information, such as your name, contact details, or PAN, Aadhaar, passport, card or
+  account numbers. Conversations are kept on this prototype's server.
+
+# The assistant's own conversational lines (deterministic reply; the optional LLM voice may
+# rephrase them, from the same facts only). Never requirement text: item titles come from the
+# checklist answer.
+replies:
+  checklist_intro: "Here's what the HDFC Bank form asks for {subject}: {documents} to bring and {details} to fill in."
+  subject: a {account} for {holder}
+  conversion_subject: converting a resident account to an NRO account
+  documents_one: 1 document
+  documents_many: "{n} documents"
+  details_one: 1 detail
+  details_many: "{n} details"
+  documents_lead: "The documents:"
+  asked_lead: "You asked about something the documents don't confirm:"
+  focused_lead: "For {subject}, the form asks you to bring:"
+  checklist_outro: Open any item in the checklist to see why it's there and the form page it comes from.
+  unchanged: Nothing has changed in your checklist.
+  off_topic: I can only help with the documents and information for opening an account. Your checklist is still here whenever you need it.
+  suggestions_lead: The documents do cover the options below. Choose one to change your answer.
+
+# Reading a message against the conversation so far. The profile only changes when the
+# customer chooses or confirms; these lines explain, they never decide.
+context:
+  change: "OK, an account for a person rather than {holder}. Who will hold the account?"
+  which_person: Is the account for someone living in India or outside India?
+  follow_up: "Here's how that relates to {subject}."
+  not_applicable: "That doesn't change anything for {subject}."
+
+# Greetings and small talk: answered naturally; they never change answers or the checklist.
+social:
+  greeting: "Hi, welcome! I can help you find out what the HDFC Bank account opening forms ask for."
+  greeting_again: "Hello again! We were looking at {subject}. What would you like to know?"
+  thanks: You're welcome! Let me know if there's anything else you'd like to check.
+  goodbye: Goodbye! If you come back in this browser tab, your conversation will still be here.
+  acknowledgement: Sure. Is there anything else you'd like to check?
+  small_talk: I'm doing well, thanks for asking! I'm here to help with opening an account.
+
+# More than one account in a conversation. A separate account never changes the other one.
+scenarios:
+  account_for: "an account for {holder}"
+  account_only: "a {account}"
+  unnamed: a new account
+  offer: "We've been looking at {subject}. Is your question about a separate account, or do you want to change this application?"
+  separate_option: Ask about a separate account
+  change_option: Change this application
+  started: "OK, let's look at that account separately. I'll keep {subject} as it is, and you can go back to it at any time."
+  started_fresh: OK, let's look at a separate account.
+  switch_offer: "We looked at {subject} earlier in this conversation. Do you want to go back to it?"
+  switch_option: Yes, go back to it
+  stay_option: No, stay with this one
+  switched: "We're back to {subject}."
+
+# A1 §7, verbatim.
+fallback: I couldn't find this information in the available HDFC Bank documents. I don't want to give you an incorrect answer.
+notice: These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply.

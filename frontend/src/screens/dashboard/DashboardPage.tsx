@@ -106,7 +106,7 @@ function SessionsPanel() {
       {known.length === 0 ? (
         <p className="mt-2 text-sm">
           No sessions in this tab yet.{" "}
-          <Link to="/assistant" className="underline">
+          <Link to="/legacy/assistant" className="underline">
             Start one in the KYC Assistant
           </Link>
           .
@@ -179,7 +179,7 @@ function SessionRow({
           className="mt-2 underline"
           onClick={() => {
             setSessionId(session.id);
-            void navigate("/assistant");
+            void navigate("/legacy/assistant");
           }}
         >
           Open in the Assistant
@@ -210,7 +210,10 @@ function SessionStatus({ view }: { view: NonNullable<ReturnType<typeof useSessio
           </p>
           {wf.status === "completed" &&
             (wf.report_id != null ? (
-              <Link to={`/reports/${encodeURIComponent(wf.report_id)}`} className="underline">
+              <Link
+                to={`/legacy/reports/${encodeURIComponent(wf.report_id)}`}
+                className="underline"
+              >
                 Open the report
               </Link>
             ) : (

@@ -1,0 +1,1009 @@
+{
+  "status": 200,
+  "body": {
+    "session_id": "0a5e5510-0000-4000-8000-000000000001",
+    "turn": 7,
+    "answer": {
+      "kind": "checklist",
+      "reply": "I can only help with the documents and information for opening an account. Your checklist is still here whenever you need it.",
+      "question": null,
+      "confirmation": null,
+      "scenario_offer": null,
+      "messages": [],
+      "profile": {
+        "account_type": {
+          "status": "known",
+          "value": "SAVINGS",
+          "label": "Savings account",
+          "origin": "stated",
+          "choices": [
+            {
+              "value": "SAVINGS",
+              "label": "Savings account"
+            },
+            {
+              "value": "CURRENT",
+              "label": "Current account"
+            },
+            {
+              "value": "SALARY",
+              "label": "Salary account"
+            },
+            {
+              "value": "FIXED_DEPOSIT",
+              "label": "Fixed / term deposit"
+            },
+            {
+              "value": "RECURRING_DEPOSIT",
+              "label": "Recurring deposit"
+            },
+            {
+              "value": "FCNR_RFC",
+              "label": "FCNR / RFC deposit"
+            }
+          ]
+        },
+        "customer_category": {
+          "status": "known",
+          "value": "NRI_INDIVIDUAL",
+          "label": "An individual living outside India (NRI / PIO / OCI)",
+          "origin": "chosen",
+          "choices": [
+            {
+              "value": "RESIDENT_INDIVIDUAL",
+              "label": "An individual living in India"
+            },
+            {
+              "value": "NRI_INDIVIDUAL",
+              "label": "An individual living outside India (NRI / PIO / OCI)"
+            },
+            {
+              "value": "SOLE_PROPRIETORSHIP",
+              "label": "A sole proprietorship"
+            },
+            {
+              "value": "PARTNERSHIP_FIRM",
+              "label": "A partnership firm"
+            },
+            {
+              "value": "LLP",
+              "label": "A limited liability partnership (LLP)"
+            },
+            {
+              "value": "COMPANY",
+              "label": "A company (private or public limited)"
+            },
+            {
+              "value": "TRUST",
+              "label": "A trust"
+            },
+            {
+              "value": "HUF",
+              "label": "A Hindu Undivided Family (HUF)"
+            },
+            {
+              "value": "OTHER_ORGANISATION",
+              "label": "A society, association, club or other organisation"
+            }
+          ]
+        },
+        "nri_scheme": {
+          "status": "known",
+          "value": "NRE",
+          "label": "NRE account",
+          "origin": "chosen",
+          "choices": [
+            {
+              "value": "NRE",
+              "label": "NRE account"
+            },
+            {
+              "value": "NRO",
+              "label": "NRO account"
+            }
+          ]
+        },
+        "holding": {
+          "status": "not_sure",
+          "value": null,
+          "label": null,
+          "origin": null,
+          "choices": [
+            {
+              "value": "SINGLE",
+              "label": "Just one holder"
+            },
+            {
+              "value": "JOINT",
+              "label": "Jointly with others"
+            }
+          ]
+        },
+        "minor": {
+          "status": "known",
+          "value": "NO",
+          "label": "No",
+          "origin": "chosen",
+          "choices": [
+            {
+              "value": "YES",
+              "label": "Yes, for a minor"
+            },
+            {
+              "value": "NO",
+              "label": "No"
+            }
+          ]
+        }
+      },
+      "coverage_state": "COVERED",
+      "checklist": {
+        "groups": {
+          "documents": [
+            {
+              "id": "nri_photo_first",
+              "title": "Latest passport-size photograph of the first applicant",
+              "kind": "document",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": "1st Applicant's latest passport size photo",
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": "The HDFC Bank form asks you to provide this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": "The form names the photograph in its own words; it gives no further specification.",
+              "citations": [
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 5,
+                  "page_end": null,
+                  "section": "M) 1st and 2nd APPLICANT'S PHOTOGRAPH AND SIGNATURE",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "Fields: Page 4 of 6 | Name: ___ | Date: ___ | Place: ___ | 1st Applicant's latest passport size photo | 2nd Applicant's latest passport size photo | 2nd applicant's signature"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; PDF created 2019; no printed edition date. The current version has not been verified."
+                }
+              ],
+              "asked": true,
+              "fallback": null
+            },
+            {
+              "id": "nri_photo_second",
+              "title": "Latest passport-size photograph of the second applicant",
+              "kind": "document",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": ["Applies if the account is held jointly."],
+              "source_wording": "2nd Applicant's latest passport size photo",
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": "The HDFC Bank form asks you to provide this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": "The form names the photograph in its own words; it gives no further specification.",
+              "citations": [
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 5,
+                  "page_end": null,
+                  "section": "M) 1st and 2nd APPLICANT'S PHOTOGRAPH AND SIGNATURE",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "Fields: Page 4 of 6 | Name: ___ | Date: ___ | Place: ___ | 1st Applicant's latest passport size photo | 2nd Applicant's latest passport size photo | 2nd applicant's signature"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; PDF created 2019; no printed edition date. The current version has not been verified."
+                }
+              ],
+              "asked": true,
+              "fallback": null
+            },
+            {
+              "id": "nri_form_60",
+              "title": "Form 60, if you do not have a PAN",
+              "kind": "document",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": "If PAN not available",
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": "If PAN not available, kindly attach Form 60",
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": "The HDFC Bank form asks you to provide this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": null,
+              "citations": [
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 1,
+                  "page_end": null,
+                  "section": "C) FIRST APPLICANT'S DETAILS",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "Fields: *Gender Married Unmarried Other Male Female Transgender Minor | Applicant Type Date of Birth *Marital Status | NRI PIO/OCI Foreign National Resident (Returning NRI)* *Spouse's Name | *Residential | DD-MM-YYYY | *PERSONAL DETAILS | %PAN No. Aadhaar No. *Passport No. | %If PAN not available, kindly attach Form 60 Mother's Name | *Mother's Maiden Name | *Father's Name | ^*Country / ies of Tax Residency (Outside India) | *City of birth | *Country of birth | *Tax Id No. (TIN) Type | *Nationality | Attached Address Proof of | *OVERSEAS ADDRESS | Flat No & | *Name of Proof of Address | Passport Driving License | Bldg. Name | UID (Aadhar) Voter ID | NREGA Job Card | Landmark | Others ___ | Country PIN Code | *Address Type for Tax purpose | *INDIAN ADDRESS *CONTACT DETAILS | PIN Code | INDIA | I confirm that I do not have any Indian Address | *E-mail ID | Country code | Area code | (OTP will be sent to this mobile number) | *Mobile No. | SMS E-MAIL Tel (R) | Please register me for A) Insta Alert"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; PDF created 2019; no printed edition date. The current version has not been verified."
+                },
+                {
+                  "code": "conditional",
+                  "text": "The form states a condition: If PAN not available"
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            },
+            {
+              "id": "nri_address_proof",
+              "title": "Proof of address, of the type you tick on the form",
+              "kind": "document",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": "Attached Address Proof of",
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": "The HDFC Bank form asks you to provide this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": "The form lists the types of address proof to choose from; it does not say which one HDFC Bank currently accepts.",
+              "citations": [
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 1,
+                  "page_end": null,
+                  "section": "C) FIRST APPLICANT'S DETAILS",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "Fields: *Gender Married Unmarried Other Male Female Transgender Minor | Applicant Type Date of Birth *Marital Status | NRI PIO/OCI Foreign National Resident (Returning NRI)* *Spouse's Name | *Residential | DD-MM-YYYY | *PERSONAL DETAILS | %PAN No. Aadhaar No. *Passport No. | %If PAN not available, kindly attach Form 60 Mother's Name | *Mother's Maiden Name | *Father's Name | ^*Country / ies of Tax Residency (Outside India) | *City of birth | *Country of birth | *Tax Id No. (TIN) Type | *Nationality | Attached Address Proof of | *OVERSEAS ADDRESS | Flat No & | *Name of Proof of Address | Passport Driving License | Bldg. Name | UID (Aadhar) Voter ID | NREGA Job Card | Landmark | Others ___ | Country PIN Code | *Address Type for Tax purpose | *INDIAN ADDRESS *CONTACT DETAILS | PIN Code | INDIA | I confirm that I do not have any Indian Address | *E-mail ID | Country code | Area code | (OTP will be sent to this mobile number) | *Mobile No. | SMS E-MAIL Tel (R) | Please register me for A) Insta Alert"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; PDF created 2019; no printed edition date. The current version has not been verified."
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            },
+            {
+              "id": "nri_mandate_poa",
+              "title": "The relevant document, if you choose a mandate or power of attorney (POA)",
+              "kind": "document",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": "Mandate / POA",
+              "condition_note": "Only if you choose to have the account operated under a mandate or power of attorney (POA).",
+              "applies_if": [],
+              "source_wording": "Mandate / POA (please attach relevant document)",
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": "The HDFC Bank form asks you to provide this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": null,
+              "citations": [
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 1,
+                  "page_end": null,
+                  "section": "FOR NON RESIDENT - INDIVIDUAL CUSTOMERS",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "ACCOUNT CUM TERM DEPOSIT OPENING FORM\nFOR NON RESIDENT - INDIVIDUAL CUSTOMERS\nBank use only Application Date Face to Face Tatkal A/c Face to Face Non Tatkal A/c Non Face to Face\nPlease open my / our account with HDFC Bank in the Branch mentioned below. I / we hereby furnish the details along with supporting documents. Relevant options have been ticked as required / applicable\n(Below name combination / holding pattern will be applicable for all the product/s opted for in this application form) *A) APPLICANT'S NAME (SAME AS ID PROOF)\n*B) OPERATING INSTRUCTION (Below operating instruction will be applicable for all the product/s opted for in this application form) Mandate / POA (please attach relevant document)\nSingle Either or Survivor Former or Survivor Minor under Guardian Jointly (ATM / Debit card not issued)"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; PDF created 2019; no printed edition date. The current version has not been verified."
+                },
+                {
+                  "code": "conditional",
+                  "text": "Only if you choose to have the account operated under a mandate or power of attorney (POA)."
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            }
+          ],
+          "information": [
+            {
+              "id": "nri_name",
+              "title": "Enter your name as it appears on your identity document.",
+              "kind": "information",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": "APPLICANT'S NAME (SAME AS ID PROOF)",
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": "The HDFC Bank form has a field for this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": null,
+              "citations": [
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 1,
+                  "page_end": null,
+                  "section": "FOR NON RESIDENT - INDIVIDUAL CUSTOMERS",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "ACCOUNT CUM TERM DEPOSIT OPENING FORM\nFOR NON RESIDENT - INDIVIDUAL CUSTOMERS\nBank use only Application Date Face to Face Tatkal A/c Face to Face Non Tatkal A/c Non Face to Face\nPlease open my / our account with HDFC Bank in the Branch mentioned below. I / we hereby furnish the details along with supporting documents. Relevant options have been ticked as required / applicable\n(Below name combination / holding pattern will be applicable for all the product/s opted for in this application form) *A) APPLICANT'S NAME (SAME AS ID PROOF)\n*B) OPERATING INSTRUCTION (Below operating instruction will be applicable for all the product/s opted for in this application form) Mandate / POA (please attach relevant document)\nSingle Either or Survivor Former or Survivor Minor under Guardian Jointly (ATM / Debit card not issued)"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; PDF created 2019; no printed edition date. The current version has not been verified."
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            },
+            {
+              "id": "nri_date_of_birth",
+              "title": "Date of birth",
+              "kind": "information",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": "Date of Birth",
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": "The HDFC Bank form has a field for this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": null,
+              "citations": [
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 1,
+                  "page_end": null,
+                  "section": "C) FIRST APPLICANT'S DETAILS",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "Fields: *Gender Married Unmarried Other Male Female Transgender Minor | Applicant Type Date of Birth *Marital Status | NRI PIO/OCI Foreign National Resident (Returning NRI)* *Spouse's Name | *Residential | DD-MM-YYYY | *PERSONAL DETAILS | %PAN No. Aadhaar No. *Passport No. | %If PAN not available, kindly attach Form 60 Mother's Name | *Mother's Maiden Name | *Father's Name | ^*Country / ies of Tax Residency (Outside India) | *City of birth | *Country of birth | *Tax Id No. (TIN) Type | *Nationality | Attached Address Proof of | *OVERSEAS ADDRESS | Flat No & | *Name of Proof of Address | Passport Driving License | Bldg. Name | UID (Aadhar) Voter ID | NREGA Job Card | Landmark | Others ___ | Country PIN Code | *Address Type for Tax purpose | *INDIAN ADDRESS *CONTACT DETAILS | PIN Code | INDIA | I confirm that I do not have any Indian Address | *E-mail ID | Country code | Area code | (OTP will be sent to this mobile number) | *Mobile No. | SMS E-MAIL Tel (R) | Please register me for A) Insta Alert"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; PDF created 2019; no printed edition date. The current version has not been verified."
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            },
+            {
+              "id": "nri_pan_number",
+              "title": "PAN number",
+              "kind": "information",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": "PAN No.",
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": "The HDFC Bank form has a field for this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": "The form has a field for the PAN number.",
+              "citations": [
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 1,
+                  "page_end": null,
+                  "section": "C) FIRST APPLICANT'S DETAILS",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "Fields: *Gender Married Unmarried Other Male Female Transgender Minor | Applicant Type Date of Birth *Marital Status | NRI PIO/OCI Foreign National Resident (Returning NRI)* *Spouse's Name | *Residential | DD-MM-YYYY | *PERSONAL DETAILS | %PAN No. Aadhaar No. *Passport No. | %If PAN not available, kindly attach Form 60 Mother's Name | *Mother's Maiden Name | *Father's Name | ^*Country / ies of Tax Residency (Outside India) | *City of birth | *Country of birth | *Tax Id No. (TIN) Type | *Nationality | Attached Address Proof of | *OVERSEAS ADDRESS | Flat No & | *Name of Proof of Address | Passport Driving License | Bldg. Name | UID (Aadhar) Voter ID | NREGA Job Card | Landmark | Others ___ | Country PIN Code | *Address Type for Tax purpose | *INDIAN ADDRESS *CONTACT DETAILS | PIN Code | INDIA | I confirm that I do not have any Indian Address | *E-mail ID | Country code | Area code | (OTP will be sent to this mobile number) | *Mobile No. | SMS E-MAIL Tel (R) | Please register me for A) Insta Alert"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; PDF created 2019; no printed edition date. The current version has not been verified."
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            },
+            {
+              "id": "nri_passport_number",
+              "title": "Passport number",
+              "kind": "information",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": "Passport No.",
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": "The HDFC Bank form has a field for this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": "The form has a field for the passport number.",
+              "citations": [
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 1,
+                  "page_end": null,
+                  "section": "C) FIRST APPLICANT'S DETAILS",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "Fields: *Gender Married Unmarried Other Male Female Transgender Minor | Applicant Type Date of Birth *Marital Status | NRI PIO/OCI Foreign National Resident (Returning NRI)* *Spouse's Name | *Residential | DD-MM-YYYY | *PERSONAL DETAILS | %PAN No. Aadhaar No. *Passport No. | %If PAN not available, kindly attach Form 60 Mother's Name | *Mother's Maiden Name | *Father's Name | ^*Country / ies of Tax Residency (Outside India) | *City of birth | *Country of birth | *Tax Id No. (TIN) Type | *Nationality | Attached Address Proof of | *OVERSEAS ADDRESS | Flat No & | *Name of Proof of Address | Passport Driving License | Bldg. Name | UID (Aadhar) Voter ID | NREGA Job Card | Landmark | Others ___ | Country PIN Code | *Address Type for Tax purpose | *INDIAN ADDRESS *CONTACT DETAILS | PIN Code | INDIA | I confirm that I do not have any Indian Address | *E-mail ID | Country code | Area code | (OTP will be sent to this mobile number) | *Mobile No. | SMS E-MAIL Tel (R) | Please register me for A) Insta Alert"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; PDF created 2019; no printed edition date. The current version has not been verified."
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            },
+            {
+              "id": "nri_nationality",
+              "title": "Nationality",
+              "kind": "information",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": "Nationality",
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": "The HDFC Bank form has a field for this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": null,
+              "citations": [
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 1,
+                  "page_end": null,
+                  "section": "C) FIRST APPLICANT'S DETAILS",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "Fields: *Gender Married Unmarried Other Male Female Transgender Minor | Applicant Type Date of Birth *Marital Status | NRI PIO/OCI Foreign National Resident (Returning NRI)* *Spouse's Name | *Residential | DD-MM-YYYY | *PERSONAL DETAILS | %PAN No. Aadhaar No. *Passport No. | %If PAN not available, kindly attach Form 60 Mother's Name | *Mother's Maiden Name | *Father's Name | ^*Country / ies of Tax Residency (Outside India) | *City of birth | *Country of birth | *Tax Id No. (TIN) Type | *Nationality | Attached Address Proof of | *OVERSEAS ADDRESS | Flat No & | *Name of Proof of Address | Passport Driving License | Bldg. Name | UID (Aadhar) Voter ID | NREGA Job Card | Landmark | Others ___ | Country PIN Code | *Address Type for Tax purpose | *INDIAN ADDRESS *CONTACT DETAILS | PIN Code | INDIA | I confirm that I do not have any Indian Address | *E-mail ID | Country code | Area code | (OTP will be sent to this mobile number) | *Mobile No. | SMS E-MAIL Tel (R) | Please register me for A) Insta Alert"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; PDF created 2019; no printed edition date. The current version has not been verified."
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            },
+            {
+              "id": "nri_tax_residency",
+              "title": "Country or countries of tax residency outside India",
+              "kind": "information",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": "Country / ies of Tax Residency (Outside India)",
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": "The HDFC Bank form has a field for this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": null,
+              "citations": [
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 1,
+                  "page_end": null,
+                  "section": "C) FIRST APPLICANT'S DETAILS",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "Fields: *Gender Married Unmarried Other Male Female Transgender Minor | Applicant Type Date of Birth *Marital Status | NRI PIO/OCI Foreign National Resident (Returning NRI)* *Spouse's Name | *Residential | DD-MM-YYYY | *PERSONAL DETAILS | %PAN No. Aadhaar No. *Passport No. | %If PAN not available, kindly attach Form 60 Mother's Name | *Mother's Maiden Name | *Father's Name | ^*Country / ies of Tax Residency (Outside India) | *City of birth | *Country of birth | *Tax Id No. (TIN) Type | *Nationality | Attached Address Proof of | *OVERSEAS ADDRESS | Flat No & | *Name of Proof of Address | Passport Driving License | Bldg. Name | UID (Aadhar) Voter ID | NREGA Job Card | Landmark | Others ___ | Country PIN Code | *Address Type for Tax purpose | *INDIAN ADDRESS *CONTACT DETAILS | PIN Code | INDIA | I confirm that I do not have any Indian Address | *E-mail ID | Country code | Area code | (OTP will be sent to this mobile number) | *Mobile No. | SMS E-MAIL Tel (R) | Please register me for A) Insta Alert"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; PDF created 2019; no printed edition date. The current version has not been verified."
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            },
+            {
+              "id": "nri_tin",
+              "title": "Tax identification number (TIN), for a tax resident of a country other than India",
+              "kind": "information",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": "For tax resident of other country than India",
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": "Tax Id No. (TIN) For tax resident of other country than India",
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": "The HDFC Bank form has a field for this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": null,
+              "citations": [
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 1,
+                  "page_end": null,
+                  "section": "C) FIRST APPLICANT'S DETAILS",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "C) FIRST APPLICANT'S DETAILS\nExisting Cust Id I Confirm that I do not have any existing customer ID/ Customer IDs apart from the one mentioned above. In case found otherwise, Bank *Passport reserves the right to consolidate the customer IDs as it may decide without any prior notice to me. Expiry Date\n* # Tax Id No. (TIN) For tax resident of other country than India\n#In case Tax Identification Number is not available, kindly provide functional equivalent^\n^To also include USA, where the individual is a citizen/ green card holder of USA\nChoice of Correspondence Indian Address Overseas Address (If not ticked, correspondence will be sent to Overseas address)\n(For existing customers, address given below will be updated for the primary applicant in all accounts held with the bank)\nPlease mention a prominent landmark to ensure that the deliverables reach you\nResidence Business Residential and Business Registered Office Unspecified Please tick if Address for Tax purpose is other than correspondence address\nMonthly email statement will be sent to the above e-mail id. All accounts linked to Cust ID of 1st Applicant will be registered for Free Email Statements."
+                },
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 2,
+                  "page_end": null,
+                  "section": "D) SECOND APPLICANT'S DETAILS / GUARDIAN (in case of minor account)",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": false,
+                  "passage": "D) SECOND APPLICANT'S DETAILS / GUARDIAN (in case of minor account)\nRelated Person Type Guardian of Minor Nominee Assignee Authorized Representative Beneficial Owner Beneficiary\nI Confirm that I do not have any existing customer ID/ Customer IDs apart from the one mentioned above. In case found otherwise, Bank *Passport Existing Cust Id reserves the right to consolidate the customer IDs as it may decide without any prior notice to me. Expiry Date\n* # Tax Id No. (TIN) For tax resident of other country than India\n#In case Tax Identification Number is not available, kindly provide functional equivalent^\n^To also include USA, where the individual is a citizen/ green card holder of USA\nChoice of Correspondence Indian Address Overseas Address (If not ticked, correspondence will be sent to Overseas address)\n(For existing customers, address given below will be updated for the primary applicant in all accounts held with the bank)\nPlease mention a prominent landmark to ensure that the deliverables reach you\n*Address Type Please tick if Address for Tax purpose is other than correspondence address for Tax purpose"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; PDF created 2019; no printed edition date. The current version has not been verified."
+                },
+                {
+                  "code": "conditional",
+                  "text": "The form states a condition: For tax resident of other country than India"
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            },
+            {
+              "id": "nri_place_of_birth",
+              "title": "City and country of birth",
+              "kind": "information",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": "City of birth",
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": "The HDFC Bank form has a field for this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": null,
+              "citations": [
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 1,
+                  "page_end": null,
+                  "section": "C) FIRST APPLICANT'S DETAILS",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "Fields: *Gender Married Unmarried Other Male Female Transgender Minor | Applicant Type Date of Birth *Marital Status | NRI PIO/OCI Foreign National Resident (Returning NRI)* *Spouse's Name | *Residential | DD-MM-YYYY | *PERSONAL DETAILS | %PAN No. Aadhaar No. *Passport No. | %If PAN not available, kindly attach Form 60 Mother's Name | *Mother's Maiden Name | *Father's Name | ^*Country / ies of Tax Residency (Outside India) | *City of birth | *Country of birth | *Tax Id No. (TIN) Type | *Nationality | Attached Address Proof of | *OVERSEAS ADDRESS | Flat No & | *Name of Proof of Address | Passport Driving License | Bldg. Name | UID (Aadhar) Voter ID | NREGA Job Card | Landmark | Others ___ | Country PIN Code | *Address Type for Tax purpose | *INDIAN ADDRESS *CONTACT DETAILS | PIN Code | INDIA | I confirm that I do not have any Indian Address | *E-mail ID | Country code | Area code | (OTP will be sent to this mobile number) | *Mobile No. | SMS E-MAIL Tel (R) | Please register me for A) Insta Alert"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; PDF created 2019; no printed edition date. The current version has not been verified."
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            },
+            {
+              "id": "nri_mothers_maiden_name",
+              "title": "Mother's maiden name",
+              "kind": "information",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": "Mother's Maiden Name",
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": "The HDFC Bank form has a field for this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": null,
+              "citations": [
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 1,
+                  "page_end": null,
+                  "section": "C) FIRST APPLICANT'S DETAILS",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "Fields: *Gender Married Unmarried Other Male Female Transgender Minor | Applicant Type Date of Birth *Marital Status | NRI PIO/OCI Foreign National Resident (Returning NRI)* *Spouse's Name | *Residential | DD-MM-YYYY | *PERSONAL DETAILS | %PAN No. Aadhaar No. *Passport No. | %If PAN not available, kindly attach Form 60 Mother's Name | *Mother's Maiden Name | *Father's Name | ^*Country / ies of Tax Residency (Outside India) | *City of birth | *Country of birth | *Tax Id No. (TIN) Type | *Nationality | Attached Address Proof of | *OVERSEAS ADDRESS | Flat No & | *Name of Proof of Address | Passport Driving License | Bldg. Name | UID (Aadhar) Voter ID | NREGA Job Card | Landmark | Others ___ | Country PIN Code | *Address Type for Tax purpose | *INDIAN ADDRESS *CONTACT DETAILS | PIN Code | INDIA | I confirm that I do not have any Indian Address | *E-mail ID | Country code | Area code | (OTP will be sent to this mobile number) | *Mobile No. | SMS E-MAIL Tel (R) | Please register me for A) Insta Alert"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; PDF created 2019; no printed edition date. The current version has not been verified."
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            },
+            {
+              "id": "nri_overseas_address",
+              "title": "Overseas address",
+              "kind": "information",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": "OVERSEAS ADDRESS",
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": "The HDFC Bank form has a field for this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": null,
+              "citations": [
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 1,
+                  "page_end": null,
+                  "section": "C) FIRST APPLICANT'S DETAILS",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "Fields: *Gender Married Unmarried Other Male Female Transgender Minor | Applicant Type Date of Birth *Marital Status | NRI PIO/OCI Foreign National Resident (Returning NRI)* *Spouse's Name | *Residential | DD-MM-YYYY | *PERSONAL DETAILS | %PAN No. Aadhaar No. *Passport No. | %If PAN not available, kindly attach Form 60 Mother's Name | *Mother's Maiden Name | *Father's Name | ^*Country / ies of Tax Residency (Outside India) | *City of birth | *Country of birth | *Tax Id No. (TIN) Type | *Nationality | Attached Address Proof of | *OVERSEAS ADDRESS | Flat No & | *Name of Proof of Address | Passport Driving License | Bldg. Name | UID (Aadhar) Voter ID | NREGA Job Card | Landmark | Others ___ | Country PIN Code | *Address Type for Tax purpose | *INDIAN ADDRESS *CONTACT DETAILS | PIN Code | INDIA | I confirm that I do not have any Indian Address | *E-mail ID | Country code | Area code | (OTP will be sent to this mobile number) | *Mobile No. | SMS E-MAIL Tel (R) | Please register me for A) Insta Alert"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; PDF created 2019; no printed edition date. The current version has not been verified."
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            },
+            {
+              "id": "nri_email",
+              "title": "E-mail address",
+              "kind": "information",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": "E-mail ID",
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": "The HDFC Bank form has a field for this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": null,
+              "citations": [
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 1,
+                  "page_end": null,
+                  "section": "C) FIRST APPLICANT'S DETAILS",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "Fields: *Gender Married Unmarried Other Male Female Transgender Minor | Applicant Type Date of Birth *Marital Status | NRI PIO/OCI Foreign National Resident (Returning NRI)* *Spouse's Name | *Residential | DD-MM-YYYY | *PERSONAL DETAILS | %PAN No. Aadhaar No. *Passport No. | %If PAN not available, kindly attach Form 60 Mother's Name | *Mother's Maiden Name | *Father's Name | ^*Country / ies of Tax Residency (Outside India) | *City of birth | *Country of birth | *Tax Id No. (TIN) Type | *Nationality | Attached Address Proof of | *OVERSEAS ADDRESS | Flat No & | *Name of Proof of Address | Passport Driving License | Bldg. Name | UID (Aadhar) Voter ID | NREGA Job Card | Landmark | Others ___ | Country PIN Code | *Address Type for Tax purpose | *INDIAN ADDRESS *CONTACT DETAILS | PIN Code | INDIA | I confirm that I do not have any Indian Address | *E-mail ID | Country code | Area code | (OTP will be sent to this mobile number) | *Mobile No. | SMS E-MAIL Tel (R) | Please register me for A) Insta Alert"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; PDF created 2019; no printed edition date. The current version has not been verified."
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            },
+            {
+              "id": "nri_mobile",
+              "title": "Mobile number",
+              "kind": "information",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": "Mobile No.",
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": "The HDFC Bank form has a field for this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": null,
+              "citations": [
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 1,
+                  "page_end": null,
+                  "section": "C) FIRST APPLICANT'S DETAILS",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "Fields: *Gender Married Unmarried Other Male Female Transgender Minor | Applicant Type Date of Birth *Marital Status | NRI PIO/OCI Foreign National Resident (Returning NRI)* *Spouse's Name | *Residential | DD-MM-YYYY | *PERSONAL DETAILS | %PAN No. Aadhaar No. *Passport No. | %If PAN not available, kindly attach Form 60 Mother's Name | *Mother's Maiden Name | *Father's Name | ^*Country / ies of Tax Residency (Outside India) | *City of birth | *Country of birth | *Tax Id No. (TIN) Type | *Nationality | Attached Address Proof of | *OVERSEAS ADDRESS | Flat No & | *Name of Proof of Address | Passport Driving License | Bldg. Name | UID (Aadhar) Voter ID | NREGA Job Card | Landmark | Others ___ | Country PIN Code | *Address Type for Tax purpose | *INDIAN ADDRESS *CONTACT DETAILS | PIN Code | INDIA | I confirm that I do not have any Indian Address | *E-mail ID | Country code | Area code | (OTP will be sent to this mobile number) | *Mobile No. | SMS E-MAIL Tel (R) | Please register me for A) Insta Alert"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; PDF created 2019; no printed edition date. The current version has not been verified."
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            },
+            {
+              "id": "nri_nominee",
+              "title": "Nominee details, if you choose to make a nomination",
+              "kind": "information",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": "Yes, I/ We wish to nominate",
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": "Yes, I/ We wish to nominate",
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": "The HDFC Bank form has a field for this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": null,
+              "citations": [
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 3,
+                  "page_end": null,
+                  "section": "G) NOMINATION (DA1): NOMINATION WILL BE APPLICABLE FOR ALL THE ACCOUNTS OPENED WITH THIS APPLICATION",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "G) NOMINATION (DA1): NOMINATION WILL BE APPLICABLE FOR ALL THE ACCOUNTS OPENED WITH THIS APPLICATION\nYes, I/ We wish to nominate (as per details below) No, I/We declare that I do not wish to make a nomination in my/our account.\nNomination under Section 45 ZA of the Banking Regulation Act, 1949 and Rule 2(1) of the Banking Companies (Nomination) Rules 1985 in the respect of Bank deposits. I / We nominate the following person to whom in the event of my/our/minor's death the amount of deposit in the account, particulars whereof are given below, may be returned by HDFC BANK Ltd. by the account opening branch.\nPlease mention a prominent landmark to ensure that the deliverables reach you\nAs nominee is a minor on this date, I / We appoint the below to receive the amount of the deposit in the account on behalf of the nominee in the event of my / our / minor's death during the minority of the nominee."
+                },
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 3,
+                  "page_end": null,
+                  "section": "G) NOMINATION (DA1): NOMINATION WILL BE APPLICABLE FOR ALL THE ACCOUNTS OPENED WITH THIS APPLICATION",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "Fields: Page 3 of 6 | INCAPITALLETTERSONLY Nominee Name | *Company Name / Flat | No & Bldg. Name | *Road No./Name | *Landmark | *City *State | Country PIN Code | *Tel (R) Relationship with Depositor | DDMMYYYY Date of Birth of Nominee | nominee is not | Name | Age | Leave out if | a minor | Address | Witness 1 Name : | *Witness 1 Signature : | Address : | Place : | Date | Witness 2 Name : | *Witness 2 Signature :"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; PDF created 2019; no printed edition date. The current version has not been verified."
+                },
+                {
+                  "code": "conditional",
+                  "text": "The form states a condition: Yes, I/ We wish to nominate"
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            },
+            {
+              "id": "nri_second_applicant",
+              "title": "Details of the second applicant",
+              "kind": "information",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": ["Applies if the account is held jointly."],
+              "source_wording": "D) SECOND APPLICANT'S DETAILS / GUARDIAN (in case of minor account)",
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": "The HDFC Bank form has a field for this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": null,
+              "citations": [
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 2,
+                  "page_end": null,
+                  "section": "D) SECOND APPLICANT'S DETAILS / GUARDIAN (in case of minor account)",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "D) SECOND APPLICANT'S DETAILS / GUARDIAN (in case of minor account)\nRelated Person Type Guardian of Minor Nominee Assignee Authorized Representative Beneficial Owner Beneficiary\nI Confirm that I do not have any existing customer ID/ Customer IDs apart from the one mentioned above. In case found otherwise, Bank *Passport Existing Cust Id reserves the right to consolidate the customer IDs as it may decide without any prior notice to me. Expiry Date\n* # Tax Id No. (TIN) For tax resident of other country than India\n#In case Tax Identification Number is not available, kindly provide functional equivalent^\n^To also include USA, where the individual is a citizen/ green card holder of USA\nChoice of Correspondence Indian Address Overseas Address (If not ticked, correspondence will be sent to Overseas address)\n(For existing customers, address given below will be updated for the primary applicant in all accounts held with the bank)\nPlease mention a prominent landmark to ensure that the deliverables reach you\n*Address Type Please tick if Address for Tax purpose is other than correspondence address for Tax purpose"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; PDF created 2019; no printed edition date. The current version has not been verified."
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            },
+            {
+              "id": "nri_nre_account_choice",
+              "title": "Your choice of NRE Savings or NRE Current",
+              "kind": "information",
+              "classification": "form_indicated",
+              "classification_label": "Asked for on the HDFC Bank form",
+              "condition": null,
+              "condition_note": null,
+              "applies_if": [],
+              "source_wording": "NRE Savings NRE Current Select any one",
+              "approximate_reading": null,
+              "uncertainty_warning": null,
+              "establishes": "The HDFC Bank form has a field for this.",
+              "does_not_establish": "This shows what the form copy asks for. It does not confirm HDFC Bank's current requirements, and it does not mean the item is mandatory.",
+              "note": null,
+              "citations": [
+                {
+                  "document_key": "hdfc_nri_account_opening",
+                  "document_title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+                  "page": 3,
+                  "page_end": null,
+                  "section": "H) NRE ACCOUNT OPENING DETAILS",
+                  "text_reliability": "native",
+                  "extraction_method": "text",
+                  "date_basis": "form copy; PDF created 2019; no printed edition date",
+                  "quotable": true,
+                  "basis": true,
+                  "passage": "Fields: NRE Savings NRE Current Select any one | NRE ACCOUNT NRO ACCOUNT | Initial Payment Amount | Cheque * FCY Cash (only in person) DD Payment mode | Cheque / DD No. Dated Bank/Branch Name | AMB To Be Currency Other ___ Maintained"
+                }
+              ],
+              "related_citations": [],
+              "caveats": [
+                {
+                  "code": "dated_source",
+                  "text": "Source: form copy; PDF created 2019; no printed edition date. The current version has not been verified."
+                }
+              ],
+              "asked": false,
+              "fallback": null
+            }
+          ],
+          "not_confirmed": []
+        },
+        "sources": [
+          {
+            "document_key": "hdfc_nri_account_opening",
+            "title": "Account Cum Term Deposit Opening Form for Non Resident - Individual Customers",
+            "date_basis": "form copy; PDF created 2019; no printed edition date",
+            "scanned": false
+          }
+        ],
+        "coverage_note": "This checklist is built only from the HDFC Bank form copies held in this prototype. It shows what those forms ask for; it is not a confirmed statement of HDFC Bank's current requirements, not an official HDFC Bank document and not a KYC approval."
+      },
+      "fallback": "I couldn't find this information in the available HDFC Bank documents. I don't want to give you an incorrect answer.",
+      "explanation": null,
+      "suggestions": [],
+      "technical_message": null,
+      "notice": "These answers are based on HDFC Bank documents held in this prototype. The documents are dated, and their current validity has not been independently verified. Please confirm the requirements with HDFC Bank before you apply.",
+      "active_scenario": null,
+      "scenarios": []
+    }
+  }
+}

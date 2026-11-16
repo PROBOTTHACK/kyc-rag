@@ -8,7 +8,7 @@ export function NotFoundPage() {
       </h1>
       <p className="mt-2 text-slate-600">
         This address does not match any page.{" "}
-        <Link to="/" className="underline">
+        <Link to="/legacy" className="underline">
           Go to the dashboard
         </Link>
         .
