@@ -175,7 +175,7 @@ def test_check_reply_accepts_rephrased_facts() -> None:
     a = answer_after(*NRI_SAVINGS)
     fact_text = json.dumps(facts(a))
     ok = (
-        "You'll need a recent photo for the first applicant, plus proof of address. "
+        "The form asks for a recent photo for the first applicant, plus proof of address. "
         "There are 5 documents."
     )
     assert check_reply(ok, fact_text) is None
@@ -203,8 +203,8 @@ async def test_the_service_stores_the_voice_reply_and_never_sends_blocked_text()
 
 
 def test_numbers_written_as_words_must_come_from_the_facts() -> None:
-    assert check_reply("You need four documents.", '{"documents_count":4}') is None
-    assert check_reply("You need seven documents.", '{"documents_count":4}') is not None
+    assert check_reply("The form lists four documents.", '{"documents_count":4}') is None
+    assert check_reply("The form lists seven documents.", '{"documents_count":4}') is not None
     assert check_reply("An account held by one person.", "{}") is None
 
 
@@ -271,3 +271,48 @@ def test_the_voice_is_told_the_situation_of_the_turn() -> None:
     assert facts(clarify)["situation"] == "choose_account"
     separate = answer_after(*NRI_SAVINGS, {"message": "I also want to open an account for my wife"})
     assert facts(separate)["situation"] == "new_account"
+
+
+# --- A7.6 live findings (replies a live model produced that the check let through) ---------
+
+LLP_FACTS = json.dumps(
+    {
+        "situation": "checklist",
+        "customer_answers": {"account_type": "Current account", "customer_category": "LLP"},
+        "checklist": {
+            "documents_count": 1,
+            "details_count": 4,
+            "documents_to_bring": [{"title": "Form 60/61, for existing customers"}],
+            "could_not_be_confirmed": [{"title": "A copy of the organisation's PAN card"}],
+        },
+    }
+)
+
+
+@pytest.mark.parametrize(
+    "live",
+    [
+        "For a Current account for an LLP you’ll need to bring one document and fill in four "
+        "details.",
+        "For a Current account for an LLP the only document we need is Form 60/61 (for "
+        "existing customers).",
+        "You'll need one document and four details.",
+        "You will need one document.",
+        "Do you have any questions about those requirements?",
+        "The copy of the organisation's PAN card isn't listed as a confirmed requirement.",
+        "Sure, a joint account for an LLP works the same way.",
+    ],
+)
+def test_live_obligation_and_unsupported_profile_wording_is_rejected(live: str) -> None:
+    assert check_reply(live, LLP_FACTS) is not None
+
+
+def test_the_form_asks_for_wording_is_accepted() -> None:
+    ok = "For a current account for an LLP, the form asks for one document and four details."
+    assert check_reply(ok, LLP_FACTS) is None
+
+
+def test_every_forbidden_match_is_checked_not_only_the_first() -> None:
+    facts_with_required = json.dumps({"notes": ["Required for minors"]})
+    assert check_reply("Required for minors.", facts_with_required) is None
+    assert check_reply("Required for minors. You'll need it too.", facts_with_required) is not None

@@ -90,9 +90,13 @@ def test_the_strict_audit_is_stricter_than_check_reply() -> None:
     assert strict_audit(clean, FACTS) == []
     for reply, flag in (
         ("You should bring it.", "obligation"),
-        ("You need a passport copy.", "obligation"),
         ("Also bring a rent agreement.", "rent"),
+    ):
+        assert check_reply(reply, FACTS) is None  # the product check lets these through
+        assert any(flag in f for f in strict_audit(reply, FACTS)), reply
+    for reply, flag in (
+        ("You need a passport copy.", "obligation"),  # caught by both since A7.6
         ("- Electricity bill from last month", "bullet"),
     ):
-        assert check_reply(reply, FACTS) is None or flag == "bullet"
+        assert check_reply(reply, FACTS) is not None
         assert any(flag in f for f in strict_audit(reply, FACTS)), reply

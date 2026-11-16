@@ -31,7 +31,7 @@ from app.llm.provider import LLMProvider, LLMRequest, generate_validated
 log = logging.getLogger(__name__)
 
 PROMPT_ID = "assistant_voice"
-PROMPT_VERSION = "v1"
+PROMPT_VERSION = "v2"  # v2 (A7.6): no "need"/"requirement" wording for items
 MAX_REPLY_CHARS = 1200
 MAX_MESSAGE_CHARS = 600
 
@@ -44,6 +44,8 @@ Rules (all of them, always):
 date, fee, rule or general knowledge that is not in the facts. You may leave details out.
 - Never say anything is mandatory, required, compulsory or a must, and never approve, reject, \
 assess eligibility or promise an outcome. Never claim what the documents "only" cover.
+- Never say the customer "needs" an item or call items "requirements": say what the HDFC Bank \
+form asks for ("the form asks for one document and four details").
 - Keep your reasoning brief.
 - If the facts include a question, end your reply with that question (you may rephrase it). \
 Do not list the answer options: they are shown as buttons.
@@ -159,8 +161,12 @@ def facts(answer: AssistantAnswer) -> dict[str, Any]:
 # --- the deterministic check ---------------------------------------------------------------------
 
 FORBIDDEN = re.compile(
-    r"\b(mandatory|compulsory|required|requirement[s]?\s+(?:is|are)|must|approv\w*|reject\w*|"
-    r"eligib\w*|guarantee\w*|qualif\w*)\b",
+    r"\b(mandatory|compulsory|required|requirements?|must|approv\w*|reject\w*|"
+    r"eligib\w*|guarantee\w*|qualif\w*|"
+    # "You'll need to bring one document": the form ASKS FOR items; saying the customer needs
+    # them strengthens the classification (A7.6 live finding; owner decision 2026-11-16).
+    r"you(?:'|’)?ll need|you (?:will |would )?need|we need|"
+    r"need(?:s|ed)? to (?:bring|provide|submit|fill|attach|sign|give|show|complete|have))\b",
     re.IGNORECASE,
 )
 # "The forms only include / cover / allow ...": a claim about the whole document set that the
@@ -210,6 +216,9 @@ DOCUMENT_TERMS = (
     "kyc", "id proof", "identity", "proof", "copy", "copies", "attested", "notarised",
     "salary slip", "income", "tax", "itr", "cheque", "nominee", "guardian",
 )  # fmt: skip
+# Profile words must also come from the facts: "a joint account for a company works the same
+# way" asserted a holding the company's answer never mentions (A7.6 live finding).
+PROFILE_TERMS = ("joint", "minor", "nre", "nro", "fcnr", "rfc")
 
 
 def check_reply(text: str, fact_text: str) -> str | None:
@@ -223,9 +232,8 @@ def check_reply(text: str, fact_text: str) -> str | None:
     if EXCLUSIVE_CLAIM.search(text):
         return "a claim about what the documents only cover"
     lowered_facts = fact_text.lower()
-    found = FORBIDDEN.search(text)
-    if found and found.group(0).lower() not in lowered_facts:
-        return "approval or obligation wording"
+    if any(m.group(0).lower() not in lowered_facts for m in FORBIDDEN.finditer(text)):
+        return "approval or obligation wording"  # every match, not only the first
     fact_numbers = set(NUMBER.findall(fact_text))
     used = NUMBER.findall(text) + [
         WORD_NUMBERS[w.lower()] for w in WORD_NUMBER.findall(text) if w.lower() != "one"
@@ -237,6 +245,9 @@ def check_reply(text: str, fact_text: str) -> str | None:
         # Whole words in the reply; any occurrence in the facts ("photo" in "photograph").
         if re.search(rf"\b{re.escape(term)}\b", lowered) and term not in lowered_facts:
             return f"a document term not in the facts ({term})"
+    for term in PROFILE_TERMS:
+        if re.search(rf"\b{term}\b", lowered) and term not in lowered_facts:
+            return f"a profile term not in the facts ({term})"
     return None
 
 
