@@ -108,8 +108,31 @@ def search(
     if not query.strip():
         raise ValueError("query is empty")
     vector = embedder.embed_query(query)
-    points = store.search(vector, top_k, build_filter(filters or SearchFilters()))
+    points = _ranked(store, vector, top_k, build_filter(filters or SearchFilters()))
     return [
         SearchHit(rank=i + 1, score=float(p.score), chunk_id=str(p.id), payload=p.payload or {})
         for i, p in enumerate(points)
     ]
+
+
+TIE_MARGIN = 5  # extra candidates fetched so a tie at the k-th score is seen whole
+MAX_TIE_REFETCHES = 2  # bounded (CLAUDE.md principle 9); each refetch doubles the limit
+
+
+def _ranked(store: ChunkStore, vector: Any, top_k: int, flt: qm.Filter) -> list[Any]:
+    """Qdrant's top hits in a deterministic order: score descending, then chunk id (K8, A7.5).
+
+    Qdrant has no secondary sort key, so chunks with identical scores (e.g. identical text
+    in two forms) came back in an order set by its internal index layout, which can change
+    when the collection is rebuilt or optimised. A few extra candidates are fetched so that
+    a tie straddling the k-th place is ranked as a whole, matching the tie-breaks of BM25,
+    RRF fusion and reranking. If the tie still reaches the last fetched candidate, the
+    limit doubles, at most `MAX_TIE_REFETCHES` times."""
+    limit = top_k + TIE_MARGIN
+    points = store.search(vector, limit, flt)
+    for _ in range(MAX_TIE_REFETCHES):
+        if top_k < 1 or len(points) < limit or points[-1].score != points[top_k - 1].score:
+            break
+        limit *= 2
+        points = store.search(vector, limit, flt)
+    return sorted(points, key=lambda p: (-p.score, str(p.id)))[:top_k]
