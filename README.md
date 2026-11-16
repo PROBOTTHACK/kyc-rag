@@ -53,7 +53,7 @@ The final evaluation, measured on the real stack: PostgreSQL, Qdrant, the stored
 **Read this first:**
 - This is a prototype, **not release-ready**.
 - **The 30-item human citation review has not been signed off.** Citations are verified **automatically**, not by a person.
-- **One hard threshold is missed:** deterministic latency, p95 899 ms against 750 ms (867 ms at A7.4, 948 ms in the fresh clone).
+- **Latency (fixed after A7):** the deterministic p95 missed its 750 ms target at A7 (867–948 ms). Since the catalogue titles' query vectors are stored (identical rankings on all 972 assistant searches), p95 is **389 ms**.
 
 Full report: [`docs/assistant/A7_CLOSURE_REPORT.md`](docs/assistant/A7_CLOSURE_REPORT.md).
 
@@ -82,7 +82,7 @@ Full report: [`docs/assistant/A7_CLOSURE_REPORT.md`](docs/assistant/A7_CLOSURE_R
 | Cross-session reads / unknown ids answered 404 / id collisions in 10,000 | **0** / **20/20** / **0** | as listed |
 | Idempotent replay, 409 on key reuse, 10 concurrent duplicates → 1 stored turn | **pass** | pass |
 | Failure handling: store down, LLM error / 429 / timeout, expiry 410, database down 503 | **pass** | pass |
-| **Deterministic latency, 500 turns** | p50 66 ms, **p95 899 ms**, p99 977 ms | p95 ≤ 750 ms: **missed** |
+| **Deterministic latency, 500 turns** | p50 73 ms, **p95 389 ms**, p99 441 ms (stored query vectors; at A7: p95 899 ms, missed) | p95 ≤ 750 ms: **met** |
 
 ### Browser (Chrome 157, headless)
 | Width | 22-step main flow | Keyboard only | Reduced motion | Layout | Console errors |
@@ -125,7 +125,7 @@ Final validation on this branch (A7.8, commit `f9da526` plus the closure documen
 | Backend integration tests (`make test-integration`, real Postgres, Qdrant, Redis) | **519 passed**, 0 failed |
 | Frontend tests (`make web-test`) | **197 passed** |
 | `make lint` (ruff, black, mypy), `make check-schema`, `make web-lint`, typecheck, `make web-build`, `check:api` | all pass |
-| A7 deterministic suites (`make a7-eval`) | all pass except **reliability: the latency target only** (all functional checks pass) |
+| A7 deterministic suites (`make a7-eval`) | all pass. At A7 closure, reliability missed only the latency target; it passes since the stored query vectors |
 
 **Fresh-clone reproduction (A7.7):** a new clone on an isolated stack, from `requirements.lock`, `npm ci` and the owner's 9 PDFs (9/9 SHA-256 match):
 - **identical results:** the same 456 chunks (ids and text), checklist item ids, 1,332 citations, conversation, memory, scenario and privacy results, and retrieval scores;

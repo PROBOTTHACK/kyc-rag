@@ -36,7 +36,7 @@ PHONY_A7 := a7-profiles a7-eval a7-live-dry a7-live a7-browser a7-demo
 .PHONY: api test test-integration lint fmt openapi
 .PHONY: web web-install web-test web-lint web-build web-types
 .PHONY: purge purge-dry check-workflow demo demo-live
-.PHONY: assistant-eval
+.PHONY: assistant-eval assistant-vectors
 .PHONY: nli-check eval-claims eval-claims-select test-nli
 
 # Printed by make itself ($(info)), so it needs no shell and looks the same everywhere.
@@ -200,6 +200,11 @@ a7-browser:
 
 a7-demo:
 	node scripts/browser/a7_browser.mjs demo
+
+# The assistant's stored query vectors (catalogue titles; app/assistant/query_vectors.py).
+# Regenerate after a catalogue title or the embedding model changes; needs the model locally.
+assistant-vectors:
+	cd $(BACKEND) && $(PY) -m app.assistant.query_vectors --write && $(PY) -m app.assistant.query_vectors --check
 
 # A2 assistant: HDFC-only retrieval evaluation (data/eval/assistant_retrieval.jsonl). Read-only.
 # MODE=dense (default) | bm25 | hybrid | all; `all` also rewrites the committed per-case record.

@@ -163,6 +163,10 @@ class Settings(BaseSettings):
     RATE_LIMIT_GROQ_TPM: int = Field(default=6000, gt=0)
     # Assistant conversation memory: the token budget for the conversation context given
     # to the LLM (recent turns + rolling summary), and the most recent turns kept verbatim.
+    # The assistant's retrieval queries are catalogue titles only: serve their stored vectors
+    # (app/assistant/query_vectors.json) instead of loading the embedding model at runtime.
+    # Identical results; false = embed live (loads torch, ~490 MB).
+    ASSISTANT_QUERY_VECTORS: bool = True
     ASSISTANT_CONTEXT_TOKENS: int = Field(default=1500, ge=200, le=32000)
     ASSISTANT_RECENT_TURNS: int = Field(default=10, ge=1, le=100)
     # Longest a call may wait for rate-limit capacity before failing (transient).

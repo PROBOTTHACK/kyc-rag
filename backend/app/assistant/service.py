@@ -362,8 +362,17 @@ class LazyChecklist:
                 sessions = create_sync_sessionmaker(self._engine)
                 retriever: AssistantRetriever | None
                 try:
+                    embedder = None
+                    if self._settings.ASSISTANT_QUERY_VECTORS:
+                        # The only texts the assistant embeds are catalogue titles: serve the
+                        # stored vectors instead of loading torch (query_vectors.py).
+                        from app.assistant.query_vectors import PrecomputedEmbedder
+
+                        embedder = PrecomputedEmbedder.for_settings(self._settings)
                     retriever = AssistantRetriever(
-                        retriever_from_settings(self._settings, sessions=sessions)
+                        retriever_from_settings(
+                            self._settings, sessions=sessions, embedder=embedder
+                        )
                     )
                 except Exception as exc:  # noqa: BLE001 - supplementary references only
                     log.warning("assistant retriever unavailable: %s", type(exc).__name__)
