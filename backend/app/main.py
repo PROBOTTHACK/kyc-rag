@@ -18,6 +18,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.api import errors
+from app.api.v1 import health
 from app.api.v1.router import api_router
 from app.api.v1.schemas import add_extra_schemas
 from app.api.v2.assistant import router as assistant_router
@@ -57,13 +58,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             "redis": redis_check(redis),
             "qdrant": qdrant_check(qdrant),
         }
-    factory: RuntimeFactory | None = getattr(app.state, "runtime_factory", None)
-    if factory is None:
-        from app.workflow.runtime import build_runtime
+    # The preserved legacy workflow (M3–M5, /api/v1/sessions) is built only when its routes
+    # are mounted. LEGACY_API_ENABLED=false (a small deployment) skips it entirely: its
+    # retriever embeds free text, which would load the embedding model.
+    workflow: WorkflowService | None = None
+    if settings.LEGACY_API_ENABLED:
+        factory: RuntimeFactory | None = getattr(app.state, "runtime_factory", None)
+        if factory is None:
+            from app.workflow.runtime import build_runtime
 
-        factory = build_runtime
-    workflow = WorkflowService(await factory(settings, app.state.sessionmaker))
-    app.state.workflow = workflow
+            factory = build_runtime
+        workflow = WorkflowService(await factory(settings, app.state.sessionmaker))
+        app.state.workflow = workflow
     # A5: the account opening assistant (tests may pre-set a fake service).
     checklist = None
     if not hasattr(app.state, "assistant"):
@@ -81,14 +87,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             recent_turns=settings.ASSISTANT_RECENT_TURNS,
             tracer=tracer_from_settings(settings),
         )
-    try:
-        await workflow.log_stale_leases()
-    except Exception as exc:  # noqa: BLE001 - startup must not fail on a reporting query
-        log.warning("could not check stale workflow leases: %s", type(exc).__name__)
+    if workflow is not None:
+        try:
+            await workflow.log_stale_leases()
+        except Exception as exc:  # noqa: BLE001 - startup must not fail on a reporting query
+            log.warning("could not check stale workflow leases: %s", type(exc).__name__)
     try:
         yield
     finally:
-        await workflow.shutdown()
+        if workflow is not None:
+            await workflow.shutdown()
         if checklist is not None:
             checklist.close()
         await qdrant.close()
@@ -122,7 +130,10 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.include_router(api_router, prefix="/api/v1")
+    if settings.LEGACY_API_ENABLED:
+        app.include_router(api_router, prefix="/api/v1")
+    else:  # health stays: it is the deployment's health check
+        app.include_router(health.router, prefix="/api/v1")
     app.include_router(assistant_router, prefix="/api/v2")
     _publish_extra_schemas(app)
     return app

@@ -350,11 +350,11 @@ async def reliability(ctx: Context) -> dict[str, Any]:
         q = statistics.quantiles(ts, n=20)[18] if len(ts) > 1 else ts[0]
         md += f"| {kind} | {len(ts)} | {statistics.median(ts):.0f} | {q:.0f} |\n"
     md += (
-        "\nChecklist answers dominate the tail: building an NRI checklist embeds one retrieval "
-        "query per catalogue item (18 sequential `embed_query` calls, about 37 ms each on this "
-        "CPU) to find supplementary citations. A recommended, not applied, fix is to batch or "
-        "cache those query embeddings (the architecture is frozen in A7 except for defects; a "
-        "missed latency target is reported, not hidden).\n"
+        "\nChecklist answers are the slowest kind: an NRI checklist runs one supplementary "
+        "retrieval per catalogue item. Since 2026-11-16 the query vectors of the catalogue "
+        "titles are stored (`app/assistant/query_vectors.py`; identical vectors and rankings), "
+        "so no embedding model runs per turn. Before that, 18 sequential `embed_query` calls "
+        "(about 37 ms each) put p95 at 867–948 ms, above the 750 ms target.\n"
     )
     md += f"\n- Result: **{'PASS' if passed else 'FAIL'}**.\n"
     record = {k: {"ok": v[0], "detail": v[1]} for k, v in checks.items()}
