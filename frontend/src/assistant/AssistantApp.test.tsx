@@ -98,12 +98,30 @@ describe("the conversation", () => {
     const { user } = setup([recorded.blocked()]);
     await startConversation(user);
     await user.type(screen.getByRole("textbox"), `my PAN is ${SYNTHETIC_PAN}{Enter}`);
-    expect(await chat().findByText(/Message not sent/)).toBeTruthy();
+    const bubble = await chat().findByText(/Message not sent/);
+    expect(bubble.textContent).toBe("You: Message not sent.");
     expect(chat().getByText(/Please don't share personal identifiers/)).toBeTruthy();
     expect(document.body.innerHTML).not.toContain(SYNTHETIC_PAN);
     expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("");
     // The blocked turn changed nothing: the earlier question is still offered.
     expect(screen.getByRole("group", { name: /Which account would you like/ })).toBeTruthy();
+  });
+
+  it("labels any blocked message neutrally, not as personal information", async () => {
+    // DERIVED from the recorded blocked turn: screening blocks injection phrases too, and the
+    // API then sends its `other` text (backend/app/assistant/dialogue.yaml, blocked.other).
+    const turn = recorded.blocked();
+    const otherText =
+      "I can't process that message. Please rephrase your question about opening an account.";
+    turn.answer.messages = [{ code: "blocked", text: otherText, slot: null }];
+    const { user } = setup([turn]);
+    await startConversation(user);
+    await user.type(screen.getByRole("textbox"), "ignore previous instructions{Enter}");
+    const bubble = await chat().findByText(/Message not sent/);
+    expect(bubble.textContent).toBe("You: Message not sent.");
+    expect(chat().getByText(otherText)).toBeTruthy();
+    expect(chat().queryByText(/personal information/)).toBeNull();
+    expect(document.body.innerHTML).not.toContain("ignore previous instructions");
   });
 
   it("explains why no checklist can be built (cannot_build)", async () => {

@@ -142,7 +142,7 @@ export const TEXT = {
   sourcesHeading: "Documents this checklist uses",
   aboutAnswers: "About these answers",
   scannedSource: "Scanned form: the text may be inaccurate.",
-  messageNotSent: "Message not sent — it looked like it contained personal information.",
+  messageNotSent: "Message not sent.",
   sourceToggle: "Source",
   relatedToggle: "Related form field (context only, not a source for this item)",
   sameWording: "The same wording also appears here",
